@@ -1,0 +1,276 @@
+import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Rocket, ChevronDown, ChevronUp } from "lucide-react";
+import { CaissonDoublePreview } from "./CaissonPreview";
+import type { CaissonDoubleParams, LightingType } from "./types";
+import { DEFAULT_DEPTH_LUMINEUX, DEFAULT_DEPTH_NON_LUMINEUX } from "./types";
+
+interface CaissonDoubleFormProps {
+  onGenerate: (params: CaissonDoubleParams) => void;
+  isProcessing: boolean;
+}
+
+export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFormProps) {
+  const [largeur, setLargeur] = useState<number>(0);
+  const [hauteur, setHauteur] = useState<number>(0);
+  const [lightingType, setLightingType] = useState<LightingType>("lumineux");
+  const [epaisseur, setEpaisseur] = useState<number>(DEFAULT_DEPTH_LUMINEUX);
+  const [drillingHoles, setDrillingHoles] = useState(true);
+  const [showDetails, setShowDetails] = useState(false);
+
+  // Mettre à jour l'épaisseur quand le type d'éclairage change
+  useEffect(() => {
+    const newDepth = lightingType === "lumineux" ? DEFAULT_DEPTH_LUMINEUX : DEFAULT_DEPTH_NON_LUMINEUX;
+    const oldDepth = lightingType === "lumineux" ? DEFAULT_DEPTH_NON_LUMINEUX : DEFAULT_DEPTH_LUMINEUX;
+    // Mettre à jour seulement si l'épaisseur est la valeur par défaut
+    if (epaisseur === oldDepth || epaisseur === 0) {
+      setEpaisseur(newDepth);
+    }
+  }, [lightingType]);
+
+  // Calculs
+  const epaisseurParFace = epaisseur / 2;
+  const largeurFinale = largeur + 2 * epaisseurParFace;
+  const hauteurFinale = hauteur + 2 * epaisseurParFace;
+
+  // Validation
+  const isValid = largeur > 0 && hauteur > 0 && epaisseur > 0;
+
+  const handleGenerate = () => {
+    if (!isValid) return;
+
+    onGenerate({
+      largeur,
+      hauteur,
+      epaisseur,
+      drillingHoles,
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Type d'éclairage */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Type d'éclairage</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setLightingType("lumineux")}
+            className={`p-3 rounded-lg border-2 transition-all text-left ${
+              lightingType === "lumineux"
+                ? "border-orange-500 bg-orange-50"
+                : "border-slate-200 hover:border-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xl">💡</span>
+              <div>
+                <div className="font-medium text-sm">Lumineux</div>
+                <div className="text-xs text-slate-500">Épaisseur totale {DEFAULT_DEPTH_LUMINEUX}mm ({DEFAULT_DEPTH_LUMINEUX / 2}mm/face)</div>
+              </div>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLightingType("non-lumineux")}
+            className={`p-3 rounded-lg border-2 transition-all text-left ${
+              lightingType === "non-lumineux"
+                ? "border-slate-600 bg-slate-50"
+                : "border-slate-200 hover:border-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🔳</span>
+              <div>
+                <div className="font-medium text-sm">Non lumineux</div>
+                <div className="text-xs text-slate-500">Épaisseur totale {DEFAULT_DEPTH_NON_LUMINEUX}mm ({DEFAULT_DEPTH_NON_LUMINEUX / 2}mm/face)</div>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Dimensions */}
+      <Card className="p-4 space-y-4">
+        <h4 className="font-medium flex items-center gap-2">
+          <span>📐</span> Dimensions de la face visible
+        </h4>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <Label htmlFor="largeur" className="text-xs text-slate-600">
+              Largeur (mm)
+            </Label>
+            <Input
+              id="largeur"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="ex: 1000"
+              value={largeur || ""}
+              onChange={(e) => setLargeur(parseFloat(e.target.value) || 0)}
+              className={largeur > 0 ? "border-green-500" : ""}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="hauteur" className="text-xs text-slate-600">
+              Hauteur (mm)
+            </Label>
+            <Input
+              id="hauteur"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="ex: 800"
+              value={hauteur || ""}
+              onChange={(e) => setHauteur(parseFloat(e.target.value) || 0)}
+              className={hauteur > 0 ? "border-green-500" : ""}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="epaisseur" className="text-xs text-slate-600">
+              Épaisseur totale (mm)
+            </Label>
+            <Input
+              id="epaisseur"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="ex: 70"
+              value={epaisseur || ""}
+              onChange={(e) => setEpaisseur(parseFloat(e.target.value) || 0)}
+              className={epaisseur > 0 ? "border-green-500" : ""}
+            />
+          </div>
+        </div>
+
+        {/* Info épaisseur */}
+        {epaisseur > 0 && (
+          <div className="text-sm text-slate-600 bg-slate-50 rounded-lg p-3">
+            <p>
+              Épaisseur par face : <strong>{epaisseurParFace} mm</strong>
+            </p>
+            <p className="text-xs mt-1 text-slate-500">
+              L'épaisseur totale est divisée par 2 pour chaque face du caisson.
+            </p>
+          </div>
+        )}
+      </Card>
+
+      {/* Trous de perçage */}
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="drillingHoles"
+              checked={drillingHoles}
+              onChange={(e) => setDrillingHoles(e.target.checked)}
+            />
+            <label htmlFor="drillingHoles" className="text-sm cursor-pointer flex items-center gap-2">
+              <span>🔩</span> Trous de perçage Ø3mm
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowDetails(!showDetails)}
+            className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+          >
+            {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            Détails
+          </button>
+        </div>
+
+        {showDetails && (
+          <div className="text-xs text-slate-600 bg-slate-50 rounded-lg p-3 space-y-1">
+            <p>• Distance des angles de découpe : <strong>50mm</strong></p>
+            <p>• Distance du bord extérieur : <strong>10mm</strong></p>
+            <p>• Espacement max entre trous : <strong>750mm</strong></p>
+            <p>• Trous sur les <strong>4 rabats</strong> de chaque face</p>
+          </div>
+        )}
+      </Card>
+
+      {/* Caractéristiques spéciales */}
+      <Card className="p-4 bg-slate-50">
+        <h4 className="font-medium mb-3 flex items-center gap-2">
+          <span>⚙️</span> Caractéristiques automatiques
+        </h4>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="flex items-start gap-2">
+            <span className="text-green-500">✓</span>
+            <span>Encoches potences (16×34mm) pour fixation drapeau</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-green-500">✓</span>
+            <span>Faces en miroir pour assemblage parfait</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-green-500">✓</span>
+            <span>Rainures de pliage sur tous les côtés</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-green-500">✓</span>
+            <span>Espacement de 10mm entre les deux faces</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* Aperçu calcul */}
+      {largeur > 0 && hauteur > 0 && (
+        <Card className="p-4 bg-slate-50">
+          <h4 className="font-medium mb-2 flex items-center gap-2">
+            <span>📋</span> Aperçu du calcul
+          </h4>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-slate-600">Face visible :</span>
+              <span className="ml-2 font-medium">{largeur} × {hauteur} mm</span>
+            </div>
+            <div>
+              <span className="text-slate-600">Format fini (×2) :</span>
+              <span className="ml-2 font-medium text-green-600">
+                {largeurFinale} × {hauteurFinale} mm
+              </span>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Prévisualisation SVG */}
+      <div>
+        <h4 className="font-medium mb-3 flex items-center gap-2">
+          <span>👁️</span> Prévisualisation
+        </h4>
+        <CaissonDoublePreview
+          largeur={largeur}
+          hauteur={hauteur}
+          epaisseur={epaisseur}
+          drillingHoles={drillingHoles}
+        />
+      </div>
+
+      {/* Bouton générer */}
+      <Button
+        onClick={handleGenerate}
+        disabled={!isValid || isProcessing}
+        className="w-full py-6 text-lg bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700"
+      >
+        {isProcessing ? (
+          <>
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2" />
+            Génération en cours...
+          </>
+        ) : (
+          <>
+            <Rocket className="mr-2 h-5 w-5" />
+            Générer le caisson double face
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}

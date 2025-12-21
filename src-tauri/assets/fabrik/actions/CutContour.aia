@@ -1,0 +1,74 @@
+/version 3
+/name [ 10
+	456e73656d626c652032
+]
+/isOpen 1
+/actionCount 1
+/action-1 {
+	/name [ 21
+		5061746866696e6465725f437574436f6e746f7572
+	]
+	/keyIndex 0
+	/colorIndex 0
+	/isOpen 1
+	/eventCount 3
+	/event-1 {
+		/useRulersIn1stQuadrant 0
+		/internalName (ai_plugin_pathfinder)
+		/localizedName [ 10
+			5061746866696e646572
+		]
+		/isOpen 1
+		/isOn 1
+		/hasDialog 0
+		/parameterCount 1
+		/parameter-1 {
+			/key 1851878757
+			/showInPalette -1
+			/type (enumerated)
+			/name [ 8
+				52c3a9756e696f6e
+			]
+			/value 0
+		}
+	}
+	/event-2 {
+		/useRulersIn1stQuadrant 0
+		/internalName (ai_plugin_swatches)
+		/localizedName [ 8
+			4e75616e63696572
+		]
+		/isOpen 1
+		/isOn 1
+		/hasDialog 0
+		/parameterCount 1
+		/parameter-1 {
+			/key 1937204072
+			/showInPalette -1
+			/type (ustring)
+			/value [ 10
+				437574436f6e746f7572
+			]
+		}
+	}
+	/event-3 {
+		/useRulersIn1stQuadrant 0
+		/internalName (ai_plugin_setColor)
+		/localizedName [ 21
+			44c3a966696e6972206c657320636f756c65757273
+		]
+		/isOpen 1
+		/isOn 1
+		/hasDialog 0
+		/parameterCount 1
+		/parameter-1 {
+			/key 1836349808
+			/showInPalette -1
+			/type (enumerated)
+			/name [ 30
+				5065726d75746572206c6520666f6e64206574206c6520636f6e746f7572
+			]
+			/value 7
+		}
+	}
+}

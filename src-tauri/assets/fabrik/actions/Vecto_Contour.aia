@@ -1,0 +1,26 @@
+/version 3
+/name [ 10
+	456e73656d626c652035
+]
+/isOpen 1
+/actionCount 1
+/action-1 {
+	/name [ 13
+		766563746f5f636f6e746f7572
+	]
+	/keyIndex 0
+	/colorIndex 0
+	/isOpen 1
+	/eventCount 1
+	/event-1 {
+		/useRulersIn1stQuadrant 0
+		/internalName (ai_plugin_outline)
+		/localizedName [ 21
+			566563746f7269736572206c6520636f6e746f7572
+		]
+		/isOpen 0
+		/isOn 1
+		/hasDialog 0
+		/parameterCount 0
+	}
+}

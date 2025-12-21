@@ -1,0 +1,193 @@
+@import "tailwindcss";
+
+/* Source scanning pour Tailwind v4 */
+@source "./**/*.{js,ts,jsx,tsx}";
+@source "../index.html";
+
+/* Utilitaires shadows manquants dans Tailwind v4 */
+@utility shadow-sm {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+@utility shadow {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+@utility shadow-md {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+@utility shadow-lg {
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+@utility shadow-xl {
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+@utility shadow-none {
+  box-shadow: 0 0 #0000;
+}
+
+/* Ring utilities */
+@utility ring-offset-2 {
+  --tw-ring-offset-width: 2px;
+}
+
+@utility ring-2 {
+  --tw-ring-offset-shadow: 0 0 0 var(--tw-ring-offset-width, 0px) var(--tw-ring-offset-color, #fff);
+  --tw-ring-shadow: 0 0 0 calc(2px + var(--tw-ring-offset-width, 0px)) var(--tw-ring-color, rgb(59 130 246 / 0.5));
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
+@utility ring-blue-500 {
+  --tw-ring-color: rgb(59 130 246 / 1);
+}
+
+/* Variables CSS personnalisées */
+:root {
+  /* Couleurs principales - Charte Les Enseignistes */
+  --primary: #2470B8;
+  --primary-dark: #1c5a94;
+  --primary-light: #3a8ad4;
+  --secondary: #1A1A1A;
+
+  /* Backgrounds */
+  --bg-main: #f8fafc;
+  --bg-sidebar: #1e293b;
+  --bg-sidebar-hover: #334155;
+  --bg-card: #ffffff;
+
+  /* Textes */
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-sidebar: #e2e8f0;
+  --text-sidebar-muted: #94a3b8;
+
+  /* États */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+
+  /* Bordures */
+  --border: #e2e8f0;
+  --border-focus: #2563eb;
+
+  /* Radius */
+  --radius: 0.5rem;
+}
+
+/* Base styles */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Désactiver la sélection pour les éléments UI */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Scrollbar personnalisée */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Focus visible pour accessibilité */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.2s ease-out;
+}
+
+/* Transition par défaut */
+.transition-default {
+  transition: all 0.2s ease;
+}
+
+/* Classes utilitaires pour les badges de statut */
+.badge-a-faire {
+  background-color: #f3f4f6;
+  color: #1f2937;
+  border-color: #d1d5db;
+}
+.badge-en-cours {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border-color: #93c5fd;
+}
+.badge-attente {
+  background-color: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+.badge-stand-by {
+  background-color: #ffedd5;
+  color: #9a3412;
+  border-color: #fdba74;
+}
+.badge-relancer {
+  background-color: #f3e8ff;
+  color: #6b21a8;
+  border-color: #c4b5fd;
+}
+.badge-mairie {
+  background-color: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+.badge-urgent {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+  font-weight: bold;
+}

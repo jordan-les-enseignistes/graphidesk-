@@ -1,0 +1,35 @@
+/version 3
+/name [ 10
+	456e73656d626c652036
+]
+/isOpen 1
+/actionCount 1
+/action-1 {
+	/name [ 15
+		5061746866696e646572556e696f6e
+	]
+	/keyIndex 0
+	/colorIndex 0
+	/isOpen 1
+	/eventCount 1
+	/event-1 {
+		/useRulersIn1stQuadrant 0
+		/internalName (ai_plugin_pathfinder)
+		/localizedName [ 10
+			5061746866696e646572
+		]
+		/isOpen 1
+		/isOn 1
+		/hasDialog 0
+		/parameterCount 1
+		/parameter-1 {
+			/key 1851878757
+			/showInPalette -1
+			/type (enumerated)
+			/name [ 8
+				52c3a9756e696f6e
+			]
+			/value 0
+		}
+	}
+}
