@@ -43,9 +43,9 @@ export const ROLES = {
 export type Role = (typeof ROLES)[keyof typeof ROLES];
 
 // Configuration de l'application
+// Note: La version est gérée dans useAppUpdate.ts et tauri.conf.json
 export const APP_CONFIG = {
   name: "GraphiDesk",
-  version: "1.0.0",
   company: "Les Enseignistes",
 } as const;
 

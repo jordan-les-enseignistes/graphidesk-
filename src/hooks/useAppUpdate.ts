@@ -1,5 +1,5 @@
 // Version actuelle de l'application (depuis tauri.conf.json)
-const CURRENT_VERSION = "1.0.2";
+const CURRENT_VERSION = "1.0.3";
 
 export interface UpdateCheckResult {
   hasUpdate: boolean;

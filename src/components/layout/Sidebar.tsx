@@ -4,6 +4,7 @@ import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useFeedbacksPendingCount } from "@/hooks/useFeedbacks";
 import { cn } from "@/lib/utils";
 import { ROUTES, APP_CONFIG } from "@/lib/constants";
+import { getCurrentVersion } from "@/hooks/useAppUpdate";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   LayoutDashboard,
@@ -298,7 +299,7 @@ export function Sidebar() {
 
         {!collapsed && (
           <div className="mt-2 text-center text-xs text-slate-500">
-            v{APP_CONFIG.version}
+            v{getCurrentVersion()}
           </div>
         )}
       </div>

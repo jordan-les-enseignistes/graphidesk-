@@ -7,7 +7,36 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { APP_CONFIG, ROUTES } from "@/lib/constants";
+import { getCurrentVersion } from "@/hooks/useAppUpdate";
 import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
+
+// Composant pour le fond animé
+function AnimatedBackground() {
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {/* Gradient de base */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
+
+      {/* Orbes animés */}
+      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"
+           style={{ animationDuration: '8s' }} />
+      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-pulse"
+           style={{ animationDuration: '10s', animationDelay: '2s' }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-3xl animate-pulse"
+           style={{ animationDuration: '12s', animationDelay: '1s' }} />
+
+      {/* Lignes flottantes subtiles */}
+      <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="white" strokeWidth="1"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+      </svg>
+    </div>
+  );
+}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -48,8 +77,9 @@ export default function Login() {
 
   if (showForgotPassword) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-        <Card className="w-full max-w-md">
+      <div className="relative flex min-h-screen items-center justify-center p-4">
+        <AnimatedBackground />
+        <Card className="relative z-10 w-full max-w-md">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-bold">
               Mot de passe oublié
@@ -129,8 +159,9 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-      <Card className="w-full max-w-md">
+    <div className="relative flex min-h-screen items-center justify-center p-4">
+      <AnimatedBackground />
+      <Card className="relative z-10 w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="mx-auto mb-4 h-16 w-16">
             <img src="/icon.svg" alt="GraphiDesk" className="h-full w-full" />
@@ -225,7 +256,7 @@ export default function Login() {
           </form>
 
           <div className="mt-6 text-center text-xs text-gray-500">
-            Version {APP_CONFIG.version}
+            Version {getCurrentVersion()}
           </div>
         </CardContent>
       </Card>

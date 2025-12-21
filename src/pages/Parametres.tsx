@@ -384,7 +384,7 @@ export default function Parametres() {
             </div>
             <div className="flex items-center justify-between py-2 border-b">
               <span className="text-gray-500">Version</span>
-              <Badge variant="secondary">v{APP_CONFIG.version}</Badge>
+              <Badge variant="secondary">v{getCurrentVersion()}</Badge>
             </div>
             <div className="flex items-center justify-between py-2 border-b">
               <span className="text-gray-500">Société</span>
