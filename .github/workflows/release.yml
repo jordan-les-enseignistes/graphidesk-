@@ -39,6 +39,33 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Get previous tag
+        id: prev_tag
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          echo "tag=$PREV_TAG" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG="${{ steps.prev_tag.outputs.tag }}"
+          if [ -z "$PREV_TAG" ]; then
+            # Premier tag, prendre tous les commits
+            COMMITS=$(git log --pretty=format:"- %s" -10)
+          else
+            # Commits depuis le tag précédent
+            COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s")
+          fi
+
+          # Échapper les caractères spéciaux pour GitHub Actions
+          COMMITS="${COMMITS//'%'/'%25'}"
+          COMMITS="${COMMITS//$'\n'/'%0A'}"
+          COMMITS="${COMMITS//$'\r'/'%0D'}"
+
+          echo "commits=$COMMITS" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -51,7 +78,7 @@ jobs:
           releaseBody: |
             ## Nouveautés
 
-            Consultez les commits pour voir les changements apportés dans cette version.
+            ${{ steps.changelog.outputs.commits }}
 
             ---
             *Les utilisateurs de GraphiDesk recevront automatiquement une notification de mise à jour au lancement de l'application.*
