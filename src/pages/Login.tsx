@@ -15,25 +15,62 @@ function AnimatedBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden">
       {/* Gradient de base */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900" />
 
-      {/* Orbes animés */}
-      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"
-           style={{ animationDuration: '8s' }} />
-      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-pulse"
-           style={{ animationDuration: '10s', animationDelay: '2s' }} />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-3xl animate-pulse"
-           style={{ animationDuration: '12s', animationDelay: '1s' }} />
+      {/* Grandes formes animées avec mouvement */}
+      <div
+        className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-3xl"
+        style={{
+          animation: 'float 15s ease-in-out infinite',
+        }}
+      />
+      <div
+        className="absolute -bottom-40 -right-40 w-[600px] h-[600px] bg-indigo-500/20 rounded-full blur-3xl"
+        style={{
+          animation: 'float 18s ease-in-out infinite reverse',
+        }}
+      />
+      <div
+        className="absolute top-1/2 left-1/3 w-[400px] h-[400px] bg-purple-500/15 rounded-full blur-3xl"
+        style={{
+          animation: 'float 12s ease-in-out infinite',
+          animationDelay: '-5s',
+        }}
+      />
 
-      {/* Lignes flottantes subtiles */}
-      <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
+      {/* Petites particules flottantes */}
+      <div className="absolute top-20 right-1/4 w-2 h-2 bg-blue-400/40 rounded-full"
+           style={{ animation: 'floatSmall 8s ease-in-out infinite' }} />
+      <div className="absolute top-1/3 left-20 w-3 h-3 bg-indigo-400/30 rounded-full"
+           style={{ animation: 'floatSmall 10s ease-in-out infinite', animationDelay: '-3s' }} />
+      <div className="absolute bottom-1/4 right-20 w-2 h-2 bg-purple-400/40 rounded-full"
+           style={{ animation: 'floatSmall 7s ease-in-out infinite', animationDelay: '-2s' }} />
+      <div className="absolute top-2/3 left-1/4 w-1.5 h-1.5 bg-blue-300/50 rounded-full"
+           style={{ animation: 'floatSmall 9s ease-in-out infinite', animationDelay: '-4s' }} />
+
+      {/* Grille subtile */}
+      <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="white" strokeWidth="1"/>
+          <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+            <path d="M 50 0 L 0 0 0 50" fill="none" stroke="white" strokeWidth="0.5"/>
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
       </svg>
+
+      {/* CSS pour les animations */}
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          25% { transform: translate(30px, -30px) scale(1.05); }
+          50% { transform: translate(-20px, 20px) scale(0.95); }
+          75% { transform: translate(20px, 10px) scale(1.02); }
+        }
+        @keyframes floatSmall {
+          0%, 100% { transform: translateY(0) opacity(0.4); }
+          50% { transform: translateY(-20px); opacity: 0.8; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -21,7 +21,7 @@ export function useTauriUpdater() {
     progress: 0,
     error: null,
     version: null,
-    currentVersion: "1.0.3",
+    currentVersion: "1.0.4",
     body: null,
   });
 

@@ -49,17 +49,12 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'GraphiDesk v__VERSION__'
           releaseBody: |
-            ## Mise à jour GraphiDesk
+            ## Nouveautés
 
-            Téléchargez le fichier `.exe` ci-dessous pour installer cette version.
-
-            ### Installation
-            1. Téléchargez `GraphiDesk_x.x.x_x64-setup.exe`
-            2. Exécutez le fichier
-            3. Suivez les instructions d'installation
+            Consultez les commits pour voir les changements apportés dans cette version.
 
             ---
-            *Les utilisateurs existants recevront automatiquement une notification de mise à jour.*
+            *Les utilisateurs de GraphiDesk recevront automatiquement une notification de mise à jour au lancement de l'application.*
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

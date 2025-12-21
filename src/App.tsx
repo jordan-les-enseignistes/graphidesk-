@@ -78,36 +78,74 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+    let hasInitialized = false;
 
-    // Avec persistSession: false, pas de session à restaurer au démarrage
-    // On initialise directement sans session
-    setLoading(false);
-    setInitialized(true);
-
-    // Écouter les changements d'auth (login/logout)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Fonction pour charger le profil et mettre à jour le state
+    const handleSession = async (session: import("@supabase/supabase-js").Session | null) => {
       if (!isMounted) return;
 
-      if (event === "SIGNED_IN" && session?.user) {
-        setLoading(true);
+      if (session?.user) {
         const profile = await loadProfile(session.user.id);
         if (isMounted) {
           setUser(session.user);
           setProfile(profile);
           setSession(session);
-          setLoading(false);
+        }
+      } else {
+        setUser(null);
+        setProfile(null);
+        setSession(null);
+      }
+
+      if (isMounted && !hasInitialized) {
+        hasInitialized = true;
+        setLoading(false);
+        setInitialized(true);
+      }
+    };
+
+    // Écouter les changements d'auth
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+
+      if (event === "INITIAL_SESSION") {
+        // C'est l'événement initial - on l'utilise pour initialiser
+        await handleSession(session);
+      } else if (event === "SIGNED_IN" && session?.user) {
+        // Connexion manuelle (pas au refresh)
+        if (hasInitialized) {
+          setLoading(true);
+          const profile = await loadProfile(session.user.id);
+          if (isMounted) {
+            setUser(session.user);
+            setProfile(profile);
+            setSession(session);
+            setLoading(false);
+          }
         }
       } else if (event === "SIGNED_OUT") {
         setUser(null);
         setProfile(null);
         setSession(null);
+      } else if (event === "TOKEN_REFRESHED" && session) {
+        setSession(session);
       }
     });
 
+    // Timeout de sécurité si INITIAL_SESSION ne se déclenche pas
+    const timeout = setTimeout(() => {
+      if (isMounted && !hasInitialized) {
+        hasInitialized = true;
+        setLoading(false);
+        setInitialized(true);
+      }
+    }, 5000);
+
     return () => {
       isMounted = false;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, [loadProfile, setUser, setProfile, setSession, setLoading, setInitialized]);

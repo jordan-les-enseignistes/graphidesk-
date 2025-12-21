@@ -5,7 +5,7 @@ import { HORAIRES_BASE_DEFAUT, DEFAULT_PREFERENCES, BADGE_COLORS, type BadgeColo
 import type { HorairesBase, JourSemaine, UserPreferences } from "@/types";
 import { cn } from "@/lib/utils";
 import { getBadgeClassName } from "@/lib/badgeColors";
-import { User, Clock, Save, RotateCcw, Settings, Palette, Check } from "lucide-react";
+import { User, Clock, Save, RotateCcw, Settings, Palette, Check, Lock, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { setMinimizeOnClose } from "@/lib/tauri";
@@ -117,6 +117,67 @@ export default function MonProfil() {
 
   // Couleur du badge
   const [savingBadgeColor, setSavingBadgeColor] = useState(false);
+
+  // Changement de mot de passe
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const handleChangePassword = async () => {
+    // Validations
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("Veuillez remplir tous les champs");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Le nouveau mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      // D'abord, vérifier l'ancien mot de passe en tentant une connexion
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: profile?.email || "",
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        toast.error("Mot de passe actuel incorrect");
+        return;
+      }
+
+      // Ensuite, mettre à jour le mot de passe
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Réinitialiser les champs
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Mot de passe modifié avec succès");
+    } catch (e) {
+      console.error("Erreur changement mot de passe:", e);
+      toast.error("Erreur lors du changement de mot de passe");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   // Charger les préférences depuis le profil
   useEffect(() => {
@@ -317,6 +378,93 @@ export default function MonProfil() {
             <label className="text-sm font-medium text-gray-500">Rôle</label>
             <p className="mt-1 text-gray-900 capitalize">{profile?.role}</p>
           </div>
+        </div>
+      </div>
+
+      {/* Changement de mot de passe */}
+      <div className="bg-white rounded-xl shadow-sm border p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Lock className="h-5 w-5 text-gray-400" />
+          <h2 className="text-lg font-semibold text-gray-900">Changer mon mot de passe</h2>
+        </div>
+
+        <div className="space-y-4 max-w-md">
+          {/* Mot de passe actuel */}
+          <div>
+            <label className="text-sm font-medium text-gray-700">Mot de passe actuel</label>
+            <div className="relative mt-1">
+              <input
+                type={showCurrentPassword ? "text" : "password"}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Nouveau mot de passe */}
+          <div>
+            <label className="text-sm font-medium text-gray-700">Nouveau mot de passe</label>
+            <div className="relative mt-1">
+              <input
+                type={showNewPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
+          </div>
+
+          {/* Confirmer nouveau mot de passe */}
+          <div>
+            <label className="text-sm font-medium text-gray-700">Confirmer le nouveau mot de passe</label>
+            <div className="relative mt-1">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Bouton sauvegarder */}
+          <button
+            onClick={handleChangePassword}
+            disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+            className={cn(
+              "w-full py-2 px-4 rounded-lg font-medium transition-colors",
+              "bg-blue-600 text-white hover:bg-blue-700",
+              "disabled:bg-gray-300 disabled:cursor-not-allowed"
+            )}
+          >
+            {changingPassword ? "Modification en cours..." : "Modifier le mot de passe"}
+          </button>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "GraphiDesk",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "identifier": "fr.les-enseignistes.graphidesk",
   "build": {
     "frontendDist": "../dist",
@@ -13,10 +13,10 @@
     "windows": [
       {
         "title": "GraphiDesk - Les Enseignistes",
-        "width": 1400,
-        "height": 900,
+        "width": 1500,
+        "height": 1000,
         "minWidth": 1024,
-        "minHeight": 700,
+        "minHeight": 768,
         "resizable": true,
         "fullscreen": false,
         "center": true
