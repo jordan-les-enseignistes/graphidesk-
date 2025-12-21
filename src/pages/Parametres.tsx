@@ -22,7 +22,7 @@ import {
   type Statut,
   type StatutInsert,
 } from "@/hooks/useStatuts";
-import { useAppConfig, getCurrentVersion } from "@/hooks/useAppUpdate";
+import { getCurrentVersion } from "@/hooks/useAppUpdate";
 import type { Profile } from "@/types";
 import {
   Settings,
@@ -124,53 +124,13 @@ export default function Parametres() {
   const [statutToDelete, setStatutToDelete] = useState<Statut | null>(null);
   const [replacementStatutId, setReplacementStatutId] = useState<string>("");
 
-  // États pour la gestion des mises à jour
-  const { data: appConfig, refetch: refetchAppConfig } = useAppConfig();
-  const [updateForm, setUpdateForm] = useState({
-    latest_version: "",
-    download_url: "",
-    changelog: "",
-    is_mandatory: false,
-  });
-  const [isSavingUpdate, setIsSavingUpdate] = useState(false);
-  const [updateSaveResult, setUpdateSaveResult] = useState<string | null>(null);
-
-  // Charger les données de config quand elles arrivent
-  useEffect(() => {
-    if (appConfig) {
-      setUpdateForm({
-        latest_version: appConfig.latest_version || "",
-        download_url: appConfig.download_url || "",
-        changelog: appConfig.changelog || "",
-        is_mandatory: appConfig.is_mandatory || false,
-      });
-    }
-  }, [appConfig]);
-
-  const handleSaveUpdateConfig = async () => {
-    setIsSavingUpdate(true);
-    setUpdateSaveResult(null);
-
+  // Fonction pour ouvrir GitHub releases
+  const handleOpenGitHubReleases = async () => {
     try {
-      const { error } = await supabase
-        .from("app_config")
-        .upsert({
-          id: appConfig?.id || crypto.randomUUID(),
-          latest_version: updateForm.latest_version,
-          download_url: updateForm.download_url || null,
-          changelog: updateForm.changelog || null,
-          is_mandatory: updateForm.is_mandatory,
-          published_at: new Date().toISOString(),
-        });
-
-      if (error) throw error;
-
-      setUpdateSaveResult("Configuration de mise à jour enregistrée");
-      refetchAppConfig();
+      const { open } = await import("@tauri-apps/plugin-shell");
+      await open("https://github.com/jordan-les-enseignistes/graphidesk-/releases");
     } catch (error) {
-      setUpdateSaveResult(`Erreur: ${error instanceof Error ? error.message : "Erreur inconnue"}`);
-    } finally {
-      setIsSavingUpdate(false);
+      console.error("Erreur ouverture GitHub:", error);
     }
   };
 
@@ -512,110 +472,54 @@ export default function Parametres() {
         </Card>
       </div>
 
-      {/* Configuration des mises à jour - Admin seulement */}
-      {isAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Download className="h-5 w-5" />
-              Gestion des mises à jour
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between py-2 border-b">
-              <span className="text-gray-500">Version installée</span>
-              <Badge variant="secondary" className="font-mono">
-                v{getCurrentVersion()}
-              </Badge>
-            </div>
+      {/* Configuration des mises à jour */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            Mises à jour
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between py-2 border-b">
+            <span className="text-gray-500">Version installée</span>
+            <Badge variant="secondary" className="font-mono">
+              v{getCurrentVersion()}
+            </Badge>
+          </div>
 
-            {/* Message de résultat */}
-            {updateSaveResult && (
-              <div className={`p-3 rounded-lg text-sm ${
-                updateSaveResult.startsWith("Erreur")
-                  ? "bg-red-100 text-red-700"
-                  : "bg-green-100 text-green-700"
-              }`}>
-                {updateSaveResult}
-              </div>
-            )}
-
-            <div className="space-y-4 pt-2">
-              {/* Version disponible */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="latest-version">Dernière version disponible</Label>
-                  <Input
-                    id="latest-version"
-                    value={updateForm.latest_version}
-                    onChange={(e) => setUpdateForm(f => ({ ...f, latest_version: e.target.value }))}
-                    placeholder="ex: 1.1.0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="download-url">URL de téléchargement</Label>
-                  <Input
-                    id="download-url"
-                    value={updateForm.download_url}
-                    onChange={(e) => setUpdateForm(f => ({ ...f, download_url: e.target.value }))}
-                    placeholder="\\\\serveur\\partage\\GraphiDesk_Setup.exe"
-                  />
-                </div>
-              </div>
-
-              {/* Changelog */}
-              <div className="space-y-2">
-                <Label htmlFor="changelog">Notes de version (changelog)</Label>
-                <textarea
-                  id="changelog"
-                  className="w-full rounded-lg border border-gray-300 p-3 text-sm min-h-[100px] resize-y"
-                  value={updateForm.changelog}
-                  onChange={(e) => setUpdateForm(f => ({ ...f, changelog: e.target.value }))}
-                  placeholder="- Nouvelle fonctionnalité X&#10;- Correction du bug Y&#10;- Amélioration de Z"
-                />
-              </div>
-
-              {/* Mise à jour obligatoire */}
-              <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                <input
-                  type="checkbox"
-                  id="is-mandatory"
-                  checked={updateForm.is_mandatory}
-                  onChange={(e) => setUpdateForm(f => ({ ...f, is_mandatory: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
-                />
-                <label htmlFor="is-mandatory" className="text-sm text-amber-800 cursor-pointer">
-                  <span className="font-medium">Mise à jour obligatoire</span>
-                  <span className="block text-xs text-amber-600">
-                    Les utilisateurs ne pourront pas ignorer cette mise à jour
-                  </span>
-                </label>
-              </div>
-
-              {/* Bouton sauvegarder */}
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleSaveUpdateConfig}
-                  disabled={isSavingUpdate || !updateForm.latest_version}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {isSavingUpdate ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Enregistrement...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Enregistrer la configuration
-                    </>
-                  )}
-                </Button>
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-start gap-3">
+              <Sparkles className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm text-blue-800 font-medium">
+                  Mises à jour automatiques
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  L'application vérifie automatiquement les nouvelles versions au démarrage.
+                  Une notification apparaîtra si une mise à jour est disponible.
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+
+          {isAdmin && (
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                onClick={handleOpenGitHubReleases}
+                className="w-full"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Voir les releases sur GitHub
+              </Button>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Pour publier une nouvelle version, créez un tag git (ex: v1.0.2)
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Zone dangereuse - Admin seulement - EN BAS - Déroulable */}
       {isAdmin && (
