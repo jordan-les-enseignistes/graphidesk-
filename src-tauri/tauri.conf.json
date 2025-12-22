@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "GraphiDesk",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "identifier": "fr.les-enseignistes.graphidesk",
   "build": {
     "frontendDist": "../dist",
@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://github.com https://api.github.com https://raw.githubusercontent.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+      "csp": "default-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://github.com https://api.github.com https://raw.githubusercontent.com https://unpkg.com blob:; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' https://unpkg.com blob: 'unsafe-eval'; worker-src 'self' blob: https://unpkg.com"
     }
   },
   "bundle": {
