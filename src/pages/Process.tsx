@@ -35,7 +35,7 @@ import {
 } from "@/hooks/useProcessFavorites";
 
 // Configuration de pdf.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // Fonction pour normaliser le texte (enlever les accents)
 function normalizeText(text: string): string {
