@@ -133,16 +133,19 @@ export function DossierForm({
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="deadline_premiere_reponse">
-              Deadline première réponse
-            </Label>
-            <Input
-              id="deadline_premiere_reponse"
-              type="date"
-              {...register("deadline_premiere_reponse")}
-            />
-          </div>
+          {/* Deadline première réponse - uniquement en mode édition */}
+          {mode === "edit" && (
+            <div className="space-y-2">
+              <Label htmlFor="deadline_premiere_reponse">
+                Deadline première réponse
+              </Label>
+              <Input
+                id="deadline_premiere_reponse"
+                type="date"
+                {...register("deadline_premiere_reponse")}
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="statut">Statut</Label>

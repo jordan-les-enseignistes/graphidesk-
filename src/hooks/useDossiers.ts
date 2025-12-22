@@ -428,9 +428,9 @@ export function useDeleteDossier() {
 }
 
 // Hook pour transférer un dossier
+// Utilise une fonction RPC pour bypass les RLS et permettre aux graphistes de transférer leurs dossiers
 export function useTransferDossier() {
   const queryClient = useQueryClient();
-  const profile = useAuthStore((state) => state.profile);
 
   return useMutation({
     mutationFn: async ({
@@ -442,37 +442,14 @@ export function useTransferDossier() {
       newGraphisteId: string;
       reason?: string;
     }) => {
-      // Récupérer l'ancien dossier pour le log
-      const { data: oldDossier } = await supabase
-        .from("dossiers")
-        .select("graphiste_id")
-        .eq("id", dossierId)
-        .single();
+      // Utiliser la fonction RPC qui gère les droits et le logging
+      const { error } = await supabase.rpc("transfer_dossier", {
+        p_dossier_id: dossierId,
+        p_new_graphiste_id: newGraphisteId,
+        p_reason: reason || null,
+      });
 
-      // Mettre à jour le dossier
-      const { error: updateError } = await supabase
-        .from("dossiers")
-        .update({
-          graphiste_id: newGraphisteId,
-          updated_by: profile!.id,
-        })
-        .eq("id", dossierId);
-
-      if (updateError) throw updateError;
-
-      // Créer un log d'activité
-      const { error: logError } = await supabase
-        .from("activity_logs")
-        .insert({
-          user_id: profile!.id,
-          table_name: "dossiers",
-          record_id: dossierId,
-          action: "transfer",
-          old_values: { graphiste_id: oldDossier?.graphiste_id },
-          new_values: { graphiste_id: newGraphisteId, reason },
-        });
-
-      if (logError) console.error("Erreur log:", logError);
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: dossierKeys.all });

@@ -24,7 +24,7 @@ import { BatCell } from "./BatCell";
 import { DossierForm } from "./DossierForm";
 import { TransferModal } from "./TransferModal";
 import { useAuthStore } from "@/stores/authStore";
-import { useArchiveDossier, useBulkArchive, useBulkUpdateStatus, useUpdateDossier } from "@/hooks/useDossiers";
+import { useArchiveDossier, useBulkArchive, useBulkUpdateStatus, useUpdateDossier, useDeleteDossier } from "@/hooks/useDossiers";
 import { formatDate, formatDateTime, cn, getFirstName } from "@/lib/utils";
 import { getBadgeClassName } from "@/lib/badgeColors";
 import { useStatuts } from "@/hooks/useStatuts";
@@ -42,6 +42,7 @@ import {
   Filter,
   X,
   Check,
+  Trash2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -97,12 +98,14 @@ export function DossiersTable({
   const [bulkArchiveConfirm, setBulkArchiveConfirm] = useState(false);
   const [bulkStatusModal, setBulkStatusModal] = useState(false);
   const [bulkStatus, setBulkStatus] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState<DossierWithGraphiste | null>(null);
 
   // Mutations
   const archiveDossier = useArchiveDossier();
   const bulkArchive = useBulkArchive();
   const bulkUpdateStatus = useBulkUpdateStatus();
   const updateDossier = useUpdateDossier();
+  const deleteDossier = useDeleteDossier();
 
   // Filtrage
   const filteredDossiers = dossiers.filter((d) => {
@@ -507,6 +510,13 @@ export function DossiersTable({
                               <Archive className="mr-2 h-4 w-4" />
                               Archiver
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setDeleteConfirm(dossier)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Supprimer
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -572,6 +582,22 @@ export function DossiersTable({
         icon="archive"
         onConfirm={handleBulkArchive}
         loading={bulkArchive.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Supprimer le dossier"
+        description={`Êtes-vous sûr de vouloir supprimer définitivement "${deleteConfirm?.nom}" ? Cette action est irréversible.`}
+        confirmText="Supprimer"
+        variant="danger"
+        onConfirm={async () => {
+          if (deleteConfirm) {
+            await deleteDossier.mutateAsync(deleteConfirm.id);
+            setDeleteConfirm(null);
+          }
+        }}
+        loading={deleteDossier.isPending}
       />
 
       {/* Modal changement statut en masse */}

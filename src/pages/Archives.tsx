@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useArchivesPaginated, useUnarchiveDossier } from "@/hooks/useDossiers";
+import { useArchivesPaginated, useUnarchiveDossier, useDeleteDossier } from "@/hooks/useDossiers";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { supabase } from "@/lib/supabase";
 import {
@@ -48,6 +48,7 @@ import {
   MessageSquare,
   User,
   Loader2,
+  Trash2,
 } from "lucide-react";
 
 const PAGE_SIZE = 100;
@@ -60,6 +61,7 @@ export default function Archives() {
   const [searchInput, setSearchInput] = useState(searchParams.get("search") || "");
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [unarchiveConfirm, setUnarchiveConfirm] = useState<DossierWithGraphiste | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<DossierWithGraphiste | null>(null);
   const [detailDossier, setDetailDossier] = useState<DossierWithGraphiste | null>(null);
   const [detailBats, setDetailBats] = useState<Bat[]>([]);
   const [loadingBats, setLoadingBats] = useState(false);
@@ -70,6 +72,7 @@ export default function Archives() {
     searchQuery || undefined
   );
   const unarchiveDossier = useUnarchiveDossier();
+  const deleteDossier = useDeleteDossier();
 
   // Quand on change la recherche, revenir à la page 0
   useEffect(() => {
@@ -288,15 +291,26 @@ export default function Archives() {
                         <Eye className="h-4 w-4" />
                       </Button>
                       {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-blue-600 hover:text-blue-700"
-                          onClick={() => setUnarchiveConfirm(dossier)}
-                          title="Restaurer"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-blue-600 hover:text-blue-700"
+                            onClick={() => setUnarchiveConfirm(dossier)}
+                            title="Restaurer"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-500 hover:text-red-700"
+                            onClick={() => setDeleteConfirm(dossier)}
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
                       )}
                     </div>
                   </TableCell>
@@ -392,6 +406,23 @@ export default function Archives() {
           }
         }}
         loading={unarchiveDossier.isPending}
+      />
+
+      {/* Modal confirmation suppression */}
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Supprimer le dossier"
+        description={`Êtes-vous sûr de vouloir supprimer définitivement "${deleteConfirm?.nom}" ? Cette action est irréversible.`}
+        confirmText="Supprimer"
+        variant="danger"
+        onConfirm={async () => {
+          if (deleteConfirm) {
+            await deleteDossier.mutateAsync(deleteConfirm.id);
+            setDeleteConfirm(null);
+          }
+        }}
+        loading={deleteDossier.isPending}
       />
 
       {/* Modal détails du dossier archivé */}
