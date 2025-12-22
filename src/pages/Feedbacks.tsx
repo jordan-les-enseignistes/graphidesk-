@@ -505,6 +505,7 @@ export default function Feedbacks() {
   const [statutFilter, setStatutFilter] = useState<FeedbackStatut | "all">(
     "all"
   );
+  const [showTermines, setShowTermines] = useState(false);
 
   const { data: feedbacks, isLoading } = useFeedbacks(statutFilter);
   const createFeedback = useCreateFeedback();
@@ -639,15 +640,81 @@ export default function Feedbacks() {
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
           </div>
         ) : feedbacks && feedbacks.length > 0 ? (
-          <div className="space-y-3">
-            {feedbacks.map((feedback) => (
-              <FeedbackCard
-                key={feedback.id}
-                feedback={feedback}
-                onClick={() => setSelectedFeedback(feedback)}
-              />
-            ))}
-          </div>
+          <>
+            {/* Feedbacks non terminés */}
+            {(() => {
+              const feedbacksActifs = feedbacks.filter((f) => f.statut !== "termine");
+              const feedbacksTermines = feedbacks.filter((f) => f.statut === "termine");
+
+              return (
+                <>
+                  {feedbacksActifs.length > 0 ? (
+                    <div className="space-y-3">
+                      {feedbacksActifs.map((feedback) => (
+                        <FeedbackCard
+                          key={feedback.id}
+                          feedback={feedback}
+                          onClick={() => setSelectedFeedback(feedback)}
+                        />
+                      ))}
+                    </div>
+                  ) : statutFilter !== "termine" && (
+                    <div className="text-center py-8 bg-white rounded-lg border mb-6">
+                      <CheckCircle2 className="w-10 h-10 text-emerald-300 mx-auto mb-3" />
+                      <p className="text-gray-500">Tous les feedbacks actifs ont été traités !</p>
+                    </div>
+                  )}
+
+                  {/* Section feedbacks terminés - dépliable */}
+                  {feedbacksTermines.length > 0 && statutFilter === "all" && (
+                    <div className="mt-6">
+                      <button
+                        onClick={() => setShowTermines(!showTermines)}
+                        className="w-full flex items-center justify-between px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                          <span className="font-medium text-emerald-800">
+                            Feedbacks terminés ({feedbacksTermines.length})
+                          </span>
+                        </div>
+                        <ChevronDown
+                          className={`w-5 h-5 text-emerald-600 transition-transform ${
+                            showTermines ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+
+                      {showTermines && (
+                        <div className="mt-3 space-y-3">
+                          {feedbacksTermines.map((feedback) => (
+                            <FeedbackCard
+                              key={feedback.id}
+                              feedback={feedback}
+                              onClick={() => setSelectedFeedback(feedback)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Si filtre "termine" actif, afficher directement les terminés */}
+                  {statutFilter === "termine" && feedbacksTermines.length > 0 && (
+                    <div className="space-y-3">
+                      {feedbacksTermines.map((feedback) => (
+                        <FeedbackCard
+                          key={feedback.id}
+                          feedback={feedback}
+                          onClick={() => setSelectedFeedback(feedback)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </>
         ) : (
           <div className="text-center py-12 bg-white rounded-lg border">
             <MessageSquarePlus className="w-12 h-12 text-gray-300 mx-auto mb-4" />

@@ -369,6 +369,7 @@ interface CaissonDoublePreviewProps {
   hauteur: number;
   epaisseur: number;
   drillingHoles?: boolean;
+  entraxePotences?: number | null; // null = automatique aux extrémités
 }
 
 export function CaissonDoublePreview({
@@ -376,6 +377,7 @@ export function CaissonDoublePreview({
   hauteur,
   epaisseur,
   drillingHoles = true,
+  entraxePotences = null,
 }: CaissonDoublePreviewProps) {
   const preview = useMemo(() => {
     if (!largeur || !hauteur || !epaisseur) return null;
@@ -457,6 +459,27 @@ export function CaissonDoublePreview({
       return faceHoles;
     };
 
+    // Calcul des positions des encoches potences
+    // En mode auto : 10mm du bord de la face visible
+    // En mode personnalisé : centrées avec l'entraxe spécifié
+    const encocheHauteurMm = 34; // Hauteur de l'encoche en mm
+    const margeEncocheMm = 10; // Marge standard entre encoche et bord face visible
+
+    let encoche1Y: number; // Position Y de l'encoche haute (depuis le haut du SVG)
+    let encoche2Y: number; // Position Y de l'encoche basse (depuis le haut du SVG)
+
+    if (entraxePotences !== null && entraxePotences > 0) {
+      // Mode personnalisé : centrer les encoches avec l'entraxe spécifié
+      const centreY = h / 2;
+      const demiEntraxe = (entraxePotences * scale) / 2;
+      encoche1Y = centreY - demiEntraxe - (encocheHauteurMm * scale) / 2;
+      encoche2Y = centreY + demiEntraxe - (encocheHauteurMm * scale) / 2;
+    } else {
+      // Mode auto : potences aux extrémités
+      encoche1Y = eP + margeEncocheMm * scale;
+      encoche2Y = h - eP - margeEncocheMm * scale - encocheHauteurMm * scale;
+    }
+
     return {
       svgWidth,
       svgHeight,
@@ -470,8 +493,11 @@ export function CaissonDoublePreview({
       eP,
       decoupe,
       generateHoles,
+      encoche1Y,
+      encoche2Y,
+      encocheHauteur: encocheHauteurMm * scale,
     };
-  }, [largeur, hauteur, epaisseur]);
+  }, [largeur, hauteur, epaisseur, entraxePotences]);
 
   if (!preview) {
     return (
@@ -481,11 +507,10 @@ export function CaissonDoublePreview({
     );
   }
 
-  const { eP, decoupe, generateHoles, scale } = preview;
+  const { eP, decoupe, generateHoles, scale, encoche1Y, encoche2Y, encocheHauteur } = preview;
 
   // Encoches potences (16×34mm à l'échelle)
   const encocheLargeur = 16 * scale;
-  const encocheHauteur = 34 * scale;
 
   const offsetX1 = 50;
   const offsetX2 = offsetX1 + preview.w + preview.espacement;
@@ -552,14 +577,14 @@ export function CaissonDoublePreview({
                 L ${offsetX1 + preview.w - decoupe} ${offsetY}
                 L ${offsetX1 + preview.w - decoupe} ${offsetY + decoupe}
                 L ${offsetX1 + preview.w} ${offsetY + decoupe}
-                L ${offsetX1 + preview.w} ${offsetY + eP + 10 * scale}
-                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + eP + 10 * scale}
-                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + eP + 10 * scale + encocheHauteur}
-                L ${offsetX1 + preview.w} ${offsetY + eP + 10 * scale + encocheHauteur}
-                L ${offsetX1 + preview.w} ${offsetY + preview.h - eP - 10 * scale - encocheHauteur}
-                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + preview.h - eP - 10 * scale - encocheHauteur}
-                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + preview.h - eP - 10 * scale}
-                L ${offsetX1 + preview.w} ${offsetY + preview.h - eP - 10 * scale}
+                L ${offsetX1 + preview.w} ${offsetY + encoche1Y}
+                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + encoche1Y}
+                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + encoche1Y + encocheHauteur}
+                L ${offsetX1 + preview.w} ${offsetY + encoche1Y + encocheHauteur}
+                L ${offsetX1 + preview.w} ${offsetY + encoche2Y}
+                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + encoche2Y}
+                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + encoche2Y + encocheHauteur}
+                L ${offsetX1 + preview.w} ${offsetY + encoche2Y + encocheHauteur}
                 L ${offsetX1 + preview.w} ${offsetY + preview.h - decoupe}
                 L ${offsetX1 + preview.w - decoupe} ${offsetY + preview.h - decoupe}
                 L ${offsetX1 + preview.w - decoupe} ${offsetY + preview.h}
@@ -627,14 +652,14 @@ export function CaissonDoublePreview({
                 L ${offsetX2 + decoupe} ${offsetY}
                 L ${offsetX2 + decoupe} ${offsetY + decoupe}
                 L ${offsetX2} ${offsetY + decoupe}
-                L ${offsetX2} ${offsetY + eP + 10 * scale}
-                L ${offsetX2 + encocheLargeur} ${offsetY + eP + 10 * scale}
-                L ${offsetX2 + encocheLargeur} ${offsetY + eP + 10 * scale + encocheHauteur}
-                L ${offsetX2} ${offsetY + eP + 10 * scale + encocheHauteur}
-                L ${offsetX2} ${offsetY + preview.h - eP - 10 * scale - encocheHauteur}
-                L ${offsetX2 + encocheLargeur} ${offsetY + preview.h - eP - 10 * scale - encocheHauteur}
-                L ${offsetX2 + encocheLargeur} ${offsetY + preview.h - eP - 10 * scale}
-                L ${offsetX2} ${offsetY + preview.h - eP - 10 * scale}
+                L ${offsetX2} ${offsetY + encoche1Y}
+                L ${offsetX2 + encocheLargeur} ${offsetY + encoche1Y}
+                L ${offsetX2 + encocheLargeur} ${offsetY + encoche1Y + encocheHauteur}
+                L ${offsetX2} ${offsetY + encoche1Y + encocheHauteur}
+                L ${offsetX2} ${offsetY + encoche2Y}
+                L ${offsetX2 + encocheLargeur} ${offsetY + encoche2Y}
+                L ${offsetX2 + encocheLargeur} ${offsetY + encoche2Y + encocheHauteur}
+                L ${offsetX2} ${offsetY + encoche2Y + encocheHauteur}
                 L ${offsetX2} ${offsetY + preview.h - decoupe}
                 L ${offsetX2 + decoupe} ${offsetY + preview.h - decoupe}
                 L ${offsetX2 + decoupe} ${offsetY + preview.h}

@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Rocket, ChevronDown, ChevronUp } from "lucide-react";
+import { Rocket, ChevronDown, ChevronUp, Ruler } from "lucide-react";
 import { CaissonDoublePreview } from "./CaissonPreview";
 import type { CaissonDoubleParams, LightingType } from "./types";
 import { DEFAULT_DEPTH_LUMINEUX, DEFAULT_DEPTH_NON_LUMINEUX } from "./types";
@@ -22,6 +22,11 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
   const [drillingHoles, setDrillingHoles] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
 
+  // Mode entraxe potences : "auto" = aux extrémités, "custom" = personnalisé
+  const [entraxeMode, setEntraxeMode] = useState<"auto" | "custom">("auto");
+  // L'utilisateur entre l'espace de fixation disponible (entraxe + 34mm)
+  const [espaceFix, setEspaceFix] = useState<number>(0);
+
   // Mettre à jour l'épaisseur quand le type d'éclairage change
   useEffect(() => {
     const newDepth = lightingType === "lumineux" ? DEFAULT_DEPTH_LUMINEUX : DEFAULT_DEPTH_NON_LUMINEUX;
@@ -37,8 +42,22 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
   const largeurFinale = largeur + 2 * epaisseurParFace;
   const hauteurFinale = hauteur + 2 * epaisseurParFace;
 
+  // Calcul de l'espace de fixation max (potences aux extrémités)
+  // entraxeMax = hauteur - 20 - 34, donc espaceFixMax = entraxeMax + 34 = hauteur - 20
+  const espaceFixMax = hauteur > 0 ? hauteur - 20 : 0;
+
+  // Espace de fixation minimum (encoches de 34mm minimum espacées)
+  const espaceFixMin = 34 + 50; // 34mm encoche + 50mm minimum entre les deux
+
+  // Calcul de l'entraxe à partir de l'espace de fixation (entraxe = espaceFix - 34)
+  const entraxeFromEspaceFix = espaceFix > 34 ? espaceFix - 34 : 0;
+
+  // Entraxe effectif à utiliser (null = mode auto)
+  const entraxeEffectif = entraxeMode === "auto" ? null : entraxeFromEspaceFix;
+
   // Validation
-  const isValid = largeur > 0 && hauteur > 0 && epaisseur > 0;
+  const isValid = largeur > 0 && hauteur > 0 && epaisseur > 0 &&
+    (entraxeMode === "auto" || (espaceFix >= espaceFixMin && espaceFix <= espaceFixMax));
 
   const handleGenerate = () => {
     if (!isValid) return;
@@ -48,6 +67,7 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
       hauteur,
       epaisseur,
       drillingHoles,
+      entraxePotences: entraxeEffectif,
     });
   };
 
@@ -194,6 +214,92 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
         )}
       </Card>
 
+      {/* Configuration entraxe potences */}
+      <Card className="p-4 space-y-3">
+        <h4 className="font-medium flex items-center gap-2">
+          <Ruler className="h-4 w-4 text-amber-600" />
+          Position des potences
+        </h4>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setEntraxeMode("auto")}
+            className={`p-3 rounded-lg border-2 transition-all text-left ${
+              entraxeMode === "auto"
+                ? "border-amber-500 bg-amber-50"
+                : "border-slate-200 hover:border-slate-300"
+            }`}
+          >
+            <div className="font-medium text-sm">Automatique</div>
+            <div className="text-xs text-slate-500 mt-1">
+              Potences aux extrémités (standard)
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setEntraxeMode("custom")}
+            className={`p-3 rounded-lg border-2 transition-all text-left ${
+              entraxeMode === "custom"
+                ? "border-amber-500 bg-amber-50"
+                : "border-slate-200 hover:border-slate-300"
+            }`}
+          >
+            <div className="font-medium text-sm">Personnalisé</div>
+            <div className="text-xs text-slate-500 mt-1">
+              Entraxe réduit (espace limité)
+            </div>
+          </button>
+        </div>
+
+        {entraxeMode === "custom" && (
+          <div className="space-y-3 pt-2">
+            <div className="space-y-1">
+              <Label htmlFor="espaceFix" className="text-xs text-slate-600">
+                Espace de fixation disponible (mm)
+              </Label>
+              <Input
+                id="espaceFix"
+                type="number"
+                min={espaceFixMin}
+                max={espaceFixMax || 1000}
+                step="10"
+                placeholder={`Ex: 650 mm (max: ${espaceFixMax} mm)`}
+                value={espaceFix || ""}
+                onChange={(e) => setEspaceFix(parseFloat(e.target.value) || 0)}
+                className={espaceFix >= espaceFixMin && espaceFix <= espaceFixMax ? "border-green-500" : ""}
+              />
+            </div>
+
+            {hauteur > 0 && (
+              <div className="text-xs text-slate-600 bg-slate-50 rounded-lg p-3 space-y-1">
+                <p>
+                  <span className="text-amber-600">ℹ️</span> Espace max possible : <strong>{espaceFixMax} mm</strong> (min: {espaceFixMin} mm)
+                </p>
+                <p className="text-slate-500">
+                  Les potences seront centrées verticalement sur le panneau.
+                </p>
+                {espaceFix >= espaceFixMin && espaceFix <= espaceFixMax && (
+                  <p className="text-green-600 mt-2">
+                    ✓ Entraxe entre potences : <strong>{entraxeFromEspaceFix} mm</strong>
+                  </p>
+                )}
+                {espaceFix > espaceFixMax && (
+                  <p className="text-red-500 mt-2">
+                    L'espace de fixation ne peut pas dépasser {espaceFixMax} mm pour cette hauteur
+                  </p>
+                )}
+                {espaceFix > 0 && espaceFix < espaceFixMin && (
+                  <p className="text-red-500 mt-2">
+                    L'espace de fixation minimum est de {espaceFixMin} mm
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
       {/* Caractéristiques spéciales */}
       <Card className="p-4 bg-slate-50">
         <h4 className="font-medium mb-3 flex items-center gap-2">
@@ -250,6 +356,7 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
           hauteur={hauteur}
           epaisseur={epaisseur}
           drillingHoles={drillingHoles}
+          entraxePotences={entraxeEffectif}
         />
       </div>
 

@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
+import { useUserPreferencesStore } from "@/stores/userPreferencesStore";
 import { useHorairesBase, useUpdateHorairesBase } from "@/hooks/useHeuresSupplementaires";
 import { HORAIRES_BASE_DEFAUT, DEFAULT_PREFERENCES, BADGE_COLORS, type BadgeColorId } from "@/types/database";
 import type { HorairesBase, JourSemaine, UserPreferences } from "@/types";
 import { cn } from "@/lib/utils";
 import { getBadgeClassName } from "@/lib/badgeColors";
-import { User, Clock, Save, RotateCcw, Settings, Palette, Check, Lock, Eye, EyeOff } from "lucide-react";
+import { User, Clock, Save, RotateCcw, Settings, Palette, Check, Lock, Eye, EyeOff, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { setMinimizeOnClose } from "@/lib/tauri";
@@ -107,6 +108,7 @@ export default function MonProfil() {
   const queryClient = useQueryClient();
   const { data: horairesBase, isLoading } = useHorairesBase();
   const updateHoraires = useUpdateHorairesBase();
+  const { highlightIntensity, setHighlightIntensity } = useUserPreferencesStore();
 
   const [localHoraires, setLocalHoraires] = useState<HorairesBase>(HORAIRES_BASE_DEFAUT);
   const [hasChanges, setHasChanges] = useState(false);
@@ -525,9 +527,54 @@ export default function MonProfil() {
           <h2 className="text-lg font-semibold text-gray-900">Préférences</h2>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Intensité du surlignage */}
+          <div className="py-2">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Sun className="h-4 w-4 text-yellow-500" />
+                <p className="font-medium text-gray-900">Intensité du surlignage</p>
+              </div>
+              <span className="text-sm font-medium text-gray-600">
+                {highlightIntensity}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="10"
+              value={highlightIntensity}
+              onChange={(e) => setHighlightIntensity(Number(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>Aucun</span>
+              <span>Fort</span>
+            </div>
+            <p className="text-sm text-gray-500 mt-2">
+              Ajustez l'intensité des couleurs de fond dans "Mes Dossiers" selon votre écran.
+            </p>
+            {/* Aperçu */}
+            <div className="mt-3 space-y-1">
+              {[
+                { label: "Urgent", rgb: "254, 202, 202" },
+                { label: "A faire", rgb: "191, 219, 254" },
+                { label: "Attente R.", rgb: "221, 214, 254" },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="px-3 py-1.5 rounded text-sm"
+                  style={{ backgroundColor: `rgba(${item.rgb}, ${highlightIntensity / 100})` }}
+                >
+                  {item.label}
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Option minimize on close */}
-          <div className="flex items-center justify-between py-2">
+          <div className="flex items-center justify-between py-2 border-t pt-4">
             <div>
               <p className="font-medium text-gray-900">Minimiser au lieu de fermer</p>
               <p className="text-sm text-gray-500">

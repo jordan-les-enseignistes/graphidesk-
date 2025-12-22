@@ -37,9 +37,18 @@ export function InlineEdit({ value, onSave, type = "text", className, placeholde
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && type !== "textarea") {
-      e.preventDefault();
-      handleSave();
+    if (e.key === "Enter") {
+      // Pour textarea: Entrée seule sauvegarde, Shift+Entrée fait un retour à la ligne
+      if (type === "textarea") {
+        if (!e.shiftKey) {
+          e.preventDefault();
+          handleSave();
+        }
+        // Shift+Entrée : comportement par défaut (retour à la ligne)
+      } else {
+        e.preventDefault();
+        handleSave();
+      }
     } else if (e.key === "Escape") {
       setEditValue(value);
       setIsEditing(false);

@@ -41,6 +41,8 @@ export interface CaissonDoubleParams {
   hauteur: number;
   epaisseur: number;
   drillingHoles: boolean;
+  // Entraxe personnalisé pour les potences (null = automatique aux extrémités)
+  entraxePotences: number | null;
 }
 
 export interface FabrikSettings {
