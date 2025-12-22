@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { APP_CONFIG, ROUTES } from "@/lib/constants";
-import { getCurrentVersion } from "@/hooks/useAppUpdate";
+import { useAppVersion } from "@/hooks/useAppUpdate";
 import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
 
 // Composant pour le fond animé
@@ -78,6 +78,7 @@ function AnimatedBackground() {
 export default function Login() {
   const navigate = useNavigate();
   const { signIn, resetPassword, loading, error } = useAuthStore();
+  const appVersion = useAppVersion();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -293,7 +294,7 @@ export default function Login() {
           </form>
 
           <div className="mt-6 text-center text-xs text-gray-500">
-            Version {getCurrentVersion()}
+            Version {appVersion}
           </div>
         </CardContent>
       </Card>

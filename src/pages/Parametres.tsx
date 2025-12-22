@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { APP_CONFIG } from "@/lib/constants";
 import { getFirstName } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
+import { useUserPreferencesStore } from "@/stores/userPreferencesStore";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useProfiles } from "@/hooks/useProfiles";
 import {
@@ -22,7 +23,7 @@ import {
   type Statut,
   type StatutInsert,
 } from "@/hooks/useStatuts";
-import { getCurrentVersion } from "@/hooks/useAppUpdate";
+import { useAppVersion } from "@/hooks/useAppUpdate";
 import type { Profile } from "@/types";
 import {
   Settings,
@@ -59,6 +60,8 @@ import {
   Download,
   Sparkles,
   Save,
+  Palette,
+  Sun,
 } from "lucide-react";
 
 interface DeleteTarget {
@@ -99,6 +102,8 @@ export default function Parametres() {
   const { isAdmin } = useEffectiveRole();
   const queryClient = useQueryClient();
   const { data: profiles } = useProfiles();
+  const { highlightIntensity, setHighlightIntensity } = useUserPreferencesStore();
+  const appVersion = useAppVersion();
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
@@ -384,7 +389,7 @@ export default function Parametres() {
             </div>
             <div className="flex items-center justify-between py-2 border-b">
               <span className="text-gray-500">Version</span>
-              <Badge variant="secondary">v{getCurrentVersion()}</Badge>
+              <Badge variant="secondary">v{appVersion}</Badge>
             </div>
             <div className="flex items-center justify-between py-2 border-b">
               <span className="text-gray-500">Société</span>
@@ -399,7 +404,9 @@ export default function Parametres() {
             </div>
           </CardContent>
         </Card>
+      </div>
 
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* Statuts disponibles */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -484,7 +491,7 @@ export default function Parametres() {
           <div className="flex items-center justify-between py-2 border-b">
             <span className="text-gray-500">Version installée</span>
             <Badge variant="secondary" className="font-mono">
-              v{getCurrentVersion()}
+              v{appVersion}
             </Badge>
           </div>
 

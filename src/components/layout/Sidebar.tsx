@@ -4,7 +4,7 @@ import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useFeedbacksPendingCount } from "@/hooks/useFeedbacks";
 import { cn } from "@/lib/utils";
 import { ROUTES, APP_CONFIG } from "@/lib/constants";
-import { getCurrentVersion } from "@/hooks/useAppUpdate";
+import { useAppVersion } from "@/hooks/useAppUpdate";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   LayoutDashboard,
@@ -95,6 +95,7 @@ const adminGroup: NavGroup = {
 export function Sidebar() {
   const location = useLocation();
   const { isAdmin } = useEffectiveRole();
+  const appVersion = useAppVersion();
 
   // Récupérer le nombre de feedbacks en attente (admin only)
   const { data: pendingFeedbacksCount } = useFeedbacksPendingCount();
@@ -299,7 +300,7 @@ export function Sidebar() {
 
         {!collapsed && (
           <div className="mt-2 text-center text-xs text-slate-500">
-            v{getCurrentVersion()}
+            v{appVersion}
           </div>
         )}
       </div>

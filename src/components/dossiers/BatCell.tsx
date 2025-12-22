@@ -45,12 +45,54 @@ export function BatCell({
 
   const handleAddBat = async (e?: React.MouseEvent, fromModal?: boolean) => {
     e?.stopPropagation();
-    await addBat.mutateAsync({ dossierId });
-    // Ouvrir la modale après ajout du BAT (seulement si appelé depuis le bouton, pas depuis la modale)
-    if (!fromModal) {
-      setShowPostBatModal(true);
-      setChangeStatut(true);
-      setNewComment("");
+
+    try {
+      // Calculer le numéro du nouveau BAT
+      const newBatNumber = batCount + 1;
+
+      // Ajouter le BAT
+      await addBat.mutateAsync({ dossierId });
+
+      // Ajouter automatiquement un commentaire avec l'horodatage et la version du BAT
+      const today = new Date().toLocaleDateString("fr-FR");
+      const autoComment = `[${today}] BAT V${newBatNumber} envoyé`;
+
+      // Récupérer les commentaires actuels depuis la base
+      const { data: freshDossier, error: fetchError } = await supabase
+        .from("dossiers")
+        .select("commentaires")
+        .eq("id", dossierId)
+        .single();
+
+      if (fetchError) {
+        console.error("Erreur récupération commentaires:", fetchError);
+      }
+
+      const existingComments = freshDossier?.commentaires || "";
+      const updatedComments = existingComments
+        ? `${existingComments}\n${autoComment}`
+        : autoComment;
+
+      await updateDossier.mutateAsync({
+        id: dossierId,
+        data: { commentaires: updatedComments }
+      });
+
+      // Ouvrir la modale après ajout du BAT (seulement si appelé depuis le bouton, pas depuis la modale)
+      if (!fromModal) {
+        setShowPostBatModal(true);
+        setChangeStatut(true);
+        setNewComment("");
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'ajout du BAT:", error);
+      // Le BAT a peut-être été ajouté mais pas le commentaire
+      // On affiche quand même la modale pour que l'utilisateur puisse réessayer
+      if (!fromModal) {
+        setShowPostBatModal(true);
+        setChangeStatut(true);
+        setNewComment("");
+      }
     }
   };
 
@@ -61,6 +103,7 @@ export function BatCell({
       updates.statut = "Attente R.";
     }
 
+    // Ajouter une note supplémentaire si l'utilisateur en a saisi une
     if (newComment.trim()) {
       // Récupérer les commentaires actuels FRAIS depuis la base (pour ne pas écraser)
       const { data: freshDossier } = await supabase
@@ -71,9 +114,9 @@ export function BatCell({
 
       const existingComments = freshDossier?.commentaires || "";
 
-      // Ajouter le commentaire au commentaire existant (pas remplacer)
+      // Ajouter la note additionnelle (le commentaire auto BAT est déjà ajouté)
       const today = new Date().toLocaleDateString("fr-FR");
-      const commentToAdd = `[${today}] BAT envoyé: ${newComment.trim()}`;
+      const commentToAdd = `[${today}] Note: ${newComment.trim()}`;
       updates.commentaires = existingComments
         ? `${existingComments}\n${commentToAdd}`
         : commentToAdd;
@@ -94,11 +137,6 @@ export function BatCell({
     }
   };
 
-  // Calculer les jours depuis le dernier BAT
-  const daysSinceLastBat = dernierBat
-    ? Math.floor((Date.now() - new Date(dernierBat).getTime()) / (1000 * 60 * 60 * 24))
-    : null;
-
   return (
     <>
       <div className="flex items-center gap-1">
@@ -117,21 +155,6 @@ export function BatCell({
           <span className={`font-medium ${batCount > 0 ? "text-green-700" : "text-gray-400"}`}>
             {batCount}
           </span>
-          {dernierBat && (
-            <>
-              <span className="text-gray-400 mx-1">·</span>
-              <span className={`text-xs whitespace-nowrap ${
-                daysSinceLastBat && daysSinceLastBat > 7
-                  ? "text-orange-600"
-                  : "text-gray-500"
-              }`}>
-                {formatDate(dernierBat)}
-              </span>
-              {batCount > 1 && (
-                <ChevronDown className="h-3 w-3 text-gray-400" />
-              )}
-            </>
-          )}
         </button>
 
         {/* Bouton +1 BAT */}
@@ -198,11 +221,8 @@ export function BatCell({
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button
               onClick={async () => {
-                await addBat.mutateAsync({ dossierId });
                 setShowHistory(false);
-                setShowPostBatModal(true);
-                setChangeStatut(true);
-                setNewComment("");
+                await handleAddBat(undefined, false);
               }}
               disabled={addBat.isPending}
               className="bg-green-600 hover:bg-green-700"

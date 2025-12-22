@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { getVersion } from "@tauri-apps/api/app";
 
 export interface TauriUpdateState {
   available: boolean;
@@ -21,11 +22,18 @@ export function useTauriUpdater() {
     progress: 0,
     error: null,
     version: null,
-    currentVersion: "1.0.7",
+    currentVersion: "",
     body: null,
   });
 
   const [update, setUpdate] = useState<Update | null>(null);
+
+  // Récupérer la version actuelle au montage
+  useEffect(() => {
+    getVersion()
+      .then((version) => setState((s) => ({ ...s, currentVersion: version })))
+      .catch(() => setState((s) => ({ ...s, currentVersion: "?" })));
+  }, []);
 
   // Vérifier les mises à jour
   const checkForUpdate = useCallback(async () => {

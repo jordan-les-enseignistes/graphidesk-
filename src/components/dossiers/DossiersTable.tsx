@@ -21,9 +21,11 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { InlineEdit } from "@/components/shared/InlineEdit";
 import { BatCell } from "./BatCell";
+import { RelanceCell } from "./RelanceCell";
 import { DossierForm } from "./DossierForm";
 import { TransferModal } from "./TransferModal";
 import { useAuthStore } from "@/stores/authStore";
+import { useHydratedUserPreferences } from "@/stores/userPreferencesStore";
 import { useArchiveDossier, useBulkArchive, useBulkUpdateStatus, useUpdateDossier, useDeleteDossier } from "@/hooks/useDossiers";
 import { formatDate, formatDateTime, cn, getFirstName } from "@/lib/utils";
 import { getBadgeClassName } from "@/lib/badgeColors";
@@ -63,6 +65,21 @@ interface DossiersTableProps {
 type SortField = "nom" | "date_creation" | "bat_count" | "statut";
 type SortDirection = "asc" | "desc";
 
+// Map des classes Tailwind bg-*-50 vers des couleurs RGB plus saturées (-200 level)
+// Pour avoir un vrai impact visuel quand l'intensité est à 100%
+const tailwindBgToRgb: Record<string, string> = {
+  "bg-red-50": "254, 202, 202",      // red-200
+  "bg-orange-50": "254, 215, 170",   // orange-200
+  "bg-yellow-50": "254, 240, 138",   // yellow-200
+  "bg-green-50": "167, 243, 208",    // green-200
+  "bg-blue-50": "191, 219, 254",     // blue-200
+  "bg-purple-50": "221, 214, 254",   // purple-200
+  "bg-pink-50": "251, 207, 232",     // pink-200
+  "bg-gray-50": "229, 231, 235",     // gray-200
+  "bg-indigo-50": "199, 210, 254",   // indigo-200
+  "bg-cyan-50": "165, 243, 252",     // cyan-200
+};
+
 export function DossiersTable({
   dossiers,
   isLoading,
@@ -70,6 +87,7 @@ export function DossiersTable({
   hideFilters = false,
 }: DossiersTableProps) {
   useAuthStore((state) => state.profile);
+  const { highlightIntensity } = useHydratedUserPreferences();
 
   // Récupérer les statuts dynamiques
   const { data: statuts } = useStatuts();
@@ -320,7 +338,7 @@ export function DossiersTable({
                 />
               </TableHead>
               <TableHead
-                className="cursor-pointer select-none min-w-[200px]"
+                className="cursor-pointer select-none w-48"
                 onClick={() => handleSort("nom")}
               >
                 <div className="flex items-center gap-1">
@@ -339,7 +357,7 @@ export function DossiersTable({
                 </div>
               </TableHead>
               <TableHead
-                className="cursor-pointer select-none w-32"
+                className="cursor-pointer select-none w-28"
                 onClick={() => handleSort("bat_count")}
               >
                 <div className="flex items-center gap-1">
@@ -347,6 +365,7 @@ export function DossiersTable({
                   <SortIcon field="bat_count" />
                 </div>
               </TableHead>
+              <TableHead className="w-20">Relance</TableHead>
               <TableHead
                 className="cursor-pointer select-none w-28"
                 onClick={() => handleSort("statut")}
@@ -356,14 +375,14 @@ export function DossiersTable({
                   <SortIcon field="statut" />
                 </div>
               </TableHead>
-              <TableHead className="min-w-[300px]">Commentaires</TableHead>
+              <TableHead className="min-w-[250px]">Commentaires</TableHead>
               <TableHead className="w-16">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={showGraphiste ? 8 : 7} className="h-32 text-center">
+                <TableCell colSpan={showGraphiste ? 9 : 8} className="h-32 text-center">
                   <div className="flex items-center justify-center">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
                     <span className="ml-2 text-gray-500">Chargement...</span>
@@ -372,7 +391,7 @@ export function DossiersTable({
               </TableRow>
             ) : sortedDossiers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showGraphiste ? 8 : 7} className="h-32 text-center text-gray-500">
+                <TableCell colSpan={showGraphiste ? 9 : 8} className="h-32 text-center text-gray-500">
                   {search || statutFilter
                     ? "Aucun dossier ne correspond aux filtres"
                     : "Aucun dossier en cours"}
@@ -380,13 +399,20 @@ export function DossiersTable({
               </TableRow>
             ) : (
               sortedDossiers.map((dossier) => {
-                // Couleur de fond basée sur le statut
-                const rowBgColor = statutRowBg[dossier.statut] || "";
+                // Couleur de fond basée sur le statut avec intensité personnalisable
+                const rowBgClass = statutRowBg[dossier.statut] || "";
+                const rgbValue = tailwindBgToRgb[rowBgClass];
+                // Calculer l'opacité basée sur l'intensité (0-100 -> 0-1)
+                const bgOpacity = highlightIntensity / 100;
+                // Style inline avec RGBA pour contrôler l'opacité dynamiquement
+                const rowStyle = rgbValue && bgOpacity > 0
+                  ? { backgroundColor: `rgba(${rgbValue}, ${bgOpacity})` }
+                  : undefined;
 
                 return (
                   <TableRow
                     key={dossier.id}
-                    className={rowBgColor}
+                    style={rowStyle}
                   >
                     <TableCell>
                       <input
@@ -396,11 +422,11 @@ export function DossiersTable({
                         className="h-4 w-4 rounded border-gray-300"
                       />
                     </TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium max-w-[200px]">
                       <InlineEdit
                         value={dossier.nom}
                         onSave={(value) => updateDossier.mutate({ id: dossier.id, data: { nom: value } })}
-                        className="whitespace-nowrap"
+                        className="line-clamp-2 break-words"
                       />
                     </TableCell>
                     {showGraphiste && (
@@ -427,6 +453,12 @@ export function DossiersTable({
                         dossierNom={dossier.nom}
                         currentStatut={dossier.statut}
                         currentCommentaires={dossier.commentaires}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <RelanceCell
+                        dossierId={dossier.id}
+                        dossierNom={dossier.nom}
                       />
                     </TableCell>
                     <TableCell>
