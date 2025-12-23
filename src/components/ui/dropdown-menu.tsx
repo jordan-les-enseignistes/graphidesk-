@@ -56,12 +56,16 @@ function DropdownMenuTrigger({ children, asChild }: DropdownMenuTriggerProps) {
 interface DropdownMenuContentProps extends React.HTMLAttributes<HTMLDivElement> {
   align?: "start" | "center" | "end";
   sideOffset?: number;
+  side?: "top" | "bottom";
+  collisionPadding?: number;
 }
 
 function DropdownMenuContent({
   className,
   align = "end",
   sideOffset = 4,
+  side = "bottom",
+  collisionPadding = 8,
   children,
   ...props
 }: DropdownMenuContentProps) {
@@ -76,6 +80,7 @@ function DropdownMenuContent({
     if (context.open && context.triggerRef.current) {
       const triggerRect = context.triggerRef.current.getBoundingClientRect();
       const menuWidth = ref.current?.offsetWidth || 200;
+      const menuHeight = ref.current?.offsetHeight || 200;
 
       let left = triggerRect.left;
       if (align === "end") {
@@ -85,16 +90,28 @@ function DropdownMenuContent({
       }
 
       // S'assurer que le menu ne dépasse pas à droite
-      const maxLeft = window.innerWidth - menuWidth - 8;
+      const maxLeft = window.innerWidth - menuWidth - collisionPadding;
       left = Math.min(left, maxLeft);
-      left = Math.max(8, left);
+      left = Math.max(collisionPadding, left);
+
+      // Calculer la position verticale
+      let top = triggerRect.bottom + sideOffset;
+
+      // Vérifier si le menu dépasse en bas de la fenêtre
+      const spaceBelow = window.innerHeight - triggerRect.bottom - collisionPadding;
+      const spaceAbove = triggerRect.top - collisionPadding;
+
+      // Si pas assez de place en bas et plus de place en haut, afficher au-dessus
+      if (menuHeight > spaceBelow && spaceAbove > spaceBelow) {
+        top = triggerRect.top - menuHeight - sideOffset;
+      }
 
       setPosition({
-        top: triggerRect.bottom + sideOffset,
+        top,
         left,
       });
     }
-  }, [context.open, context.triggerRef, align, sideOffset]);
+  }, [context.open, context.triggerRef, align, sideOffset, collisionPadding]);
 
   // Fermer sur clic extérieur
   React.useEffect(() => {

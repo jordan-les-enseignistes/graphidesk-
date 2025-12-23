@@ -6,6 +6,7 @@ import {
   searchRalByName,
   type RalColor,
 } from "@/data/ralColors";
+import { pantoneColors, type PantoneColor } from "@/data/pantoneColors";
 
 // Conversion CMYK vers RGB
 function cmykToRgb(c: number, m: number, y: number, k: number) {
@@ -67,6 +68,31 @@ function findClosestRalWithDeltaE(
   }));
 
   return results.sort((a, b) => a.deltaE - b.deltaE).slice(0, limit);
+}
+
+// Trouver les couleurs Pantone les plus proches avec Delta E
+function findClosestPantoneWithDeltaE(
+  targetRgb: { r: number; g: number; b: number },
+  limit = 12
+): Array<{ color: PantoneColor; deltaE: number }> {
+  const results = pantoneColors.map((color) => ({
+    color,
+    deltaE: calculateDeltaE(targetRgb, color.rgb),
+  }));
+
+  return results.sort((a, b) => a.deltaE - b.deltaE).slice(0, limit);
+}
+
+// Rechercher une couleur Pantone par code
+function findPantoneByCode(code: string): PantoneColor | undefined {
+  const normalizedCode = code.trim().toLowerCase();
+  return pantoneColors.find((c) => c.code.toLowerCase().includes(normalizedCode));
+}
+
+// Rechercher des couleurs Pantone
+function searchPantone(query: string): PantoneColor[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  return pantoneColors.filter((c) => c.code.toLowerCase().includes(normalizedQuery));
 }
 
 // Obtenir la couleur du badge Delta E
@@ -376,11 +402,252 @@ function CmykInput({
   );
 }
 
+// Composant pour la comparaison côte à côte Pantone
+function PantoneColorComparison({
+  sourceColor,
+  sourceLabel,
+  targetColor,
+  deltaE,
+  onCopy,
+}: {
+  sourceColor: string;
+  sourceLabel: string;
+  targetColor: PantoneColor;
+  deltaE: number;
+  onCopy: (value: string, type: string) => void;
+}) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const handleCopy = (value: string, type: string) => {
+    navigator.clipboard.writeText(value);
+    setCopied(type);
+    onCopy(value, type);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  return (
+    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      {/* Comparaison visuelle côte à côte */}
+      <div className="flex">
+        {/* Couleur source (CMJN) */}
+        <div
+          className="flex-1 h-32 flex items-center justify-center"
+          style={{ backgroundColor: sourceColor }}
+        >
+          <span className="text-xs font-medium px-2 py-1 bg-black/20 text-white rounded">
+            {sourceLabel}
+          </span>
+        </div>
+        {/* Couleur Pantone */}
+        <div
+          className="flex-1 h-32 flex items-center justify-center"
+          style={{ backgroundColor: targetColor.hex }}
+        >
+          <span className="text-xs font-medium px-2 py-1 bg-black/20 text-white rounded">
+            {targetColor.code}
+          </span>
+        </div>
+      </div>
+
+      {/* Badge Delta E */}
+      <div className="flex justify-center -mt-4 relative z-10">
+        <div
+          className={`${getDeltaEColor(
+            deltaE
+          )} text-white px-3 py-1.5 rounded-full shadow-lg`}
+        >
+          <span className="font-bold">ΔE</span>{" "}
+          <span className="font-mono">{deltaE.toFixed(1)}</span>
+        </div>
+      </div>
+
+      {/* Informations */}
+      <div className="p-4 pt-2">
+        <div className="text-center mb-3">
+          <p className="font-bold text-gray-900">Pantone {targetColor.code}</p>
+          <p className="text-xs text-gray-400 mt-1">
+            {getDeltaEDescription(deltaE)}
+          </p>
+        </div>
+
+        {/* Valeurs copiables */}
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          <button
+            onClick={() => handleCopy(targetColor.hex, `hex-${targetColor.code}`)}
+            className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+          >
+            <span className="text-gray-500">HEX</span>
+            <span className="font-mono font-medium flex items-center gap-1">
+              {targetColor.hex}
+              {copied === `hex-${targetColor.code}` ? (
+                <Check className="w-3 h-3 text-green-500" />
+              ) : (
+                <Copy className="w-3 h-3 text-gray-400" />
+              )}
+            </span>
+          </button>
+          <button
+            onClick={() =>
+              handleCopy(
+                `${targetColor.rgb.r}, ${targetColor.rgb.g}, ${targetColor.rgb.b}`,
+                `rgb-${targetColor.code}`
+              )
+            }
+            className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+          >
+            <span className="text-gray-500">RGB</span>
+            <span className="font-mono font-medium flex items-center gap-1">
+              {targetColor.rgb.r},{targetColor.rgb.g},{targetColor.rgb.b}
+              {copied === `rgb-${targetColor.code}` ? (
+                <Check className="w-3 h-3 text-green-500" />
+              ) : (
+                <Copy className="w-3 h-3 text-gray-400" />
+              )}
+            </span>
+          </button>
+          <button
+            onClick={() =>
+              handleCopy(
+                `${targetColor.cmyk.c}% ${targetColor.cmyk.m}% ${targetColor.cmyk.y}% ${targetColor.cmyk.k}%`,
+                `cmyk-${targetColor.code}`
+              )
+            }
+            className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+          >
+            <span className="text-gray-500">CMJN</span>
+            <span className="font-mono font-medium flex items-center gap-1">
+              {targetColor.cmyk.c}/{targetColor.cmyk.m}/{targetColor.cmyk.y}/
+              {targetColor.cmyk.k}
+              {copied === `cmyk-${targetColor.code}` ? (
+                <Check className="w-3 h-3 text-green-500" />
+              ) : (
+                <Copy className="w-3 h-3 text-gray-400" />
+              )}
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Composant pour afficher une carte couleur Pantone (catalogue)
+function PantoneColorCard({
+  color,
+  selected,
+  onClick,
+}: {
+  color: PantoneColor;
+  selected?: boolean;
+  onClick?: () => void;
+}) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const handleCopy = (value: string, type: string) => {
+    navigator.clipboard.writeText(value);
+    setCopied(type);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  const isLightColor = useMemo(() => {
+    const { r, g, b } = color.rgb;
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5;
+  }, [color.rgb]);
+
+  return (
+    <div
+      className={`bg-white rounded-lg border shadow-sm overflow-hidden transition-all hover:shadow-md ${
+        selected ? "ring-2 ring-purple-500" : ""
+      } ${onClick ? "cursor-pointer" : ""}`}
+      onClick={onClick}
+    >
+      <div
+        className="h-24 flex items-center justify-center"
+        style={{ backgroundColor: color.hex }}
+      >
+        <span
+          className={`text-sm font-bold ${
+            isLightColor ? "text-gray-800" : "text-white"
+          }`}
+        >
+          {color.code}
+        </span>
+      </div>
+      <div className="p-3 space-y-2">
+        <div>
+          <p className="font-medium text-gray-900 text-sm">Pantone {color.code}</p>
+        </div>
+        <div className="space-y-1 text-xs">
+          <div className="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
+            <span className="text-gray-600">HEX</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopy(color.hex, "hex");
+              }}
+              className="flex items-center gap-1 font-mono text-gray-800 hover:text-purple-600"
+            >
+              {color.hex}
+              {copied === "hex" ? (
+                <Check className="w-3 h-3 text-green-500" />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
+            </button>
+          </div>
+          <div className="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
+            <span className="text-gray-600">RGB</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopy(
+                  `${color.rgb.r}, ${color.rgb.g}, ${color.rgb.b}`,
+                  "rgb"
+                );
+              }}
+              className="flex items-center gap-1 font-mono text-gray-800 hover:text-purple-600"
+            >
+              {color.rgb.r}, {color.rgb.g}, {color.rgb.b}
+              {copied === "rgb" ? (
+                <Check className="w-3 h-3 text-green-500" />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
+            </button>
+          </div>
+          <div className="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
+            <span className="text-gray-600">CMJN</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopy(
+                  `${color.cmyk.c}% ${color.cmyk.m}% ${color.cmyk.y}% ${color.cmyk.k}%`,
+                  "cmyk"
+                );
+              }}
+              className="flex items-center gap-1 font-mono text-gray-800 hover:text-purple-600"
+            >
+              {color.cmyk.c}% {color.cmyk.m}% {color.cmyk.y}% {color.cmyk.k}%
+              {copied === "cmyk" ? (
+                <Check className="w-3 h-3 text-green-500" />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RalConverter() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchMode, setSearchMode] = useState<"ral" | "cmyk">("cmyk");
+  const [searchMode, setSearchMode] = useState<"cmyk" | "ral" | "pantone">("cmyk");
   const [cmykValues, setCmykValues] = useState({ c: 20, m: 8, y: 5, k: 80 });
   const [selectedColor, setSelectedColor] = useState<RalColor | null>(null);
+  const [selectedPantone, setSelectedPantone] = useState<PantoneColor | null>(null);
 
   // Calcul RGB à partir de CMYK
   const sourceRgb = useMemo(
@@ -390,10 +657,18 @@ export default function RalConverter() {
 
   const sourceColorCss = `rgb(${sourceRgb.r}, ${sourceRgb.g}, ${sourceRgb.b})`;
 
-  // Résultats avec Delta E
+  // Résultats RAL avec Delta E
   const cmykResultsWithDelta = useMemo(() => {
     if (searchMode === "cmyk") {
       return findClosestRalWithDeltaE(sourceRgb, 12);
+    }
+    return [];
+  }, [sourceRgb, searchMode]);
+
+  // Résultats Pantone avec Delta E
+  const pantoneResultsWithDelta = useMemo(() => {
+    if (searchMode === "pantone") {
+      return findClosestPantoneWithDeltaE(sourceRgb, 12);
     }
     return [];
   }, [sourceRgb, searchMode]);
@@ -449,10 +724,10 @@ export default function RalConverter() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">
-                Convertisseur RAL / CMJN
+                Nuancier
               </h1>
               <p className="text-sm text-gray-500">
-                Trouvez les correspondances entre couleurs RAL et valeurs CMJN
+                Correspondances RAL et Pantone depuis vos valeurs CMJN
               </p>
             </div>
           </div>
@@ -477,6 +752,17 @@ export default function RalConverter() {
                 CMJN vers RAL
               </button>
               <button
+                onClick={() => setSearchMode("pantone")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  searchMode === "pantone"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <ArrowRightLeft className="w-4 h-4" />
+                CMJN vers Pantone
+              </button>
+              <button
                 onClick={() => setSearchMode("ral")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   searchMode === "ral"
@@ -490,7 +776,7 @@ export default function RalConverter() {
             </div>
 
             {/* Inputs CMYK */}
-            {searchMode === "cmyk" && (
+            {(searchMode === "cmyk" || searchMode === "pantone") && (
               <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                 {/* Inputs CMYK */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
@@ -631,6 +917,88 @@ export default function RalConverter() {
                   <span>{">"} 10 : Très différent</span>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Résultats CMYK -> Pantone avec comparaison */}
+        {searchMode === "pantone" && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Couleurs Pantone les plus proches
+              </h2>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                  ΔE {"<"} 2
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+                  ΔE {"<"} 5
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                  ΔE {">"} 10
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {pantoneResultsWithDelta.map(({ color, deltaE }, index) => (
+                <div key={color.code} className="relative">
+                  {index === 0 && (
+                    <div className="absolute -top-2 -left-2 z-10 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow">
+                      Meilleur match
+                    </div>
+                  )}
+                  <PantoneColorComparison
+                    sourceColor={sourceColorCss}
+                    sourceLabel={`C${cmykValues.c}/M${cmykValues.m}/Y${cmykValues.y}/K${cmykValues.k}`}
+                    targetColor={color}
+                    deltaE={deltaE}
+                    onCopy={() => {}}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Légende Delta E */}
+            <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+              <h3 className="font-medium text-gray-800 mb-2">
+                Comprendre le Delta E (ΔE)
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-green-500"></span>
+                  <span>{"<"} 1 : Imperceptible</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-green-400"></span>
+                  <span>1-2 : Très proche</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-lime-500"></span>
+                  <span>2-3.5 : Proche</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-yellow-500"></span>
+                  <span>3.5-5 : Perceptible</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-orange-500"></span>
+                  <span>5-10 : Visible</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-red-500"></span>
+                  <span>{">"} 10 : Très différent</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Info sur le nombre de couleurs Pantone */}
+            <div className="mt-4 text-sm text-gray-500 text-center">
+              Base de données : {pantoneColors.length} couleurs Pantone
             </div>
           </div>
         )}

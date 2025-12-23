@@ -29,6 +29,7 @@ export default function MesDossiers() {
         dossiers={dossiers ?? []}
         isLoading={isLoading}
         showGraphiste={false}
+        allowDateSortToggle={true}
       />
     </div>
   );

@@ -40,7 +40,6 @@ import {
   User,
   Plus,
   Pencil,
-  GripVertical,
   X,
   Check,
   Circle,
@@ -57,6 +56,7 @@ import {
   Star,
   Zap,
   ChevronDown,
+  ChevronUp,
   Download,
   Sparkles,
   Save,
@@ -116,6 +116,7 @@ export default function Parametres() {
   const createStatut = useCreateStatut();
   const updateStatut = useUpdateStatut();
   const deleteStatut = useDeleteStatut();
+  const reorderStatuts = useReorderStatuts();
 
   const [showStatutForm, setShowStatutForm] = useState(false);
   const [editingStatut, setEditingStatut] = useState<Statut | null>(null);
@@ -358,6 +359,30 @@ export default function Parametres() {
     setReplacementStatutId("");
   };
 
+  // Fonctions pour déplacer les statuts haut/bas
+  const handleMoveStatut = async (statutId: string, direction: "up" | "down") => {
+    if (!statuts) return;
+
+    const currentIndex = statuts.findIndex((s) => s.id === statutId);
+    if (currentIndex === -1) return;
+
+    const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex < 0 || newIndex >= statuts.length) return;
+
+    // Créer une nouvelle liste réordonnée
+    const reorderedStatuts = [...statuts];
+    const [movedItem] = reorderedStatuts.splice(currentIndex, 1);
+    reorderedStatuts.splice(newIndex, 0, movedItem);
+
+    // Mettre à jour les priorités
+    const updates = reorderedStatuts.map((statut, index) => ({
+      id: statut.id,
+      priority: index,
+    }));
+
+    await reorderStatuts.mutateAsync(updates);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -404,9 +429,7 @@ export default function Parametres() {
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
         {/* Statuts disponibles */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -436,15 +459,38 @@ export default function Parametres() {
               <p className="text-sm text-gray-500">Aucun statut configuré</p>
             ) : (
               <div className="space-y-2">
-                {statuts.map((statut) => {
+                {statuts.map((statut, index) => {
                   const IconComponent = ICON_COMPONENTS[statut.icon] || Circle;
+                  const isFirst = index === 0;
+                  const isLast = index === statuts.length - 1;
                   return (
                     <div
                       key={statut.id}
                       className="flex items-center justify-between rounded-lg border p-2 hover:bg-gray-50"
                     >
-                      <div className="flex items-center gap-3">
-                        <GripVertical className="h-4 w-4 text-gray-300" />
+                      <div className="flex items-center gap-2">
+                        {isAdmin && (
+                          <div className="flex flex-col">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 w-5 p-0"
+                              onClick={() => handleMoveStatut(statut.id, "up")}
+                              disabled={isFirst || reorderStatuts.isPending}
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 w-5 p-0"
+                              onClick={() => handleMoveStatut(statut.id, "down")}
+                              disabled={isLast || reorderStatuts.isPending}
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                         <Badge className={statut.color}>
                           <IconComponent className="h-3 w-3 mr-1" />
                           {statut.label}

@@ -75,7 +75,7 @@ const navGroups: NavGroup[] = [
       { label: "Sites internet", icon: Globe, path: ROUTES.SITES_INTERNET },
       { label: "Process", icon: BookOpen, path: ROUTES.PROCESS },
       { label: "Réunions", icon: UsersRound, path: ROUTES.REUNIONS },
-      { label: "RAL / CMJN", icon: Palette, path: ROUTES.RAL_CONVERTER },
+      { label: "Nuancier", icon: Palette, path: ROUTES.RAL_CONVERTER },
       { label: "Annuaire", icon: Contact, path: ROUTES.ANNUAIRE },
       { label: "Feedbacks", icon: MessageSquarePlus, path: ROUTES.FEEDBACKS },
     ],

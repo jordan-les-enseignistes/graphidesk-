@@ -45,6 +45,9 @@ import {
   X,
   Check,
   Trash2,
+  ArrowUpDown,
+  Clock,
+  CalendarDays,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -60,6 +63,7 @@ interface DossiersTableProps {
   isLoading: boolean;
   showGraphiste?: boolean;
   hideFilters?: boolean;
+  allowDateSortToggle?: boolean; // Permet de switcher entre tri par date ancienne/récente
 }
 
 type SortField = "nom" | "date_creation" | "bat_count" | "statut";
@@ -85,6 +89,7 @@ export function DossiersTable({
   isLoading,
   showGraphiste = false,
   hideFilters = false,
+  allowDateSortToggle = false,
 }: DossiersTableProps) {
   useAuthStore((state) => state.profile);
   const { highlightIntensity } = useHydratedUserPreferences();
@@ -107,6 +112,8 @@ export function DossiersTable({
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(true);
+  // Mode de tri par date : "oldest" = plus anciens d'abord, "newest" = plus récents d'abord (basé sur dernier_bat)
+  const [dateSortMode, setDateSortMode] = useState<"oldest" | "newest">("oldest");
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -132,7 +139,7 @@ export function DossiersTable({
     return matchSearch && matchStatut;
   });
 
-  // Tri - par défaut par priorité de statut puis par date de création
+  // Tri - par défaut par priorité de statut puis par date
   const sortedDossiers = [...filteredDossiers].sort((a, b) => {
     // Si tri par défaut (date_creation desc), on trie par priorité de statut d'abord
     if (sortField === "date_creation" && sortDirection === "desc") {
@@ -144,8 +151,16 @@ export function DossiersTable({
         return priorityA - priorityB;
       }
 
-      // À priorité égale, trier par date de création (plus anciens d'abord)
-      return new Date(a.date_creation).getTime() - new Date(b.date_creation).getTime();
+      // À priorité égale, trier par date de BAT (ou date de création si pas de BAT)
+      // dateSortMode: "oldest" = plus anciens d'abord, "newest" = plus récents d'abord
+      const dateA = a.dernier_bat ? new Date(a.dernier_bat).getTime() : new Date(a.date_creation).getTime();
+      const dateB = b.dernier_bat ? new Date(b.dernier_bat).getTime() : new Date(b.date_creation).getTime();
+
+      if (dateSortMode === "oldest") {
+        return dateA - dateB; // Plus anciens d'abord
+      } else {
+        return dateB - dateA; // Plus récents d'abord
+      }
     }
 
     // Sinon, tri manuel par l'utilisateur
@@ -295,32 +310,60 @@ export function DossiersTable({
 
       {/* Filtres par statut - boutons */}
       {!hideFilters && showFilters && (
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setStatutFilter("")}
-            className={cn(
-              "px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors",
-              !statutFilter
-                ? "bg-gray-800 text-white border-gray-800"
-                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-            )}
-          >
-            Tous
-          </button>
-          {statuts?.map((s) => (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              key={s.value}
-              onClick={() => setStatutFilter(statutFilter === s.value ? "" : s.value)}
+              onClick={() => setStatutFilter("")}
               className={cn(
                 "px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors",
-                statutFilter === s.value
-                  ? s.color
+                !statutFilter
+                  ? "bg-gray-800 text-white border-gray-800"
                   : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
               )}
             >
-              {s.label}
+              Tous
             </button>
-          ))}
+            {statuts?.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => setStatutFilter(statutFilter === s.value ? "" : s.value)}
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors",
+                  statutFilter === s.value
+                    ? s.color
+                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Bouton pour switcher le mode de tri par date */}
+          {allowDateSortToggle && (
+            <Tooltip content={dateSortMode === "oldest" ? "Tri : Plus anciens d'abord (par date de BAT)" : "Tri : Plus récents d'abord (par date de BAT)"}>
+              <button
+                onClick={() => setDateSortMode(dateSortMode === "oldest" ? "newest" : "oldest")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors",
+                  "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                )}
+              >
+                {dateSortMode === "oldest" ? (
+                  <>
+                    <Clock className="h-4 w-4" />
+                    <span className="hidden sm:inline">Anciens d'abord</span>
+                  </>
+                ) : (
+                  <>
+                    <CalendarDays className="h-4 w-4" />
+                    <span className="hidden sm:inline">Récents d'abord</span>
+                  </>
+                )}
+                <ArrowUpDown className="h-3 w-3 text-gray-400" />
+              </button>
+            </Tooltip>
+          )}
         </div>
       )}
 
@@ -468,7 +511,7 @@ export function DossiersTable({
                             <StatusBadge statut={dossier.statut} />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-40">
+                        <DropdownMenuContent align="start" side="bottom" sideOffset={4} collisionPadding={16} className="w-40">
                           {statuts?.map((s) => (
                             <DropdownMenuItem
                               key={s.value}
