@@ -30,6 +30,7 @@ export default function MesDossiers() {
         isLoading={isLoading}
         showGraphiste={false}
         allowDateSortToggle={true}
+        allowColumnResize={true}
       />
     </div>
   );

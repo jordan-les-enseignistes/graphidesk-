@@ -64,6 +64,7 @@ interface DossiersTableProps {
   showGraphiste?: boolean;
   hideFilters?: boolean;
   allowDateSortToggle?: boolean; // Permet de switcher entre tri par date ancienne/récente
+  allowColumnResize?: boolean; // Permet le redimensionnement des colonnes (Mes Dossiers uniquement)
 }
 
 type SortField = "nom" | "date_creation" | "bat_count" | "statut";
@@ -90,6 +91,7 @@ export function DossiersTable({
   showGraphiste = false,
   hideFilters = false,
   allowDateSortToggle = false,
+  allowColumnResize = false,
 }: DossiersTableProps) {
   useAuthStore((state) => state.profile);
   const { highlightIntensity } = useHydratedUserPreferences();
@@ -113,7 +115,81 @@ export function DossiersTable({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(true);
   // Mode de tri par date : "oldest" = plus anciens d'abord, "newest" = plus récents d'abord (basé sur dernier_bat)
-  const [dateSortMode, setDateSortMode] = useState<"oldest" | "newest">("oldest");
+  // Persisté dans localStorage
+  const [dateSortMode, setDateSortMode] = useState<"oldest" | "newest">(() => {
+    const saved = localStorage.getItem("dossiers-date-sort-mode");
+    return (saved === "newest" || saved === "oldest") ? saved : "oldest";
+  });
+
+  // Largeurs des colonnes (persistées dans localStorage)
+  const defaultColumnWidths = {
+    checkbox: 48,
+    dossier: 200,
+    graphiste: 130,
+    date: 130,
+    bat: 100,
+    relance: 80,
+    statut: 110,
+    commentaires: 300,
+    actions: 80,
+  };
+
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem("dossiers-column-widths");
+    if (saved) {
+      try {
+        return { ...defaultColumnWidths, ...JSON.parse(saved) };
+      } catch {
+        return defaultColumnWidths;
+      }
+    }
+    return defaultColumnWidths;
+  });
+
+  // Ref pour le redimensionnement
+  const resizingColumn = useRef<string | null>(null);
+  const startX = useRef<number>(0);
+  const startWidth = useRef<number>(0);
+
+  // Sauvegarder le mode de tri quand il change
+  useEffect(() => {
+    localStorage.setItem("dossiers-date-sort-mode", dateSortMode);
+  }, [dateSortMode]);
+
+  // Sauvegarder les largeurs de colonnes quand elles changent
+  useEffect(() => {
+    localStorage.setItem("dossiers-column-widths", JSON.stringify(columnWidths));
+  }, [columnWidths]);
+
+  // Gestionnaires pour le redimensionnement des colonnes
+  const handleMouseDown = (columnKey: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingColumn.current = columnKey;
+    startX.current = e.clientX;
+    startWidth.current = columnWidths[columnKey] || 100;
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!resizingColumn.current) return;
+    const diff = e.clientX - startX.current;
+    const newWidth = Math.max(50, startWidth.current + diff); // Minimum 50px
+    setColumnWidths(prev => ({
+      ...prev,
+      [resizingColumn.current!]: newWidth,
+    }));
+  };
+
+  const handleMouseUp = () => {
+    resizingColumn.current = null;
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  };
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -368,11 +444,12 @@ export function DossiersTable({
       )}
 
       {/* Table */}
-      <div className="rounded-lg border border-gray-200 bg-white">
-        <Table>
+      <div className="rounded-lg border border-gray-200 bg-white overflow-x-auto">
+        <Table style={allowColumnResize ? { tableLayout: "fixed", width: "max-content", minWidth: "100%" } : undefined}>
           <TableHeader>
             <TableRow className="bg-gray-50">
-              <TableHead className="w-12">
+              {/* Checkbox */}
+              <TableHead style={allowColumnResize ? { width: columnWidths.checkbox } : undefined} className="w-12">
                 <input
                   type="checkbox"
                   checked={selectedIds.size === sortedDossiers.length && sortedDossiers.length > 0}
@@ -380,46 +457,136 @@ export function DossiersTable({
                   className="h-4 w-4 rounded border-gray-300"
                 />
               </TableHead>
+
+              {/* Dossier */}
               <TableHead
-                className="cursor-pointer select-none w-48"
-                onClick={() => handleSort("nom")}
+                style={allowColumnResize ? { width: columnWidths.dossier } : undefined}
+                className={cn("select-none relative", allowColumnResize ? "group" : "", !allowColumnResize && "w-48")}
               >
-                <div className="flex items-center gap-1">
+                <div
+                  className="flex items-center gap-1 pr-2 cursor-pointer"
+                  onClick={() => handleSort("nom")}
+                >
                   Dossier
                   <SortIcon field="nom" />
                 </div>
+                {allowColumnResize && (
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("dossier", e); }}
+                  />
+                )}
               </TableHead>
-              {showGraphiste && <TableHead className="w-32">Graphiste</TableHead>}
+
+              {/* Graphiste (optionnel) */}
+              {showGraphiste && (
+                <TableHead
+                  style={allowColumnResize ? { width: columnWidths.graphiste } : undefined}
+                  className={cn("relative", allowColumnResize ? "group" : "w-32")}
+                >
+                  Graphiste
+                  {allowColumnResize && (
+                    <div
+                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("graphiste", e); }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
+                </TableHead>
+              )}
+
+              {/* Créé le */}
               <TableHead
-                className="cursor-pointer select-none w-28"
-                onClick={() => handleSort("date_creation")}
+                style={allowColumnResize ? { width: columnWidths.date } : undefined}
+                className={cn("select-none relative", allowColumnResize ? "group" : "w-28")}
               >
-                <div className="flex items-center gap-1">
+                <div
+                  className="flex items-center gap-1 pr-2 cursor-pointer"
+                  onClick={() => handleSort("date_creation")}
+                >
                   Créé le
                   <SortIcon field="date_creation" />
                 </div>
+                {allowColumnResize && (
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("date", e); }}
+                  />
+                )}
               </TableHead>
+
+              {/* BAT */}
               <TableHead
-                className="cursor-pointer select-none w-28"
-                onClick={() => handleSort("bat_count")}
+                style={allowColumnResize ? { width: columnWidths.bat } : undefined}
+                className={cn("select-none relative", allowColumnResize ? "group" : "w-28")}
               >
-                <div className="flex items-center gap-1">
+                <div
+                  className="flex items-center gap-1 pr-2 cursor-pointer"
+                  onClick={() => handleSort("bat_count")}
+                >
                   BAT
                   <SortIcon field="bat_count" />
                 </div>
+                {allowColumnResize && (
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("bat", e); }}
+                  />
+                )}
               </TableHead>
-              <TableHead className="w-20">Relance</TableHead>
+
+              {/* Relance */}
               <TableHead
-                className="cursor-pointer select-none w-28"
-                onClick={() => handleSort("statut")}
+                style={allowColumnResize ? { width: columnWidths.relance } : undefined}
+                className={cn("relative", allowColumnResize ? "group" : "w-20")}
               >
-                <div className="flex items-center gap-1">
+                <span>Relance</span>
+                {allowColumnResize && (
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("relance", e); }}
+                  />
+                )}
+              </TableHead>
+
+              {/* Statut */}
+              <TableHead
+                style={allowColumnResize ? { width: columnWidths.statut } : undefined}
+                className={cn("select-none relative", allowColumnResize ? "group" : "w-28")}
+              >
+                <div
+                  className="flex items-center gap-1 pr-2 cursor-pointer"
+                  onClick={() => handleSort("statut")}
+                >
                   Statut
                   <SortIcon field="statut" />
                 </div>
+                {allowColumnResize && (
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("statut", e); }}
+                  />
+                )}
               </TableHead>
-              <TableHead className="min-w-[250px]">Commentaires</TableHead>
-              <TableHead className="w-16">Actions</TableHead>
+
+              {/* Commentaires */}
+              <TableHead
+                style={allowColumnResize ? { width: columnWidths.commentaires } : undefined}
+                className={cn("relative", allowColumnResize ? "group" : "min-w-[250px]")}
+              >
+                <span>Commentaires</span>
+                {allowColumnResize && (
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("commentaires", e); }}
+                  />
+                )}
+              </TableHead>
+
+              {/* Actions */}
+              <TableHead style={allowColumnResize ? { width: columnWidths.actions } : undefined} className={!allowColumnResize ? "w-16" : ""}>
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
