@@ -28,6 +28,7 @@ import {
   MessageSquarePlus,
   Contact,
   Wrench,
+  Calculator,
 } from "lucide-react";
 
 interface NavItem {
@@ -76,6 +77,7 @@ const navGroups: NavGroup[] = [
       { label: "Process", icon: BookOpen, path: ROUTES.PROCESS },
       { label: "Réunions", icon: UsersRound, path: ROUTES.REUNIONS },
       { label: "Nuancier", icon: Palette, path: ROUTES.RAL_CONVERTER },
+      { label: "Calculatrice", icon: Calculator, path: ROUTES.CALCULATRICE },
       { label: "Annuaire", icon: Contact, path: ROUTES.ANNUAIRE },
       { label: "Feedbacks", icon: MessageSquarePlus, path: ROUTES.FEEDBACKS },
     ],

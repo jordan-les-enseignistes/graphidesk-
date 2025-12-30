@@ -9,6 +9,7 @@ import { CaissonSimpleForm } from "@/components/fabrik/CaissonSimpleForm";
 import { CaissonMultiForm } from "@/components/fabrik/CaissonMultiForm";
 import { CaissonDoubleForm } from "@/components/fabrik/CaissonDoubleForm";
 import { AdhesifForm } from "@/components/fabrik/AdhesifForm";
+import { LettresBoitiersForm } from "@/components/fabrik/LettresBoitiersForm";
 import { IllustratorSettings } from "@/components/fabrik/IllustratorSettings";
 
 import type {
@@ -17,6 +18,7 @@ import type {
   CaissonSimpleParams,
   CaissonMultiParams,
   CaissonDoubleParams,
+  LettresBoitiersParams,
 } from "@/components/fabrik/types";
 import { DEFAULT_ILLUSTRATOR_PATH } from "@/components/fabrik/types";
 
@@ -99,6 +101,10 @@ export default function FabRik() {
     runScript("caisson_double_generation.jsx", params);
   };
 
+  const handleLettresBoitiersGenerate = (params: LettresBoitiersParams) => {
+    runScript("lettres_boitiers.jsx", params);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -135,7 +141,7 @@ export default function FabRik() {
       {/* Sélection du type de fab */}
       <Card className="p-4">
         <h3 className="font-medium mb-4">Type de fichier à générer</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <button
             type="button"
             onClick={() => setFabType("adhesif")}
@@ -170,6 +176,25 @@ export default function FabRik() {
                 <div className="font-semibold text-lg">Caisson</div>
                 <div className="text-sm text-slate-500">
                   Génération de caissons aluminium
+                </div>
+              </div>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFabType("lettres-boitiers")}
+            className={`p-6 rounded-xl border-2 transition-all text-left ${
+              fabType === "lettres-boitiers"
+                ? "border-emerald-500 bg-emerald-50 shadow-lg"
+                : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="text-4xl">🔤</div>
+              <div>
+                <div className="font-semibold text-lg">Lettres Boîtiers</div>
+                <div className="text-sm text-slate-500">
+                  Tranches, semelles et plexi
                 </div>
               </div>
             </div>
@@ -252,6 +277,13 @@ export default function FabRik() {
         </div>
       )}
 
+      {fabType === "lettres-boitiers" && (
+        <LettresBoitiersForm
+          onGenerate={handleLettresBoitiersGenerate}
+          isProcessing={isProcessing}
+        />
+      )}
+
       {/* Placeholder si rien sélectionné */}
       {fabType === "" && (
         <Card className="p-12 text-center border-2 border-dashed">
@@ -260,7 +292,7 @@ export default function FabRik() {
             Sélectionnez un type de fabrication
           </h3>
           <p className="text-slate-500">
-            Choisissez "Adhésif" pour l'automatisation vinyle ou "Caisson" pour générer des caissons aluminium.
+            Choisissez "Adhésif" pour l'automatisation vinyle, "Caisson" pour générer des caissons aluminium, ou "Lettres Boîtiers" pour les fichiers de fabrication de lettres.
           </p>
         </Card>
       )}

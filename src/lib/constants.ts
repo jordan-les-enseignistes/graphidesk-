@@ -69,6 +69,7 @@ export const ROUTES = {
   PROCESS: "/process",
   REUNIONS: "/reunions",
   RAL_CONVERTER: "/ral-converter",
+  CALCULATRICE: "/calculatrice",
   FEEDBACKS: "/feedbacks",
   MON_PROFIL: "/mon-profil",
   ANNUAIRE: "/annuaire",

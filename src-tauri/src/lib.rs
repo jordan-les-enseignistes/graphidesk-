@@ -181,6 +181,7 @@ fn get_fabrik_assets_path(app: tauri::AppHandle) -> Result<String, String> {
     Ok(fabrik_path.to_string_lossy().to_string())
 }
 
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -188,6 +189,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // Quand une nouvelle instance est lancée, on affiche la fenêtre existante
             if let Some(window) = app.get_webview_window("main") {

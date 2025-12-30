@@ -69,7 +69,7 @@ export default function Dashboard() {
   const { data: congesMoisActuel } = useCongesMois(currentYear, currentMonth);
   const { data: congesMoisProchain } = useCongesMois(nextMonthYear, nextMonth);
 
-  // Fusionner et filtrer les congés futurs
+  // Fusionner et filtrer les congés futurs, regroupés par période
   const prochainsCongés = useMemo(() => {
     const today = formatDateToString(now);
     const allConges: { date: string; prenom: string; type: string }[] = [];
@@ -90,9 +90,56 @@ export default function Dashboard() {
       });
     });
 
-    // Trier par date et prendre les 5 premiers
-    return allConges
-      .sort((a, b) => a.date.localeCompare(b.date))
+    // Trier par prénom puis par date
+    allConges.sort((a, b) => {
+      if (a.prenom !== b.prenom) return a.prenom.localeCompare(b.prenom);
+      return a.date.localeCompare(b.date);
+    });
+
+    // Regrouper les congés consécutifs par personne
+    const periodes: { prenom: string; dateDebut: string; dateFin: string }[] = [];
+
+    // Créer un Set des dates uniques par personne (pour ignorer matin/aprem du même jour)
+    const datesByPerson = new Map<string, Set<string>>();
+    allConges.forEach((c) => {
+      if (!datesByPerson.has(c.prenom)) {
+        datesByPerson.set(c.prenom, new Set());
+      }
+      datesByPerson.get(c.prenom)!.add(c.date);
+    });
+
+    // Pour chaque personne, regrouper les dates consécutives
+    datesByPerson.forEach((dates, prenom) => {
+      const sortedDates = Array.from(dates).sort();
+      if (sortedDates.length === 0) return;
+
+      let periodStart = sortedDates[0];
+      let periodEnd = sortedDates[0];
+
+      for (let i = 1; i < sortedDates.length; i++) {
+        const currentDate = new Date(sortedDates[i]);
+        const prevDate = new Date(periodEnd);
+
+        // Calculer la différence en jours (en tenant compte des weekends)
+        const diffDays = Math.round((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        // Si la date est consécutive (1 jour) ou proche (weekend = 3 jours max)
+        if (diffDays <= 3) {
+          periodEnd = sortedDates[i];
+        } else {
+          // Nouvelle période
+          periodes.push({ prenom, dateDebut: periodStart, dateFin: periodEnd });
+          periodStart = sortedDates[i];
+          periodEnd = sortedDates[i];
+        }
+      }
+      // Ajouter la dernière période
+      periodes.push({ prenom, dateDebut: periodStart, dateFin: periodEnd });
+    });
+
+    // Trier par date de début et prendre les 5 premières périodes
+    return periodes
+      .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut))
       .slice(0, 5);
   }, [congesMoisActuel, congesMoisProchain, now]);
 
@@ -469,24 +516,20 @@ export default function Dashboard() {
               </p>
             ) : (
               <ul className="space-y-3">
-                {prochainsCongés.map((conge, index) => {
-                  const dateObj = new Date(conge.date);
-                  const jourSemaine = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"][dateObj.getDay()];
-                  const typeLabel =
-                    conge.type === "conge_matin"
-                      ? "(matin)"
-                      : conge.type === "conge_aprem"
-                      ? "(après-midi)"
-                      : "";
+                {prochainsCongés.map((periode, index) => {
+                  const isSameDay = periode.dateDebut === periode.dateFin;
+                  const dateLabel = isSameDay
+                    ? formatDate(periode.dateDebut)
+                    : `du ${formatDate(periode.dateDebut)} au ${formatDate(periode.dateFin)}`;
                   return (
                     <li
-                      key={`${conge.date}-${conge.prenom}-${index}`}
+                      key={`${periode.dateDebut}-${periode.prenom}-${index}`}
                       className="flex items-center justify-between rounded-lg border border-cyan-100 bg-cyan-50 p-3"
                     >
                       <div>
-                        <p className="font-medium text-gray-900">{conge.prenom}</p>
+                        <p className="font-medium text-gray-900">{periode.prenom}</p>
                         <p className="text-sm text-cyan-600">
-                          {jourSemaine} {formatDate(conge.date)} {typeLabel}
+                          {dateLabel}
                         </p>
                       </div>
                     </li>

@@ -1,6 +1,6 @@
 // Types pour FabRik
 
-export type FabType = "adhesif" | "caisson" | "";
+export type FabType = "adhesif" | "caisson" | "lettres-boitiers" | "";
 export type CaissonType = "simple" | "multi" | "double";
 export type LightingType = "lumineux" | "non-lumineux";
 export type PartType = "left" | "center" | "right";
@@ -43,6 +43,12 @@ export interface CaissonDoubleParams {
   drillingHoles: boolean;
   // Entraxe personnalisé pour les potences (null = automatique aux extrémités)
   entraxePotences: number | null;
+}
+
+export interface LettresBoitiersParams {
+  destinationPath: string;
+  dossierName: string;
+  batNumber: string;
 }
 
 export interface FabrikSettings {

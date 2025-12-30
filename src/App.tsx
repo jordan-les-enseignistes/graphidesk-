@@ -33,6 +33,7 @@ import Feedbacks from "@/pages/Feedbacks";
 import Annuaire from "@/pages/Annuaire";
 import Recherche from "@/pages/Recherche";
 import FabRik from "@/pages/FabRik";
+import Calculatrice from "@/pages/Calculatrice";
 
 // Query Client
 const queryClient = new QueryClient({
@@ -197,6 +198,7 @@ function App() {
               <Route path={ROUTES.PROCESS} element={<Process />} />
               <Route path={ROUTES.REUNIONS} element={<Reunions />} />
               <Route path={ROUTES.RAL_CONVERTER} element={<RalConverter />} />
+              <Route path={ROUTES.CALCULATRICE} element={<Calculatrice />} />
               <Route path={ROUTES.FEEDBACKS} element={<Feedbacks />} />
               <Route path={ROUTES.ANNUAIRE} element={<Annuaire />} />
               <Route path={ROUTES.MON_PROFIL} element={<MonProfil />} />

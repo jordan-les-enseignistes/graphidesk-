@@ -124,14 +124,13 @@ export default function Archives() {
   const handleExportExcel = () => {
     if (!archives.length) return;
 
-    const headers = ["Nom", "Graphiste", "Date création", "Date archivage", "BAT", "Statut final"];
+    const headers = ["Nom", "Graphiste", "Date création", "Date archivage", "BAT"];
     const rows = archives.map((d) => [
       d.nom,
       d.graphiste?.full_name ?? "",
       formatDate(d.date_creation),
       formatDate(d.date_archivage),
       String(d.bat_count || 0),
-      d.statut,
     ]);
 
     const csv = [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
@@ -221,14 +220,13 @@ export default function Archives() {
               <TableHead>Date création</TableHead>
               <TableHead>Date archivage</TableHead>
               <TableHead>BAT</TableHead>
-              <TableHead>Statut final</TableHead>
               <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center">
+                <TableCell colSpan={6} className="h-32 text-center">
                   <div className="flex items-center justify-center">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
                     <span className="ml-2 text-gray-500">Chargement...</span>
@@ -237,7 +235,7 @@ export default function Archives() {
               </TableRow>
             ) : archives.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-gray-500">
+                <TableCell colSpan={6} className="h-32 text-center text-gray-500">
                   {searchQuery ? "Aucun résultat pour cette recherche" : "Aucune archive"}
                 </TableCell>
               </TableRow>
@@ -275,9 +273,6 @@ export default function Archives() {
                         {dossier.bat_count || 0}
                       </span>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge statut={dossier.statut} />
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1">
