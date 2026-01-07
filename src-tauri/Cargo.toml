@@ -1,6 +1,6 @@
 [package]
 name = "graphidesk"
-version = "1.1.4"
+version = "1.1.5"
 description = "Application de suivi des dossiers graphistes - Les Enseignistes"
 authors = ["Les Enseignistes"]
 license = "UNLICENSED"
@@ -26,3 +26,4 @@ tauri-plugin-notification = "2"
 tauri-plugin-updater = "2.9.0"
 tauri-plugin-single-instance = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-window-state = "2"

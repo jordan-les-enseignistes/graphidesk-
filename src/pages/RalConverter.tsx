@@ -644,7 +644,7 @@ function PantoneColorCard({
 
 export default function RalConverter() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchMode, setSearchMode] = useState<"cmyk" | "ral" | "pantone">("cmyk");
+  const [searchMode, setSearchMode] = useState<"cmyk" | "ral" | "pantone" | "pantone-catalog">("cmyk");
   const [cmykValues, setCmykValues] = useState({ c: 20, m: 8, y: 5, k: 80 });
   const [selectedColor, setSelectedColor] = useState<RalColor | null>(null);
   const [selectedPantone, setSelectedPantone] = useState<PantoneColor | null>(null);
@@ -713,6 +713,73 @@ export default function RalConverter() {
     return groups;
   }, []);
 
+  // Groupes de couleurs Pantone par catégorie
+  const pantoneGroups = useMemo(() => {
+    const groups: Record<string, PantoneColor[]> = {
+      "Couleurs Process": [],
+      "Jaunes (100-199)": [],
+      "Oranges (200-299)": [],
+      "Rouges (300-399)": [],
+      "Roses/Magentas (400-499)": [],
+      "Violets (500-599)": [],
+      "Bleus (600-699)": [],
+      "Cyans (700-799)": [],
+      "Verts (800-899)": [],
+      "Autres": [],
+    };
+
+    pantoneColors.forEach((color) => {
+      // Vérifier si c'est un code numérique
+      const numericCode = parseInt(color.code.replace(/[^0-9]/g, ""));
+      const isProcessColor = color.code.includes("Process") ||
+                            color.code === "Black" ||
+                            color.code === "Black PC" ||
+                            color.code === "Green" ||
+                            color.code === "Green PC" ||
+                            color.code.includes("Red 032") ||
+                            color.code.includes("Reflex Blue") ||
+                            color.code.includes("Violet") ||
+                            color.code.includes("Warm Red") ||
+                            color.code === "Yellow" ||
+                            color.code === "Yellow PC" ||
+                            color.code.includes("Orange 021") ||
+                            color.code.includes("Rubine") ||
+                            color.code.includes("Rhodamine") ||
+                            color.code.includes("Purple");
+
+      if (isProcessColor) {
+        groups["Couleurs Process"].push(color);
+      } else if (!isNaN(numericCode)) {
+        if (numericCode >= 100 && numericCode < 200) groups["Jaunes (100-199)"].push(color);
+        else if (numericCode >= 200 && numericCode < 300) groups["Oranges (200-299)"].push(color);
+        else if (numericCode >= 300 && numericCode < 400) groups["Rouges (300-399)"].push(color);
+        else if (numericCode >= 400 && numericCode < 500) groups["Roses/Magentas (400-499)"].push(color);
+        else if (numericCode >= 500 && numericCode < 600) groups["Violets (500-599)"].push(color);
+        else if (numericCode >= 600 && numericCode < 700) groups["Bleus (600-699)"].push(color);
+        else if (numericCode >= 700 && numericCode < 800) groups["Cyans (700-799)"].push(color);
+        else if (numericCode >= 800 && numericCode < 900) groups["Verts (800-899)"].push(color);
+        else groups["Autres"].push(color);
+      } else {
+        groups["Autres"].push(color);
+      }
+    });
+
+    // Filtrer les groupes vides
+    return Object.fromEntries(
+      Object.entries(groups).filter(([, colors]) => colors.length > 0)
+    );
+  }, []);
+
+  // Recherche Pantone
+  const pantoneSearchResults = useMemo(() => {
+    if (searchMode === "pantone-catalog" && searchQuery.trim()) {
+      const byCode = findPantoneByCode(searchQuery);
+      if (byCode) return [byCode];
+      return searchPantone(searchQuery).slice(0, 30);
+    }
+    return [];
+  }, [searchQuery, searchMode]);
+
   return (
     <div className="min-h-screen bg-gray-50 -m-6">
       {/* Header */}
@@ -739,39 +806,50 @@ export default function RalConverter() {
         <div className="bg-white rounded-lg border shadow-sm p-4 mb-6">
           <div className="flex flex-col gap-4">
             {/* Toggle mode */}
-            <div className="flex bg-gray-100 rounded-lg p-1 w-fit">
+            <div className="grid grid-cols-2 sm:grid-cols-4 bg-gray-100 rounded-lg p-1 gap-1">
               <button
                 onClick={() => setSearchMode("cmyk")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-md text-sm font-medium transition-colors ${
                   searchMode === "cmyk"
                     ? "bg-white text-gray-900 shadow-sm"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                <ArrowRightLeft className="w-4 h-4" />
-                CMJN vers RAL
+                <ArrowRightLeft className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">CMJN → RAL</span>
               </button>
               <button
                 onClick={() => setSearchMode("pantone")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-md text-sm font-medium transition-colors ${
                   searchMode === "pantone"
                     ? "bg-white text-gray-900 shadow-sm"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                <ArrowRightLeft className="w-4 h-4" />
-                CMJN vers Pantone
+                <ArrowRightLeft className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">CMJN → Pantone</span>
               </button>
               <button
                 onClick={() => setSearchMode("ral")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-md text-sm font-medium transition-colors ${
                   searchMode === "ral"
                     ? "bg-white text-gray-900 shadow-sm"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                <Search className="w-4 h-4" />
-                Catalogue RAL
+                <Search className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">Catalogue RAL</span>
+              </button>
+              <button
+                onClick={() => setSearchMode("pantone-catalog")}
+                className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                  searchMode === "pantone-catalog"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Search className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">Catalogue Pantone</span>
               </button>
             </div>
 
@@ -836,6 +914,20 @@ export default function RalConverter() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            {/* Recherche Pantone */}
+            {searchMode === "pantone-catalog" && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher par code (ex: 185, Process Yellow, Reflex Blue)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
             )}
@@ -1028,7 +1120,7 @@ export default function RalConverter() {
           </div>
         )}
 
-        {/* Catalogue complet */}
+        {/* Catalogue RAL complet */}
         {searchMode === "ral" && !searchQuery && (
           <div className="space-y-8">
             <h2 className="text-lg font-semibold text-gray-900">
@@ -1054,7 +1146,58 @@ export default function RalConverter() {
           </div>
         )}
 
-        {/* Couleur sélectionnée - détails */}
+        {/* Résultats de recherche Pantone */}
+        {searchMode === "pantone-catalog" && searchQuery && (
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Résultats de recherche ({pantoneSearchResults.length})
+            </h2>
+            {pantoneSearchResults.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {pantoneSearchResults.map((color) => (
+                  <PantoneColorCard
+                    key={color.code}
+                    color={color}
+                    selected={selectedPantone?.code === color.code}
+                    onClick={() => setSelectedPantone(color)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">
+                Aucune couleur Pantone trouvée pour "{searchQuery}"
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Catalogue Pantone complet */}
+        {searchMode === "pantone-catalog" && !searchQuery && (
+          <div className="space-y-8">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Catalogue Pantone ({pantoneColors.length} couleurs)
+            </h2>
+            {Object.entries(pantoneGroups).map(([groupName, colors]) => (
+              <div key={groupName}>
+                <h3 className="text-md font-medium text-gray-700 mb-3">
+                  {groupName} ({colors.length})
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                  {colors.map((color) => (
+                    <PantoneColorCard
+                      key={color.code}
+                      color={color}
+                      selected={selectedPantone?.code === color.code}
+                      onClick={() => setSelectedPantone(color)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Couleur RAL sélectionnée - détails */}
         {selectedColor && (
           <div className="fixed bottom-4 right-4 bg-white rounded-lg border shadow-lg p-4 w-80 z-20">
             <div className="flex items-start justify-between mb-3">
@@ -1090,6 +1233,47 @@ export default function RalConverter() {
                 <span className="font-mono">
                   {selectedColor.cmyk.c}% {selectedColor.cmyk.m}%{" "}
                   {selectedColor.cmyk.y}% {selectedColor.cmyk.k}%
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Couleur Pantone sélectionnée - détails */}
+        {selectedPantone && (
+          <div className="fixed bottom-4 right-4 bg-white rounded-lg border shadow-lg p-4 w-80 z-20">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="font-bold text-gray-900">Pantone {selectedPantone.code}</h3>
+              </div>
+              <button
+                onClick={() => setSelectedPantone(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div
+              className="w-full h-16 rounded-lg mb-3"
+              style={{ backgroundColor: selectedPantone.hex }}
+            />
+            <div className="space-y-1 text-sm">
+              <p>
+                <span className="text-gray-500">HEX:</span>{" "}
+                <span className="font-mono">{selectedPantone.hex}</span>
+              </p>
+              <p>
+                <span className="text-gray-500">RGB:</span>{" "}
+                <span className="font-mono">
+                  {selectedPantone.rgb.r}, {selectedPantone.rgb.g},{" "}
+                  {selectedPantone.rgb.b}
+                </span>
+              </p>
+              <p>
+                <span className="text-gray-500">CMJN:</span>{" "}
+                <span className="font-mono">
+                  {selectedPantone.cmyk.c}% {selectedPantone.cmyk.m}%{" "}
+                  {selectedPantone.cmyk.y}% {selectedPantone.cmyk.k}%
                 </span>
               </p>
             </div>

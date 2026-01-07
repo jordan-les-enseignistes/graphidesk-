@@ -69,13 +69,15 @@ CREATE POLICY "Users can update own dossiers"
     OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
--- DELETE : admin seulement
+-- DELETE : graphiste supprime les siens, admin supprime tout
 DROP POLICY IF EXISTS "Only admins can delete dossiers" ON dossiers;
-CREATE POLICY "Only admins can delete dossiers"
+DROP POLICY IF EXISTS "Users can delete own dossiers" ON dossiers;
+CREATE POLICY "Users can delete own dossiers"
   ON dossiers FOR DELETE
   TO authenticated
   USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    graphiste_id = auth.uid()
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
 -- ============================================
