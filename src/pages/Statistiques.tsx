@@ -1,5 +1,12 @@
 import { useState, useMemo } from "react";
-import { useAllDossiers, useArchives } from "@/hooks/useDossiers";
+import {
+  useStatsGlobal,
+  useStatsParStatut,
+  useStatsParGraphiste,
+  useStatsGraphisteParStatut,
+  useStatsArchivesParAnnee,
+  useStatsArchivesParGraphiste,
+} from "@/hooks/useStatistiques";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useStatuts } from "@/hooks/useStatuts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,28 +24,32 @@ export default function Statistiques() {
   const [chartModeStatut, setChartModeStatut] = useState<ChartMode>("bar");
   const [chartModeGraphiste, setChartModeGraphiste] = useState<ChartMode>("bar");
 
-  const { data: dossiers, isLoading: loadingDossiers } = useAllDossiers();
-  const { data: archives, isLoading: loadingArchives } = useArchives();
+  // Hooks agrégés (bypass RLS, pas de limite de 1000)
+  const { data: statsGlobal, isLoading: loadingGlobal } = useStatsGlobal();
+  const { data: statsParStatut, isLoading: loadingParStatut } = useStatsParStatut();
+  const { data: statsParGraphiste, isLoading: loadingParGraphiste } = useStatsParGraphiste();
+  const { data: statsGraphisteParStatut } = useStatsGraphisteParStatut();
+  const { data: statsArchivesParAnnee } = useStatsArchivesParAnnee();
+
+  // Archives par graphiste avec filtre année
+  const selectedAnnee = selectedYear === "all" ? undefined : parseInt(selectedYear);
+  const { data: statsArchivesParGraphiste } = useStatsArchivesParGraphiste(
+    selectedYear === "all" || parseInt(selectedYear) === currentYear ? undefined : selectedAnnee
+  );
+
   const { data: profiles } = useProfiles();
   const { data: statuts } = useStatuts();
 
-  const isLoading = loadingDossiers || loadingArchives;
+  const isLoading = loadingGlobal || loadingParStatut || loadingParGraphiste;
 
-  // Options d'années disponibles
+  // Options d'années disponibles (basées sur les archives)
   const yearOptions = useMemo(() => {
     const years = new Set<number>();
     years.add(currentYear);
 
-    dossiers?.forEach((d) => {
-      const year = new Date(d.date_creation).getFullYear();
-      if (year >= 2020 && year <= currentYear + 1) years.add(year);
-    });
-    archives?.forEach((d) => {
-      // Pour les archives, utiliser date_archivage si disponible
-      const dateStr = d.date_archivage || d.date_creation;
-      if (dateStr) {
-        const year = new Date(dateStr).getFullYear();
-        if (year >= 2020 && year <= currentYear + 1) years.add(year);
+    statsArchivesParAnnee?.forEach((item) => {
+      if (item.annee >= 2020 && item.annee <= currentYear + 1) {
+        years.add(item.annee);
       }
     });
 
@@ -47,100 +58,98 @@ export default function Statistiques() {
       { value: "all", label: "Toutes les années" },
       ...sortedYears.map((y) => ({ value: String(y), label: String(y) })),
     ];
-  }, [dossiers, archives, currentYear]);
+  }, [statsArchivesParAnnee, currentYear]);
 
-  // Filtrer par année sélectionnée
-  const filteredDossiers = useMemo(() => {
-    if (!dossiers) return [];
-    if (selectedYear === "all") return dossiers;
-    return dossiers.filter((d) => {
-      const year = new Date(d.date_creation).getFullYear();
-      return year === parseInt(selectedYear);
-    });
-  }, [dossiers, selectedYear]);
+  // Calcul des totaux
+  // Les dossiers EN COURS sont toujours dans l'année courante
+  const totalEnCours = useMemo(() => {
+    if (selectedYear !== "all" && parseInt(selectedYear) !== currentYear) {
+      return 0; // Année passée = pas de dossiers actifs
+    }
+    return statsGlobal?.total_en_cours ?? 0;
+  }, [statsGlobal, selectedYear, currentYear]);
 
-  const filteredArchives = useMemo(() => {
-    if (!archives) return [];
-    if (selectedYear === "all") return archives;
-    return archives.filter((d) => {
-      // Utiliser date_archivage pour le filtre des archives
-      const dateStr = d.date_archivage;
-      if (!dateStr) return false;
-      const year = new Date(dateStr).getFullYear();
-      return year === parseInt(selectedYear);
-    });
-  }, [archives, selectedYear]);
+  const totalArchives = useMemo(() => {
+    if (selectedYear === "all") {
+      return statsGlobal?.total_archives ?? 0;
+    }
+    // Filtrer par année
+    const archivesAnnee = statsArchivesParAnnee?.find(a => a.annee === parseInt(selectedYear));
+    return archivesAnnee?.count ?? 0;
+  }, [statsGlobal, statsArchivesParAnnee, selectedYear]);
 
-  // IDs des graphistes actifs
-  const graphistesActifsIds = useMemo(() => {
-    return new Set(profiles?.filter(p => p.is_active).map(p => p.id) ?? []);
-  }, [profiles]);
-
-  // Calculs - exclure les dossiers des anciens graphistes du compteur "En cours"
-  const dossiersActifs = useMemo(() => {
-    return filteredDossiers.filter((d) => d.graphiste_id && graphistesActifsIds.has(d.graphiste_id));
-  }, [filteredDossiers, graphistesActifsIds]);
-
-  const totalEnCours = dossiersActifs.length;
-  const totalArchives = filteredArchives.length;
   const totalTraites = totalEnCours + totalArchives;
 
-  // Par statut (uniquement dossiers en cours des graphistes actifs)
-  const parStatut = (statuts || []).map((statut) => ({
-    ...statut,
-    count: dossiersActifs.filter((d) => d.statut === statut.value).length,
-  }));
+  // Par statut - mapper avec les infos de style des statuts
+  const parStatut = useMemo(() => {
+    return (statuts || []).map((statut) => {
+      const stat = statsParStatut?.find(s => s.statut === statut.value);
+      return {
+        ...statut,
+        count: (selectedYear === "all" || parseInt(selectedYear) === currentYear)
+          ? (stat?.count ?? 0)
+          : 0,
+      };
+    });
+  }, [statuts, statsParStatut, selectedYear, currentYear]);
 
-  // Par graphiste - calcul des dossiers par catégorie
-  // Ordre des catégories : Urgent > A faire/En cours > Attente > Mairie > Autres
+  // Par graphiste - avec détail par statut
   const parGraphiste = useMemo(() => {
     const graphistesActifs = profiles?.filter(p => p.is_active) ?? [];
 
-    const result = graphistesActifs.map((p) => {
-      // Ne compter que les dossiers avec graphiste_id correspondant (pas NULL)
-      const dossiersGraphiste = filteredDossiers.filter((d) => d.graphiste_id && d.graphiste_id === p.id);
-      const archivesGraphiste = filteredArchives.filter((d) => d.graphiste_id && d.graphiste_id === p.id);
+    return graphistesActifs.map((p) => {
+      const graphisteStats = statsParGraphiste?.find(s => s.graphiste_id === p.id);
+      const archivesStats = statsArchivesParGraphiste?.find(s => s.graphiste_id === p.id);
 
-      // Catégoriser les dossiers selon l'ordre demandé
-      const urgent = dossiersGraphiste.filter((d) => d.statut === "! Urgent !").length;
-      const aFaireEnCours = dossiersGraphiste.filter((d) =>
-        ["A faire", "En cours", "À relancer"].includes(d.statut)
-      ).length;
-      const attente = dossiersGraphiste.filter((d) =>
-        ["Attente R.", "Stand-by"].includes(d.statut)
-      ).length;
-      const mairie = dossiersGraphiste.filter((d) => d.statut === "Mairie").length;
-      const total = dossiersGraphiste.length;
+      // Récupérer le détail par statut pour ce graphiste
+      const parStatutGraphiste = (statuts || []).map((statut) => {
+        const stat = statsGraphisteParStatut?.find(
+          s => s.graphiste_id === p.id && s.statut === statut.value
+        );
+        return {
+          statut: statut.value,
+          label: statut.label,
+          barColor: statut.bar_color,
+          count: (selectedYear === "all" || parseInt(selectedYear) === currentYear)
+            ? (stat?.count ?? 0)
+            : 0,
+        };
+      });
+
+      const total = (selectedYear === "all" || parseInt(selectedYear) === currentYear)
+        ? (graphisteStats?.total_actifs ?? 0)
+        : 0;
+
+      const archives = selectedYear === "all"
+        ? (graphisteStats?.total_archives ?? 0)
+        : (archivesStats?.count ?? 0);
 
       return {
         ...p,
         total,
-        urgent,
-        aFaireEnCours,
-        attente,
-        mairie,
-        archives: archivesGraphiste.length,
+        parStatut: parStatutGraphiste,
+        archives,
       };
     });
+  }, [profiles, statsParGraphiste, statsGraphisteParStatut, statsArchivesParGraphiste, statuts, selectedYear, currentYear]);
 
-    return result;
-  }, [profiles, filteredDossiers, filteredArchives]);
-
-  // Anciens graphistes (dossiers sans graphiste_id ou avec graphiste inactif)
+  // Anciens graphistes stats
   const anciensGraphistesStats = useMemo(() => {
-    // Dossiers sans graphiste_id OU avec un graphiste_id qui n'est pas actif
-    const dossiersAnciens = filteredDossiers.filter((d) =>
-      !d.graphiste_id || !graphistesActifsIds.has(d.graphiste_id)
-    );
-    const archivesAnciens = filteredArchives.filter((d) =>
-      !d.graphiste_id || !graphistesActifsIds.has(d.graphiste_id)
-    );
+    const graphistesActifsIds = new Set(profiles?.filter(p => p.is_active).map(p => p.id) ?? []);
+
+    // Calculer les archives des anciens graphistes
+    let archivesAnciens = 0;
+    statsArchivesParGraphiste?.forEach((item) => {
+      if (!item.graphiste_id || !graphistesActifsIds.has(item.graphiste_id)) {
+        archivesAnciens += item.count;
+      }
+    });
 
     return {
-      total: dossiersAnciens.length,
-      archives: archivesAnciens.length,
+      total: 0, // Les anciens graphistes n'ont pas de dossiers actifs
+      archives: archivesAnciens,
     };
-  }, [graphistesActifsIds, filteredDossiers, filteredArchives]);
+  }, [profiles, statsArchivesParGraphiste]);
 
   // Trouver le max pour la barre
   const maxCount = Math.max(...parStatut.map((s) => s.count), 1);
@@ -256,24 +265,14 @@ export default function Statistiques() {
               {chartModeGraphiste === "bar" ? (
                 /* Vue en barres */
                 <>
-                  {/* Légende - ordre : Urgent > A faire/En cours > Attente > Mairie */}
+                  {/* Légende dynamique basée sur les statuts */}
                   <div className="flex flex-wrap gap-4 mb-6 text-xs">
-                    <div className="flex items-center gap-1">
-                      <div className="h-3 w-3 rounded bg-red-500" />
-                      <span>Urgent</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="h-3 w-3 rounded bg-blue-500" />
-                      <span>A faire / En cours</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="h-3 w-3 rounded bg-purple-500" />
-                      <span>En attente</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="h-3 w-3 rounded bg-pink-500" />
-                      <span>Mairie</span>
-                    </div>
+                    {(statuts || []).map((statut) => (
+                      <div key={statut.value} className="flex items-center gap-1">
+                        <div className={`h-3 w-3 rounded ${statut.bar_color}`} />
+                        <span>{statut.label}</span>
+                      </div>
+                    ))}
                   </div>
 
                   <div className="space-y-6">
@@ -298,36 +297,18 @@ export default function Statistiques() {
                             </span>
                           </div>
                         </div>
-                        {/* Barre de charge colorée - ordre : Urgent > A faire/En cours > Attente > Mairie */}
+                        {/* Barre de charge colorée - dynamique par statut */}
                         <div className="flex h-3 w-full overflow-hidden rounded-full bg-gray-100">
-                          {graphiste.urgent > 0 && (
-                            <div
-                              className="h-full bg-red-500 transition-all"
-                              style={{ width: `${(graphiste.urgent / maxGraphiste) * 100}%` }}
-                              title={`Urgent: ${graphiste.urgent}`}
-                            />
-                          )}
-                          {graphiste.aFaireEnCours > 0 && (
-                            <div
-                              className="h-full bg-blue-500 transition-all"
-                              style={{ width: `${(graphiste.aFaireEnCours / maxGraphiste) * 100}%` }}
-                              title={`A faire / En cours: ${graphiste.aFaireEnCours}`}
-                            />
-                          )}
-                          {graphiste.attente > 0 && (
-                            <div
-                              className="h-full bg-purple-500 transition-all"
-                              style={{ width: `${(graphiste.attente / maxGraphiste) * 100}%` }}
-                              title={`En attente: ${graphiste.attente}`}
-                            />
-                          )}
-                          {graphiste.mairie > 0 && (
-                            <div
-                              className="h-full bg-pink-500 transition-all"
-                              style={{ width: `${(graphiste.mairie / maxGraphiste) * 100}%` }}
-                              title={`Mairie: ${graphiste.mairie}`}
-                            />
-                          )}
+                          {graphiste.parStatut.map((s) => (
+                            s.count > 0 && (
+                              <div
+                                key={s.statut}
+                                className={`h-full ${s.barColor} transition-all`}
+                                style={{ width: `${(s.count / maxGraphiste) * 100}%` }}
+                                title={`${s.label}: ${s.count}`}
+                              />
+                            )
+                          ))}
                         </div>
                       </div>
                     ))}

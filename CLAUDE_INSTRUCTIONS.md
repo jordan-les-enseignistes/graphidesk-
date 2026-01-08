@@ -352,6 +352,10 @@ Toutes les tables ont RLS activé. Les règles sont définies dans `002_rls_poli
 | `useFeuilleTemps()` | Feuille d'heures du mois |
 | `useProfiles()` | Liste des utilisateurs actifs |
 | `useEffectiveRole()` | Rôle effectif (gère le mode "view as") |
+| `useStatsGlobal()` | Stats globales (total en cours, total archives) |
+| `useStatsParStatut()` | Compteurs par statut |
+| `useStatsParGraphiste()` | Compteurs par graphiste |
+| `useStatsArchivesParAnnee()` | Archives groupées par année |
 
 ---
 
