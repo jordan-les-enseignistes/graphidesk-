@@ -55,7 +55,10 @@
       "Bash(npx @tauri-apps/cli signer generate:*)",
       "Bash(if not exist \".github\\workflows\" mkdir \".github\\workflows\")",
       "Bash(dir \"C:\\Users\\neauj\\Desktop\\EN COURS DE DEV\\graphidesk\\src\\pages\\Calculatrice.tsx\")",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git tag:*)"
     ]
   }
 }

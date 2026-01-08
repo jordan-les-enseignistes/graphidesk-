@@ -1,7 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
+import { useUserPreferencesStore } from "@/stores/userPreferencesStore";
 import { useMyDossiers, useAllDossiers } from "@/hooks/useDossiers";
+import { toast } from "sonner";
 import {
   useFeuilleTemps,
   calculateMonthlyHoursSup,
@@ -33,6 +35,32 @@ export default function Dashboard() {
   const [showImport, setShowImport] = useState(false);
   const profile = useAuthStore((state) => state.profile);
   const { isAdmin } = useEffectiveRole();
+
+  // Préférence secrète pour masquer les encarts "À relancer"
+  const { hideRelanceCards, setHideRelanceCards } = useUserPreferencesStore();
+  const clickCountRef = useRef(0);
+  const lastClickTimeRef = useRef(0);
+
+  // Easter egg : 5 clics rapides sur le texte "Vue d'ensemble" active/désactive le mode
+  const handleSecretClick = () => {
+    const now = Date.now();
+    // Reset si plus de 2 secondes entre les clics
+    if (now - lastClickTimeRef.current > 2000) {
+      clickCountRef.current = 0;
+    }
+    lastClickTimeRef.current = now;
+    clickCountRef.current++;
+
+    if (clickCountRef.current >= 5) {
+      clickCountRef.current = 0;
+      const newValue = !hideRelanceCards;
+      setHideRelanceCards(newValue);
+      toast.success(
+        newValue ? "Mode zen activé" : "Mode zen désactivé",
+        { duration: 2000 }
+      );
+    }
+  };
 
   // Toujours récupérer les dossiers de l'utilisateur connecté (même pour admin)
   const { data: myDossiers, isLoading, refetch: refetchMy } = useMyDossiers();
@@ -230,7 +258,10 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-gray-900">
             Bonjour, {getFirstName(profile?.full_name)} !
           </h1>
-          <p className="text-gray-500">
+          <p
+            className="text-gray-500 cursor-default select-none"
+            onClick={handleSecretClick}
+          >
             Vue d'ensemble de vos dossiers
           </p>
         </div>
@@ -288,22 +319,24 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-orange-200 bg-orange-50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-orange-800">
-              À relancer
-            </CardTitle>
-            <PhoneCall className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-800">
-              {isLoading ? "..." : stats.aRelancer}
-            </div>
-            <p className="text-xs text-orange-600">
-              Sans réponse depuis 7j+
-            </p>
-          </CardContent>
-        </Card>
+        {!hideRelanceCards && (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-orange-800">
+                À relancer
+              </CardTitle>
+              <PhoneCall className="h-4 w-4 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-800">
+                {isLoading ? "..." : stats.aRelancer}
+              </div>
+              <p className="text-xs text-orange-600">
+                Sans réponse depuis 7j+
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -417,49 +450,51 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Grille 3 colonnes */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      {/* Grille 3 colonnes (ou 2 si mode zen) */}
+      <div className={`grid gap-6 ${hideRelanceCards ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
         {/* Dossiers à relancer */}
-        <Card className="border-orange-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-orange-800">
-              <PhoneCall className="h-5 w-5" />
-              À relancer
-            </CardTitle>
-            <p className="text-xs text-orange-600 mt-1">
-              En attente de réponse depuis plus de 7 jours
-            </p>
-          </CardHeader>
-          <CardContent>
-            {dossiersARelancer.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Aucun dossier à relancer
+        {!hideRelanceCards && (
+          <Card className="border-orange-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-800">
+                <PhoneCall className="h-5 w-5" />
+                À relancer
+              </CardTitle>
+              <p className="text-xs text-orange-600 mt-1">
+                En attente de réponse depuis plus de 7 jours
               </p>
-            ) : (
-              <ul className="space-y-3">
-                {dossiersARelancer.map((dossier) => {
-                  const daysSinceUpdate = Math.floor(
-                    (Date.now() - new Date(dossier.updated_at).getTime()) / (1000 * 60 * 60 * 24)
-                  );
-                  return (
-                    <li
-                      key={dossier.id}
-                      className="flex items-center justify-between rounded-lg border border-orange-100 bg-orange-50 p-3"
-                    >
-                      <div>
-                        <p className="font-medium text-gray-900">{dossier.nom}</p>
-                        <p className="text-sm text-orange-600">
-                          Sans nouvelle depuis {daysSinceUpdate} jour{daysSinceUpdate > 1 ? "s" : ""}
-                        </p>
-                      </div>
-                      <StatusBadge statut={dossier.statut} />
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              {dossiersARelancer.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  Aucun dossier à relancer
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {dossiersARelancer.map((dossier) => {
+                    const daysSinceUpdate = Math.floor(
+                      (Date.now() - new Date(dossier.updated_at).getTime()) / (1000 * 60 * 60 * 24)
+                    );
+                    return (
+                      <li
+                        key={dossier.id}
+                        className="flex items-center justify-between rounded-lg border border-orange-100 bg-orange-50 p-3"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-900">{dossier.nom}</p>
+                          <p className="text-sm text-orange-600">
+                            Sans nouvelle depuis {daysSinceUpdate} jour{daysSinceUpdate > 1 ? "s" : ""}
+                          </p>
+                        </div>
+                        <StatusBadge statut={dossier.statut} />
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Dossiers à traiter en priorité */}
         <Card>

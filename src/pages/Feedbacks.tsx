@@ -506,6 +506,7 @@ export default function Feedbacks() {
     "all"
   );
   const [showTermines, setShowTermines] = useState(false);
+  const [showRefuses, setShowRefuses] = useState(false);
 
   const { data: feedbacks, isLoading } = useFeedbacks(statutFilter);
   const createFeedback = useCreateFeedback();
@@ -641,10 +642,11 @@ export default function Feedbacks() {
           </div>
         ) : feedbacks && feedbacks.length > 0 ? (
           <>
-            {/* Feedbacks non terminés */}
+            {/* Feedbacks non terminés et non refusés */}
             {(() => {
-              const feedbacksActifs = feedbacks.filter((f) => f.statut !== "termine");
+              const feedbacksActifs = feedbacks.filter((f) => f.statut !== "termine" && f.statut !== "refuse");
               const feedbacksTermines = feedbacks.filter((f) => f.statut === "termine");
+              const feedbacksRefuses = feedbacks.filter((f) => f.statut === "refuse");
 
               return (
                 <>
@@ -703,6 +705,53 @@ export default function Feedbacks() {
                   {statutFilter === "termine" && feedbacksTermines.length > 0 && (
                     <div className="space-y-3">
                       {feedbacksTermines.map((feedback) => (
+                        <FeedbackCard
+                          key={feedback.id}
+                          feedback={feedback}
+                          onClick={() => setSelectedFeedback(feedback)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Section feedbacks refusés - dépliable */}
+                  {feedbacksRefuses.length > 0 && statutFilter === "all" && (
+                    <div className="mt-6">
+                      <button
+                        onClick={() => setShowRefuses(!showRefuses)}
+                        className="w-full flex items-center justify-between px-4 py-3 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <XCircle className="w-5 h-5 text-red-600" />
+                          <span className="font-medium text-red-800">
+                            Feedbacks refusés ({feedbacksRefuses.length})
+                          </span>
+                        </div>
+                        <ChevronDown
+                          className={`w-5 h-5 text-red-600 transition-transform ${
+                            showRefuses ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+
+                      {showRefuses && (
+                        <div className="mt-3 space-y-3">
+                          {feedbacksRefuses.map((feedback) => (
+                            <FeedbackCard
+                              key={feedback.id}
+                              feedback={feedback}
+                              onClick={() => setSelectedFeedback(feedback)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Si filtre "refuse" actif, afficher directement les refusés */}
+                  {statutFilter === "refuse" && feedbacksRefuses.length > 0 && (
+                    <div className="space-y-3">
+                      {feedbacksRefuses.map((feedback) => (
                         <FeedbackCard
                           key={feedback.id}
                           feedback={feedback}

@@ -1,6 +1,6 @@
 [package]
 name = "graphidesk"
-version = "1.1.5"
+version = "1.1.6"
 description = "Application de suivi des dossiers graphistes - Les Enseignistes"
 authors = ["Les Enseignistes"]
 license = "UNLICENSED"

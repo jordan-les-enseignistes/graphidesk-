@@ -4,14 +4,18 @@ import { useProfiles } from "@/hooks/useProfiles";
 import { useStatuts } from "@/hooks/useStatuts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
-import { BarChart3, TrendingUp, Users, FolderOpen, Archive, Calendar } from "lucide-react";
+import { BarChart3, TrendingUp, Users, FolderOpen, Archive, Calendar, PieChart } from "lucide-react";
 import { getFirstName, cn } from "@/lib/utils";
 import { getBadgeClassName } from "@/lib/badgeColors";
+
+type ChartMode = "bar" | "pie";
 
 export default function Statistiques() {
   // Filtre par année - année courante par défaut
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
+  const [chartModeStatut, setChartModeStatut] = useState<ChartMode>("bar");
+  const [chartModeGraphiste, setChartModeGraphiste] = useState<ChartMode>("bar");
 
   const { data: dossiers, isLoading: loadingDossiers } = useAllDossiers();
   const { data: archives, isLoading: loadingArchives } = useArchives();
@@ -219,135 +223,379 @@ export default function Statistiques() {
           {/* Répartition par graphiste - visible par tous */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Répartition par graphiste
-              </CardTitle>
-              <p className="text-sm text-gray-500 mt-1">
-                Charge de travail actuelle (dossiers actifs uniquement)
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Répartition par graphiste
+                  </CardTitle>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Charge de travail actuelle (dossiers actifs uniquement)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setChartModeGraphiste(chartModeGraphiste === "bar" ? "pie" : "bar")}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  title={chartModeGraphiste === "bar" ? "Afficher en camembert" : "Afficher en barres"}
+                >
+                  {chartModeGraphiste === "bar" ? (
+                    <>
+                      <PieChart className="h-4 w-4" />
+                      <span className="hidden sm:inline">Camembert</span>
+                    </>
+                  ) : (
+                    <>
+                      <BarChart3 className="h-4 w-4" />
+                      <span className="hidden sm:inline">Barres</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </CardHeader>
             <CardContent>
-              {/* Légende - ordre : Urgent > A faire/En cours > Attente > Mairie */}
-              <div className="flex flex-wrap gap-4 mb-6 text-xs">
-                <div className="flex items-center gap-1">
-                  <div className="h-3 w-3 rounded bg-red-500" />
-                  <span>Urgent</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="h-3 w-3 rounded bg-blue-500" />
-                  <span>A faire / En cours</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="h-3 w-3 rounded bg-purple-500" />
-                  <span>En attente</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="h-3 w-3 rounded bg-pink-500" />
-                  <span>Mairie</span>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                {parGraphiste.map((graphiste) => (
-                  <div key={graphiste.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium",
-                          getBadgeClassName(graphiste.badge_color)
-                        )}>
-                          {graphiste.initials}
-                        </span>
-                        <span className="font-medium">{getFirstName(graphiste.full_name)}</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-blue-600 font-medium">
-                          {graphiste.total} dossiers actifs
-                        </span>
-                        <span className="text-gray-500">
-                          {graphiste.archives} archivés
-                        </span>
-                      </div>
+              {chartModeGraphiste === "bar" ? (
+                /* Vue en barres */
+                <>
+                  {/* Légende - ordre : Urgent > A faire/En cours > Attente > Mairie */}
+                  <div className="flex flex-wrap gap-4 mb-6 text-xs">
+                    <div className="flex items-center gap-1">
+                      <div className="h-3 w-3 rounded bg-red-500" />
+                      <span>Urgent</span>
                     </div>
-                    {/* Barre de charge colorée - ordre : Urgent > A faire/En cours > Attente > Mairie */}
-                    <div className="flex h-3 w-full overflow-hidden rounded-full bg-gray-100">
-                      {graphiste.urgent > 0 && (
-                        <div
-                          className="h-full bg-red-500 transition-all"
-                          style={{ width: `${(graphiste.urgent / maxGraphiste) * 100}%` }}
-                          title={`Urgent: ${graphiste.urgent}`}
-                        />
-                      )}
-                      {graphiste.aFaireEnCours > 0 && (
-                        <div
-                          className="h-full bg-blue-500 transition-all"
-                          style={{ width: `${(graphiste.aFaireEnCours / maxGraphiste) * 100}%` }}
-                          title={`A faire / En cours: ${graphiste.aFaireEnCours}`}
-                        />
-                      )}
-                      {graphiste.attente > 0 && (
-                        <div
-                          className="h-full bg-purple-500 transition-all"
-                          style={{ width: `${(graphiste.attente / maxGraphiste) * 100}%` }}
-                          title={`En attente: ${graphiste.attente}`}
-                        />
-                      )}
-                      {graphiste.mairie > 0 && (
-                        <div
-                          className="h-full bg-pink-500 transition-all"
-                          style={{ width: `${(graphiste.mairie / maxGraphiste) * 100}%` }}
-                          title={`Mairie: ${graphiste.mairie}`}
-                        />
-                      )}
+                    <div className="flex items-center gap-1">
+                      <div className="h-3 w-3 rounded bg-blue-500" />
+                      <span>A faire / En cours</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="h-3 w-3 rounded bg-purple-500" />
+                      <span>En attente</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="h-3 w-3 rounded bg-pink-500" />
+                      <span>Mairie</span>
                     </div>
                   </div>
-                ))}
 
-                {/* Anciens graphistes - affiché seulement s'il y a des archives */}
-                {anciensGraphistesStats.archives > 0 && (
-                  <div className="space-y-2 pt-4 border-t border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-500">
-                          ?
-                        </span>
-                        <span className="font-medium text-gray-500">Anciens graphistes</span>
+                  <div className="space-y-6">
+                    {parGraphiste.map((graphiste) => (
+                      <div key={graphiste.id} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium",
+                              getBadgeClassName(graphiste.badge_color)
+                            )}>
+                              {graphiste.initials}
+                            </span>
+                            <span className="font-medium">{getFirstName(graphiste.full_name)}</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="text-blue-600 font-medium">
+                              {graphiste.total} dossiers actifs
+                            </span>
+                            <span className="text-gray-500">
+                              {graphiste.archives} archivés
+                            </span>
+                          </div>
+                        </div>
+                        {/* Barre de charge colorée - ordre : Urgent > A faire/En cours > Attente > Mairie */}
+                        <div className="flex h-3 w-full overflow-hidden rounded-full bg-gray-100">
+                          {graphiste.urgent > 0 && (
+                            <div
+                              className="h-full bg-red-500 transition-all"
+                              style={{ width: `${(graphiste.urgent / maxGraphiste) * 100}%` }}
+                              title={`Urgent: ${graphiste.urgent}`}
+                            />
+                          )}
+                          {graphiste.aFaireEnCours > 0 && (
+                            <div
+                              className="h-full bg-blue-500 transition-all"
+                              style={{ width: `${(graphiste.aFaireEnCours / maxGraphiste) * 100}%` }}
+                              title={`A faire / En cours: ${graphiste.aFaireEnCours}`}
+                            />
+                          )}
+                          {graphiste.attente > 0 && (
+                            <div
+                              className="h-full bg-purple-500 transition-all"
+                              style={{ width: `${(graphiste.attente / maxGraphiste) * 100}%` }}
+                              title={`En attente: ${graphiste.attente}`}
+                            />
+                          )}
+                          {graphiste.mairie > 0 && (
+                            <div
+                              className="h-full bg-pink-500 transition-all"
+                              style={{ width: `${(graphiste.mairie / maxGraphiste) * 100}%` }}
+                              title={`Mairie: ${graphiste.mairie}`}
+                            />
+                          )}
+                        </div>
                       </div>
-                      <div className="text-sm">
-                        <span className="text-gray-400">
-                          {anciensGraphistesStats.archives} archivés
-                        </span>
+                    ))}
+
+                    {/* Anciens graphistes - affiché seulement s'il y a des archives */}
+                    {anciensGraphistesStats.archives > 0 && (
+                      <div className="space-y-2 pt-4 border-t border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-500">
+                              ?
+                            </span>
+                            <span className="font-medium text-gray-500">Anciens graphistes</span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-gray-400">
+                              {anciensGraphistesStats.archives} archivés
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* Vue en camembert */
+                <div className="flex flex-col lg:flex-row items-center gap-8">
+                  {/* Camembert SVG */}
+                  <div className="relative">
+                    <svg viewBox="0 0 100 100" className="w-64 h-64 -rotate-90">
+                      {(() => {
+                        const total = parGraphiste.reduce((sum, g) => sum + g.total, 0);
+                        if (total === 0) {
+                          return (
+                            <circle
+                              cx="50"
+                              cy="50"
+                              r="40"
+                              fill="none"
+                              stroke="#e5e7eb"
+                              strokeWidth="20"
+                            />
+                          );
+                        }
+
+                        let cumulativePercent = 0;
+                        const circumference = 2 * Math.PI * 40;
+
+                        // Couleurs pour les graphistes
+                        const graphisteColors = [
+                          "#3b82f6", // blue
+                          "#22c55e", // green
+                          "#f97316", // orange
+                          "#a855f7", // purple
+                          "#ef4444", // red
+                          "#06b6d4", // cyan
+                          "#eab308", // yellow
+                          "#ec4899", // pink
+                        ];
+
+                        return parGraphiste.map((graphiste, index) => {
+                          const percent = (graphiste.total / total) * 100;
+                          const strokeDasharray = `${(percent * circumference) / 100} ${circumference}`;
+                          const strokeDashoffset = -(cumulativePercent * circumference) / 100;
+                          cumulativePercent += percent;
+
+                          const strokeColor = graphisteColors[index % graphisteColors.length];
+
+                          return graphiste.total > 0 ? (
+                            <circle
+                              key={graphiste.id}
+                              cx="50"
+                              cy="50"
+                              r="40"
+                              fill="none"
+                              stroke={strokeColor}
+                              strokeWidth="20"
+                              strokeDasharray={strokeDasharray}
+                              strokeDashoffset={strokeDashoffset}
+                              className="transition-all duration-500"
+                            />
+                          ) : null;
+                        });
+                      })()}
+                    </svg>
+                    {/* Total au centre */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-gray-900">
+                          {parGraphiste.reduce((sum, g) => sum + g.total, 0)}
+                        </div>
+                        <div className="text-sm text-gray-500">dossiers</div>
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
+
+                  {/* Légende */}
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(() => {
+                      const graphisteColors = [
+                        "bg-blue-500",
+                        "bg-green-500",
+                        "bg-orange-500",
+                        "bg-purple-500",
+                        "bg-red-500",
+                        "bg-cyan-500",
+                        "bg-yellow-500",
+                        "bg-pink-500",
+                      ];
+                      const total = parGraphiste.reduce((sum, g) => sum + g.total, 0);
+
+                      return parGraphiste.map((graphiste, index) => {
+                        const percent = total > 0 ? ((graphiste.total / total) * 100).toFixed(1) : "0";
+                        return (
+                          <div key={graphiste.id} className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${graphisteColors[index % graphisteColors.length]}`} />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{getFirstName(graphiste.full_name)}</div>
+                              <div className="text-xs text-gray-500">
+                                {graphiste.total} dossiers ({percent}%)
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Répartition par statut */}
           <Card>
             <CardHeader>
-              <CardTitle>Répartition par statut</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Répartition par statut</CardTitle>
+                <button
+                  onClick={() => setChartModeStatut(chartModeStatut === "bar" ? "pie" : "bar")}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  title={chartModeStatut === "bar" ? "Afficher en camembert" : "Afficher en barres"}
+                >
+                  {chartModeStatut === "bar" ? (
+                    <>
+                      <PieChart className="h-4 w-4" />
+                      <span className="hidden sm:inline">Camembert</span>
+                    </>
+                  ) : (
+                    <>
+                      <BarChart3 className="h-4 w-4" />
+                      <span className="hidden sm:inline">Barres</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {parStatut.map((statut) => (
-                  <div key={statut.value} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{statut.label}</span>
-                      <span className="text-gray-500">{statut.count}</span>
+              {chartModeStatut === "bar" ? (
+                /* Vue en barres */
+                <div className="space-y-4">
+                  {parStatut.map((statut) => (
+                    <div key={statut.value} className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{statut.label}</span>
+                        <span className="text-gray-500">{statut.count}</span>
+                      </div>
+                      <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
+                        <div
+                          className={`h-full rounded-full transition-all ${statut.bar_color}`}
+                          style={{ width: `${(statut.count / maxCount) * 100}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className={`h-full rounded-full transition-all ${statut.bar_color}`}
-                        style={{ width: `${(statut.count / maxCount) * 100}%` }}
-                      />
+                  ))}
+                </div>
+              ) : (
+                /* Vue en camembert */
+                <div className="flex flex-col lg:flex-row items-center gap-8">
+                  {/* Camembert SVG */}
+                  <div className="relative">
+                    <svg viewBox="0 0 100 100" className="w-64 h-64 -rotate-90">
+                      {(() => {
+                        const total = parStatut.reduce((sum, s) => sum + s.count, 0);
+                        if (total === 0) {
+                          return (
+                            <circle
+                              cx="50"
+                              cy="50"
+                              r="40"
+                              fill="none"
+                              stroke="#e5e7eb"
+                              strokeWidth="20"
+                            />
+                          );
+                        }
+
+                        let cumulativePercent = 0;
+                        const circumference = 2 * Math.PI * 40;
+
+                        return parStatut.map((statut, index) => {
+                          const percent = (statut.count / total) * 100;
+                          const strokeDasharray = `${(percent * circumference) / 100} ${circumference}`;
+                          const strokeDashoffset = -(cumulativePercent * circumference) / 100;
+                          cumulativePercent += percent;
+
+                          // Mapper bar_color vers une couleur CSS
+                          const colorMap: Record<string, string> = {
+                            "bg-red-500": "#ef4444",
+                            "bg-blue-500": "#3b82f6",
+                            "bg-yellow-500": "#eab308",
+                            "bg-purple-500": "#a855f7",
+                            "bg-orange-500": "#f97316",
+                            "bg-pink-500": "#ec4899",
+                            "bg-gray-500": "#6b7280",
+                            "bg-green-500": "#22c55e",
+                            "bg-cyan-500": "#06b6d4",
+                            "bg-indigo-500": "#6366f1",
+                          };
+                          const strokeColor = colorMap[statut.bar_color] || "#6b7280";
+
+                          return statut.count > 0 ? (
+                            <circle
+                              key={statut.value}
+                              cx="50"
+                              cy="50"
+                              r="40"
+                              fill="none"
+                              stroke={strokeColor}
+                              strokeWidth="20"
+                              strokeDasharray={strokeDasharray}
+                              strokeDashoffset={strokeDashoffset}
+                              className="transition-all duration-500"
+                            />
+                          ) : null;
+                        });
+                      })()}
+                    </svg>
+                    {/* Total au centre */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-gray-900">
+                          {parStatut.reduce((sum, s) => sum + s.count, 0)}
+                        </div>
+                        <div className="text-sm text-gray-500">dossiers</div>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  {/* Légende */}
+                  <div className="flex-1 grid grid-cols-2 gap-3">
+                    {parStatut.map((statut) => {
+                      const total = parStatut.reduce((sum, s) => sum + s.count, 0);
+                      const percent = total > 0 ? ((statut.count / total) * 100).toFixed(1) : "0";
+                      return (
+                        <div key={statut.value} className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${statut.bar_color}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{statut.label}</div>
+                            <div className="text-xs text-gray-500">
+                              {statut.count} ({percent}%)
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </>

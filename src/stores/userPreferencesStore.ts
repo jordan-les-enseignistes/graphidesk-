@@ -7,6 +7,9 @@ interface UserPreferencesState {
   // 0 = pas de couleur, 100 = couleur pleine
   highlightIntensity: number;
   setHighlightIntensity: (intensity: number) => void;
+  // Mode zen : masque les encarts "À relancer" du Dashboard
+  hideRelanceCards: boolean;
+  setHideRelanceCards: (hide: boolean) => void;
   _hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
 }
@@ -16,6 +19,8 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
     (set) => ({
       highlightIntensity: 50, // 50% par défaut
       setHighlightIntensity: (intensity) => set({ highlightIntensity: intensity }),
+      hideRelanceCards: false,
+      setHideRelanceCards: (hide) => set({ hideRelanceCards: hide }),
       _hasHydrated: false,
       setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
