@@ -24,6 +24,7 @@ import { BatCell } from "./BatCell";
 import { RelanceCell } from "./RelanceCell";
 import { DossierForm } from "./DossierForm";
 import { TransferModal } from "./TransferModal";
+import { BulkTransferModal } from "./BulkTransferModal";
 import { useAuthStore } from "@/stores/authStore";
 import { useHydratedUserPreferences } from "@/stores/userPreferencesStore";
 import { useArchiveDossier, useBulkArchive, useBulkUpdateStatus, useUpdateDossier, useDeleteDossier } from "@/hooks/useDossiers";
@@ -199,6 +200,7 @@ export function DossiersTable({
   const [bulkArchiveConfirm, setBulkArchiveConfirm] = useState(false);
   const [bulkStatusModal, setBulkStatusModal] = useState(false);
   const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkTransferModal, setBulkTransferModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<DossierWithGraphiste | null>(null);
 
   // Mutations
@@ -365,6 +367,14 @@ export function DossiersTable({
                 onClick={() => setBulkStatusModal(true)}
               >
                 Changer statut
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBulkTransferModal(true)}
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Transférer
               </Button>
               <Button
                 variant="outline"
@@ -874,6 +884,14 @@ export function DossiersTable({
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Modal transfert en masse */}
+      <BulkTransferModal
+        open={bulkTransferModal}
+        onOpenChange={setBulkTransferModal}
+        selectedIds={Array.from(selectedIds)}
+        onSuccess={() => setSelectedIds(new Set())}
+      />
     </div>
   );
 }

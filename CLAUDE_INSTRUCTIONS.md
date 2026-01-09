@@ -349,6 +349,9 @@ Toutes les tables ont RLS activé. Les règles sont définies dans `002_rls_poli
 | `useArchiveDossier()` | Archiver un dossier |
 | `useDeleteDossier()` | Supprimer un dossier |
 | `useTransferDossier()` | Transférer à un autre graphiste |
+| `useBulkArchive()` | Archiver plusieurs dossiers |
+| `useBulkUpdateStatus()` | Changer le statut de plusieurs dossiers |
+| `useBulkTransfer()` | Transférer plusieurs dossiers à un autre graphiste |
 | `useFeuilleTemps()` | Feuille d'heures du mois |
 | `useProfiles()` | Liste des utilisateurs actifs |
 | `useEffectiveRole()` | Rôle effectif (gère le mode "view as") |
@@ -389,11 +392,20 @@ L'import utilise `useImportStore` pour afficher la progression en temps réel.
 Le fichier attendu est le classeur Excel "Suivi des dossiers" avec des onglets par graphiste.
 
 ### 12.3 Heures supplémentaires
-- Base légale : 35h/semaine = 7h/jour ouvré
-- Les congés payés comptent comme heures travaillées (selon horaires prévus)
-- Les jours fériés ne comptent pas dans la base
+- Base légale : 35h/semaine (fixe, pas 7h/jour)
+- Les congés payés comptent comme heures travaillées (selon horaires prévus de l'utilisateur)
+- Les jours fériés comptent comme heures travaillées (selon horaires prévus de l'utilisateur)
+- Calcul : HS = heures travaillées - 35h par semaine
+- Les données sont stockées par mois ISO (semaines comptables)
+- Fonction `getMoisComptableISO()` pour déterminer le mois ISO d'une date
 
-### 12.4 FabRik (scripts Illustrator)
+### 12.4 Actions groupées sur dossiers
+Les graphistes peuvent sélectionner plusieurs dossiers et effectuer des actions en masse :
+- **Changer statut** : Modifier le statut de tous les dossiers sélectionnés
+- **Transférer** : Transférer tous les dossiers sélectionnés à un autre graphiste
+- **Archiver** : Archiver tous les dossiers sélectionnés
+
+### 12.5 FabRik (scripts Illustrator)
 - Nécessite Adobe Illustrator installé
 - Scripts JSX dans `src-tauri/assets/fabrik/scripts/`
 - Actions Illustrator (.aia) dans `src-tauri/assets/fabrik/actions/`

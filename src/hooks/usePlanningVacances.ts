@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
-import { heuresKeys } from "./useHeuresSupplementaires";
+import { heuresKeys, getMoisComptableISO } from "./useHeuresSupplementaires";
 import type { JourFerie, HeuresJournalieres } from "@/types";
 import { toast } from "sonner";
 
@@ -233,8 +233,8 @@ export function useCreateConges() {
 
       for (const dateStr of dates) {
         const date = new Date(dateStr);
-        const annee = date.getFullYear();
-        const mois = date.getMonth() + 1;
+        // Utiliser le mois comptable ISO (pour synchroniser avec Heures Supplémentaires)
+        const { annee, mois } = getMoisComptableISO(date);
 
         // Récupérer ou créer la feuille de temps
         let { data: feuille, error: feuilleError } = await supabase
@@ -358,8 +358,8 @@ export function useDeleteConges() {
       // Pour chaque date, remettre type_absence à null et réinitialiser les horaires
       for (const dateStr of dates) {
         const date = new Date(dateStr);
-        const annee = date.getFullYear();
-        const mois = date.getMonth() + 1;
+        // Utiliser le mois comptable ISO (pour synchroniser avec Heures Supplémentaires)
+        const { annee, mois } = getMoisComptableISO(date);
         const jourSemaine = getJourSemaine(date);
         const horairesJour = horairesBase[jourSemaine as keyof typeof horairesBase];
 
@@ -410,8 +410,8 @@ export function useCongesUtilisateur(userId: string | undefined, date: string | 
       if (!userId || !date) return null;
 
       const dateObj = new Date(date);
-      const annee = dateObj.getFullYear();
-      const mois = dateObj.getMonth() + 1;
+      // Utiliser le mois comptable ISO (pour synchroniser avec Heures Supplémentaires)
+      const { annee, mois } = getMoisComptableISO(dateObj);
 
       const { data: feuille } = await supabase
         .from("feuilles_temps")

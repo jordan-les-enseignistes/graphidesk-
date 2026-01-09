@@ -9,8 +9,10 @@ import {
   calculateMonthlyHoursSup,
   formatMinutesToHuman,
   MOIS_LABELS,
+  getDaysInMonthISO,
+  getNumeroSemaine,
 } from "@/hooks/useHeuresSupplementaires";
-import { useCongesMois, formatDateToString } from "@/hooks/usePlanningVacances";
+import { useCongesMois, formatDateToString, useJoursFeriesMois } from "@/hooks/usePlanningVacances";
 import { useStatuts } from "@/hooks/useStatuts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,6 +82,22 @@ export default function Dashboard() {
     currentMonth
   );
 
+  // Calcul des semaines ISO du mois (pour filtrer les heures correctement)
+  const weekNumbers = useMemo(() => {
+    const days = getDaysInMonthISO(currentYear, currentMonth);
+    const weekNums = new Set<number>();
+    days.forEach(d => weekNums.add(getNumeroSemaine(d)));
+    return Array.from(weekNums);
+  }, [currentYear, currentMonth]);
+
+  // Jours fériés du mois
+  const { data: joursFeriesMap } = useJoursFeriesMois(currentYear, currentMonth);
+  const joursFeriesDates = useMemo(() => {
+    const set = new Set<string>();
+    joursFeriesMap?.forEach((_, date) => set.add(date));
+    return set;
+  }, [joursFeriesMap]);
+
   // Calcul des heures sup du mois
   const heuresSupMois = useMemo(() => {
     if (!feuilleTemps?.heures || feuilleTemps.heures.length === 0) {
@@ -87,9 +105,11 @@ export default function Dashboard() {
     }
     return calculateMonthlyHoursSup(
       feuilleTemps.heures,
-      profile?.horaires_base
+      profile?.horaires_base,
+      weekNumbers,
+      joursFeriesDates
     );
-  }, [feuilleTemps, profile?.horaires_base]);
+  }, [feuilleTemps, profile?.horaires_base, weekNumbers, joursFeriesDates]);
 
   // Congés à venir (prochain mois inclus)
   const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;

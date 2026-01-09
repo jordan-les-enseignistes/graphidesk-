@@ -517,3 +517,47 @@ export function useBulkUpdateStatus() {
     },
   });
 }
+
+// Hook pour transférer plusieurs dossiers
+export function useBulkTransfer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      ids,
+      newGraphisteId,
+      reason,
+    }: {
+      ids: string[];
+      newGraphisteId: string;
+      reason?: string;
+    }) => {
+      // Transférer chaque dossier via la fonction RPC
+      const errors: string[] = [];
+
+      for (const dossierId of ids) {
+        const { error } = await supabase.rpc("transfer_dossier", {
+          p_dossier_id: dossierId,
+          p_new_graphiste_id: newGraphisteId,
+          p_reason: reason || null,
+        });
+
+        if (error) {
+          errors.push(`Dossier ${dossierId}: ${error.message}`);
+        }
+      }
+
+      if (errors.length > 0) {
+        throw new Error(`Erreurs lors du transfert: ${errors.join(", ")}`);
+      }
+    },
+    onSuccess: (_, { ids }) => {
+      queryClient.invalidateQueries({ queryKey: dossierKeys.all });
+      toast.success(`${ids.length} dossier(s) transféré(s) avec succès`);
+    },
+    onError: (error) => {
+      console.error("Erreur transfert multiple:", error);
+      toast.error("Erreur lors du transfert");
+    },
+  });
+}

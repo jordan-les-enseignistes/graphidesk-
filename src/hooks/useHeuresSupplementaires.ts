@@ -195,6 +195,51 @@ export function getNumeroSemaine(date: Date): number {
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
+// Trouver le mois comptable ISO auquel une date appartient
+// Le mois comptable ISO est celui dont les semaines incluent cette date
+// Par exemple : 26 janvier 2026 (semaine 5) appartient à février 2026 en comptabilité ISO
+export function getMoisComptableISO(date: Date): { annee: number; mois: number } {
+  const semaine = getNumeroSemaine(date);
+
+  // Parcourir les mois pour trouver celui qui contient cette semaine
+  // On vérifie le mois de la date et les mois adjacents
+  const anneeDate = date.getFullYear();
+  const moisDate = date.getMonth() + 1;
+
+  // Vérifier d'abord le mois calendaire de la date
+  const semainesMoisActuel = getSemainesOfMonth(anneeDate, moisDate);
+  if (semainesMoisActuel.includes(semaine)) {
+    return { annee: anneeDate, mois: moisDate };
+  }
+
+  // Si pas dans le mois actuel, vérifier le mois suivant
+  const moisSuivant = moisDate === 12 ? 1 : moisDate + 1;
+  const anneeSuivante = moisDate === 12 ? anneeDate + 1 : anneeDate;
+  const semainesMoisSuivant = getSemainesOfMonth(anneeSuivante, moisSuivant);
+  if (semainesMoisSuivant.includes(semaine)) {
+    return { annee: anneeSuivante, mois: moisSuivant };
+  }
+
+  // Si pas dans le mois suivant, vérifier le mois précédent
+  const moisPrecedent = moisDate === 1 ? 12 : moisDate - 1;
+  const anneePrecedente = moisDate === 1 ? anneeDate - 1 : anneeDate;
+  const semainesMoisPrecedent = getSemainesOfMonth(anneePrecedente, moisPrecedent);
+  if (semainesMoisPrecedent.includes(semaine)) {
+    return { annee: anneePrecedente, mois: moisPrecedent };
+  }
+
+  // Fallback au mois calendaire (ne devrait pas arriver)
+  return { annee: anneeDate, mois: moisDate };
+}
+
+// Obtenir les numéros de semaines ISO d'un mois comptable
+function getSemainesOfMonth(annee: number, mois: number): number[] {
+  const days = getDaysInMonthISO(annee, mois);
+  const semaines = new Set<number>();
+  days.forEach(d => semaines.add(getNumeroSemaine(d)));
+  return Array.from(semaines);
+}
+
 // Parser une date ISO sans problème de timezone
 export function parseDateString(dateStr: string): Date {
   const [year, month, day] = dateStr.split("-").map(Number);
@@ -547,12 +592,19 @@ function getHeuresPrevuesJour(
   return { matin, aprem, total: matin + aprem };
 }
 
+// Base hebdomadaire légale : 35h = 2100 minutes
+const HEURES_BASE_SEMAINE = 35 * 60;
+
 // Calculer le total des heures sup pour un mois
-// La base est TOUJOURS 35h/semaine (7h/jour ouvré), indépendamment des horaires personnalisés
-// Les congés payés comptent comme des heures travaillées (selon les horaires prévus du graphiste)
+// La règle est simple : HS = heures travaillées - 35h par semaine
+// Les congés payés et jours fériés comptent comme les heures prévues du graphiste
+// Si validWeekNumbers est fourni, seules les heures des semaines listées sont comptées
+// Si joursFeriesDates est fourni, les jours correspondants sont traités comme fériés même sans type_absence
 export function calculateMonthlyHoursSup(
   heures: HeuresJournalieres[],
-  horairesBase?: HorairesBase | null
+  horairesBase?: HorairesBase | null,
+  validWeekNumbers?: number[],
+  joursFeriesDates?: Set<string>
 ): {
   totalTravaille: number;
   totalBase: number;
@@ -560,29 +612,41 @@ export function calculateMonthlyHoursSup(
   parSemaine: Record<number, { travaille: number; base: number; sup: number }>;
 } {
   const parSemaine: Record<number, { travaille: number; base: number; sup: number }> = {};
-  let totalTravaille = 0;
-  let totalBase = 0;
 
   for (const heure of heures) {
     const date = parseDateString(heure.date);
     const semaine = getNumeroSemaine(date);
+
+    // Si validWeekNumbers est fourni, ignorer les heures des semaines non listées
+    if (validWeekNumbers && !validWeekNumbers.includes(semaine)) {
+      continue;
+    }
+
     const jourSemaine = heure.jour_semaine as JourSemaine;
 
     if (!parSemaine[semaine]) {
-      parSemaine[semaine] = { travaille: 0, base: 0, sup: 0 };
+      // Initialiser avec base = 35h pour chaque semaine
+      parSemaine[semaine] = { travaille: 0, base: HEURES_BASE_SEMAINE, sup: 0 };
     }
 
     const isJourOuvre = !["samedi", "dimanche"].includes(jourSemaine);
     const heuresPrevues = getHeuresPrevuesJour(jourSemaine, horairesBase);
+
+    // Vérifier si c'est un jour férié (via type_absence OU via la liste des jours fériés)
+    const isJourFerie = heure.type_absence === "ferie" || joursFeriesDates?.has(heure.date);
+    if (isJourFerie) {
+      // Jour férié = heures prévues du graphiste comptées comme travaillées
+      if (isJourOuvre) {
+        parSemaine[semaine].travaille += heuresPrevues.total;
+      }
+      continue;
+    }
 
     // Gestion des congés payés
     if (heure.type_absence === "conge") {
       // Congé journée complète = heures prévues du graphiste comptées comme travaillées
       if (isJourOuvre) {
         parSemaine[semaine].travaille += heuresPrevues.total;
-        totalTravaille += heuresPrevues.total;
-        parSemaine[semaine].base += HEURES_BASE_PAR_JOUR;
-        totalBase += HEURES_BASE_PAR_JOUR;
       }
       continue;
     }
@@ -592,11 +656,6 @@ export function calculateMonthlyHoursSup(
       const travailleAprem = calculateDayTotal(null, null, heure.aprem_debut, heure.aprem_fin);
       const totalJour = heuresPrevues.matin + travailleAprem;
       parSemaine[semaine].travaille += totalJour;
-      totalTravaille += totalJour;
-      if (isJourOuvre) {
-        parSemaine[semaine].base += HEURES_BASE_PAR_JOUR;
-        totalBase += HEURES_BASE_PAR_JOUR;
-      }
       continue;
     }
 
@@ -605,16 +664,6 @@ export function calculateMonthlyHoursSup(
       const travailleMatin = calculateDayTotal(heure.matin_debut, heure.matin_fin, null, null);
       const totalJour = travailleMatin + heuresPrevues.aprem;
       parSemaine[semaine].travaille += totalJour;
-      totalTravaille += totalJour;
-      if (isJourOuvre) {
-        parSemaine[semaine].base += HEURES_BASE_PAR_JOUR;
-        totalBase += HEURES_BASE_PAR_JOUR;
-      }
-      continue;
-    }
-
-    if (heure.type_absence === "ferie") {
-      // Jour férié = pas de base, pas de travail
       continue;
     }
 
@@ -626,19 +675,16 @@ export function calculateMonthlyHoursSup(
       heure.aprem_fin
     );
     parSemaine[semaine].travaille += travaille;
-    totalTravaille += travaille;
-
-    // Heures de base prévues : 7h par jour ouvré (lundi-vendredi), 0 le weekend
-    if (isJourOuvre) {
-      parSemaine[semaine].base += HEURES_BASE_PAR_JOUR;
-      totalBase += HEURES_BASE_PAR_JOUR;
-    }
   }
 
-  // Calculer les heures sup par semaine
+  // Calculer les heures sup par semaine (travaillé - 35h)
+  let totalTravaille = 0;
+  let totalBase = 0;
   for (const semaine in parSemaine) {
     const s = parSemaine[semaine];
     s.sup = s.travaille - s.base;
+    totalTravaille += s.travaille;
+    totalBase += s.base;
   }
 
   return {

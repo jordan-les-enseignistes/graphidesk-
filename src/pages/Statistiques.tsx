@@ -33,9 +33,7 @@ export default function Statistiques() {
 
   // Archives par graphiste avec filtre année
   const selectedAnnee = selectedYear === "all" ? undefined : parseInt(selectedYear);
-  const { data: statsArchivesParGraphiste } = useStatsArchivesParGraphiste(
-    selectedYear === "all" || parseInt(selectedYear) === currentYear ? undefined : selectedAnnee
-  );
+  const { data: statsArchivesParGraphiste } = useStatsArchivesParGraphiste(selectedAnnee);
 
   const { data: profiles } = useProfiles();
   const { data: statuts } = useStatuts();

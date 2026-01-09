@@ -614,6 +614,18 @@ export default function HeuresSupplementaires() {
     return map;
   }, [joursFeries]);
 
+  // Set des dates des jours fériés pour le calcul des HS
+  // On normalise au format YYYY-MM-DD pour matcher avec heure.date
+  const joursFeriesDates = useMemo(() => {
+    const set = new Set<string>();
+    joursFeries?.forEach((jf) => {
+      // Extraire juste YYYY-MM-DD si la date contient un timestamp
+      const dateStr = jf.date.split('T')[0];
+      set.add(dateStr);
+    });
+    return set;
+  }, [joursFeries]);
+
   useEffect(() => {
     if (feuille && feuille.heures.length === 0 && !initialiserMois.isPending) {
       initialiserMois.mutate({
@@ -636,8 +648,8 @@ export default function HeuresSupplementaires() {
 
   const totaux = useMemo(() => {
     if (!feuille?.heures) return { totalTravaille: 0, totalBase: 0, heuresSup: 0, parSemaine: {} };
-    return calculateMonthlyHoursSup(feuille.heures, effectiveHoraires);
-  }, [feuille?.heures, effectiveHoraires]);
+    return calculateMonthlyHoursSup(feuille.heures, effectiveHoraires, weekNumbers, joursFeriesDates);
+  }, [feuille?.heures, effectiveHoraires, weekNumbers, joursFeriesDates]);
 
   const handleUpdate = (date: string, jour: JourSemaine, field: string, value: string | null) => {
     if (!feuille) return;
@@ -879,7 +891,7 @@ export default function HeuresSupplementaires() {
                 ? effectiveHoraires
                 : (userFeuille?.user?.horaires_base as typeof HORAIRES_BASE_DEFAUT | null) || HORAIRES_BASE_DEFAUT;
               const stats = userFeuille
-                ? calculateMonthlyHoursSup(userFeuille.heures || [], userHorairesBase)
+                ? calculateMonthlyHoursSup(userFeuille.heures || [], userHorairesBase, weekNumbers, joursFeriesDates)
                 : { heuresSup: 0 };
               return (
                 <button
