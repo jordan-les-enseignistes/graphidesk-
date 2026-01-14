@@ -289,8 +289,8 @@ export default function ProjetsInternes() {
             <ClipboardList className="h-4 w-4 text-teal-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Projets Internes</h1>
-            <p className="text-xs text-gray-500">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">Projets Internes</h1>
+            <p className="text-xs text-gray-500 dark:text-slate-400">
               Tâches et demandes internes
             </p>
           </div>
@@ -303,13 +303,13 @@ export default function ProjetsInternes() {
       </div>
 
       {/* Onglets de statut */}
-      <div className="flex items-center gap-1 border-b border-gray-200">
+      <div className="flex items-center gap-1 border-b border-gray-200 dark:border-slate-700">
         <button
           onClick={() => setStatutFilter("all")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             statutFilter === "all"
               ? "border-blue-500 text-blue-600"
-              : "border-transparent text-gray-500 hover:text-gray-700"
+              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
           }`}
         >
           Tous ({counts.all})
@@ -321,7 +321,7 @@ export default function ProjetsInternes() {
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
               statutFilter === s.value
                 ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
             }`}
           >
             <span className={`h-2 w-2 rounded-full ${s.dotColor}`} />
@@ -332,7 +332,7 @@ export default function ProjetsInternes() {
 
       {/* Recherche */}
       <div className="relative max-w-xs">
-        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
         <Input
           placeholder="Rechercher..."
           value={search}
@@ -342,7 +342,7 @@ export default function ProjetsInternes() {
         {search && (
           <button
             onClick={() => setSearch("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
           >
             <X className="h-3 w-3" />
           </button>
@@ -350,10 +350,10 @@ export default function ProjetsInternes() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-lg border border-gray-200 bg-white dark:bg-slate-800 dark:border-slate-700">
         <Table>
           <TableHeader>
-            <TableRow className="bg-gray-50">
+            <TableRow className="bg-gray-50 dark:bg-slate-700/50">
               <TableHead className="w-28">Statut</TableHead>
               <TableHead>Commercial</TableHead>
               <TableHead>Tâche</TableHead>
@@ -368,13 +368,13 @@ export default function ProjetsInternes() {
                 <TableCell colSpan={isAdmin ? 6 : 5} className="h-24 text-center">
                   <div className="flex items-center justify-center">
                     <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                    <span className="ml-2 text-sm text-gray-500">Chargement...</span>
+                    <span className="ml-2 text-sm text-gray-500 dark:text-slate-400">Chargement...</span>
                   </div>
                 </TableCell>
               </TableRow>
             ) : filteredProjets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 6 : 5} className="h-24 text-center text-gray-500">
+                <TableCell colSpan={isAdmin ? 6 : 5} className="h-24 text-center text-gray-500 dark:text-slate-400">
                   {search ? "Aucun résultat" : "Aucun projet"}
                 </TableCell>
               </TableRow>
@@ -401,7 +401,7 @@ export default function ProjetsInternes() {
                             <DropdownMenuItem
                               key={s.value}
                               onClick={() => updateStatut.mutate({ id: projet.id, statut: s.value })}
-                              className={currentStatut === s.value ? "bg-gray-100" : ""}
+                              className={currentStatut === s.value ? "bg-gray-100 dark:bg-slate-600" : ""}
                             >
                               <span className={`h-2 w-2 rounded-full ${s.dotColor} mr-2`} />
                               {s.label}
@@ -443,13 +443,13 @@ export default function ProjetsInternes() {
                         })}
                         type="textarea"
                         placeholder="Ajouter..."
-                        className="text-sm text-gray-600"
+                        className="text-sm text-gray-600 dark:text-slate-400"
                       />
                     </TableCell>
                     <TableCell className="py-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button className="inline-flex items-center gap-1 text-sm hover:bg-gray-100 rounded px-1 py-0.5">
+                          <button className="inline-flex items-center gap-1 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 rounded px-1 py-0.5">
                             {projet.graphiste ? (
                               <>
                                 <span className={cn(
@@ -461,7 +461,7 @@ export default function ProjetsInternes() {
                                 <span className="whitespace-nowrap">{getFirstName(projet.graphiste.full_name)}</span>
                               </>
                             ) : (
-                              <span className="text-gray-400 italic">Non assigné</span>
+                              <span className="text-gray-400 dark:text-slate-500 italic">Non assigné</span>
                             )}
                             <ChevronDown className="h-3 w-3 opacity-50" />
                           </button>
@@ -474,7 +474,7 @@ export default function ProjetsInternes() {
                               value: null,
                             })}
                           >
-                            <span className="text-gray-400">Non assigné</span>
+                            <span className="text-gray-400 dark:text-slate-500">Non assigné</span>
                           </DropdownMenuItem>
                           {profiles?.map((p) => (
                             <DropdownMenuItem
@@ -484,7 +484,7 @@ export default function ProjetsInternes() {
                                 field: "graphiste_id",
                                 value: p.id,
                               })}
-                              className={projet.graphiste_id === p.id ? "bg-gray-100" : ""}
+                              className={projet.graphiste_id === p.id ? "bg-gray-100 dark:bg-slate-600" : ""}
                             >
                               <span className={cn(
                                 "flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium mr-2",

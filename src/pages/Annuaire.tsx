@@ -184,12 +184,12 @@ export default function Annuaire() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-500/30">
             <ContactIcon className="h-5 w-5 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Annuaire</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Annuaire</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Répertoire des contacts internes et externes
             </p>
           </div>
@@ -208,20 +208,20 @@ export default function Annuaire() {
       <div className="flex items-center gap-3">
         {/* Recherche */}
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-500" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher un contact..."
-            className="pl-9 pr-8 py-2 w-full border border-gray-200 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none transition-all"
+            className="pl-9 pr-8 py-2 w-full border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none transition-all"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-slate-600 rounded"
             >
-              <X className="h-3 w-3 text-gray-400" />
+              <X className="h-3 w-3 text-gray-400 dark:text-slate-500" />
             </button>
           )}
         </div>
@@ -233,8 +233,8 @@ export default function Annuaire() {
             className={cn(
               "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors border",
               filterType !== "tous"
-                ? "bg-blue-50 border-blue-200 text-blue-700"
-                : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400"
+                : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
             )}
           >
             <Filter className="h-4 w-4" />
@@ -252,15 +252,15 @@ export default function Annuaire() {
                 className="fixed inset-0 z-10"
                 onClick={() => setShowFilterMenu(false)}
               />
-              <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border py-1 z-20 min-w-[160px]">
+              <div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 rounded-lg shadow-lg border dark:border-slate-700 py-1 z-20 min-w-[160px]">
                 <button
                   onClick={() => {
                     setFilterType("tous");
                     setShowFilterMenu(false);
                   }}
                   className={cn(
-                    "w-full px-3 py-2 text-left text-sm hover:bg-gray-50",
-                    filterType === "tous" && "bg-blue-50 text-blue-700"
+                    "w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-700",
+                    filterType === "tous" && "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                   )}
                 >
                   Tous ({contacts.length})
@@ -271,8 +271,8 @@ export default function Annuaire() {
                     setShowFilterMenu(false);
                   }}
                   className={cn(
-                    "w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2",
-                    filterType === "interne" && "bg-blue-50 text-blue-700"
+                    "w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2",
+                    filterType === "interne" && "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                   )}
                 >
                   <User className="h-4 w-4" />
@@ -284,8 +284,8 @@ export default function Annuaire() {
                     setShowFilterMenu(false);
                   }}
                   className={cn(
-                    "w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2",
-                    filterType === "externe" && "bg-blue-50 text-blue-700"
+                    "w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2",
+                    filterType === "externe" && "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                   )}
                 >
                   <Building2 className="h-4 w-4" />
@@ -299,7 +299,7 @@ export default function Annuaire() {
 
       {/* Contenu */}
       {filteredContacts.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-500 dark:text-slate-400">
           {contacts.length === 0
             ? "Aucun contact dans l'annuaire. Commencez par en ajouter un !"
             : "Aucun contact trouvé pour cette recherche"}
@@ -310,7 +310,7 @@ export default function Annuaire() {
           {(filterType === "tous" || filterType === "interne") &&
             internes.length > 0 && (
               <div>
-                <h2 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
+                <h2 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-3 flex items-center gap-2">
                   <User className="h-4 w-4" />
                   Contacts internes ({internes.length})
                 </h2>
@@ -331,7 +331,7 @@ export default function Annuaire() {
           {(filterType === "tous" || filterType === "externe") &&
             externes.length > 0 && (
               <div>
-                <h2 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
+                <h2 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-3 flex items-center gap-2">
                   <Building2 className="h-4 w-4" />
                   Contacts externes ({externes.length})
                 </h2>
@@ -419,7 +419,7 @@ function ContactCard({
     : contact.nom.slice(0, 2);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border p-4 hover:shadow-md transition-shadow group">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 hover:shadow-md transition-shadow group">
       <div className="flex items-start gap-3">
         {/* Avatar */}
         <span
@@ -436,15 +436,15 @@ function ContactCard({
         {/* Infos */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-gray-900 truncate">
+            <h3 className="font-semibold text-gray-900 dark:text-slate-100 truncate">
               {displayName}
             </h3>
           </div>
           {contact.fonction && (
-            <p className="text-sm text-gray-500 truncate">{contact.fonction}</p>
+            <p className="text-sm text-gray-500 dark:text-slate-400 truncate">{contact.fonction}</p>
           )}
           {contact.type === "externe" && contact.entreprise && (
-            <p className="text-xs text-gray-400 truncate flex items-center gap-1">
+            <p className="text-xs text-gray-400 dark:text-slate-500 truncate flex items-center gap-1">
               <Building2 className="h-3 w-3" />
               {contact.entreprise}
             </p>
@@ -455,14 +455,14 @@ function ContactCard({
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={onEdit}
-            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
             title="Modifier"
           >
             <Pencil className="h-4 w-4" />
           </button>
           <button
             onClick={onDelete}
-            className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600"
+            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg text-gray-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400"
             title="Supprimer"
           >
             <Trash2 className="h-4 w-4" />
@@ -475,13 +475,13 @@ function ContactCard({
         {contact.telephone ? (
           <a
             href={`tel:${contact.telephone}`}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group/link"
+            className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors group/link"
           >
-            <Phone className="h-4 w-4 text-gray-400 group-hover/link:text-blue-500" />
+            <Phone className="h-4 w-4 text-gray-400 dark:text-slate-500 group-hover/link:text-blue-500" />
             <span>{formatPhoneNumber(contact.telephone)}</span>
           </a>
         ) : (
-          <div className="flex items-center gap-2 text-sm text-gray-400">
+          <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-slate-500">
             <Phone className="h-4 w-4" />
             <span className="italic">Pas de téléphone</span>
           </div>
@@ -490,13 +490,13 @@ function ContactCard({
         {contact.email ? (
           <a
             href={`mailto:${contact.email}`}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group/link"
+            className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors group/link"
           >
-            <Mail className="h-4 w-4 text-gray-400 group-hover/link:text-blue-500" />
+            <Mail className="h-4 w-4 text-gray-400 dark:text-slate-500 group-hover/link:text-blue-500" />
             <span className="truncate">{contact.email}</span>
           </a>
         ) : (
-          <div className="flex items-center gap-2 text-sm text-gray-400">
+          <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-slate-500">
             <Mail className="h-4 w-4" />
             <span className="italic">Pas d'email</span>
           </div>
@@ -505,7 +505,7 @@ function ContactCard({
 
       {/* Notes */}
       {contact.notes && (
-        <p className="mt-3 text-xs text-gray-500 bg-gray-50 rounded p-2 line-clamp-2">
+        <p className="mt-3 text-xs text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-slate-700/50 rounded p-2 line-clamp-2">
           {contact.notes}
         </p>
       )}
@@ -557,23 +557,23 @@ function ContactModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">
+      <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b dark:border-slate-700">
+          <h2 className="text-lg font-semibold dark:text-slate-100">
             {contact ? "Modifier le contact" : "Nouveau contact"}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-lg"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-gray-500 dark:text-slate-400" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {/* Type */}
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 block">
               Type de contact
             </label>
             <div className="flex gap-2">
@@ -583,8 +583,8 @@ function ContactModal({
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border transition-colors",
                   formData.type === "interne"
-                    ? "bg-blue-50 border-blue-200 text-blue-700"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                    ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400"
+                    : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
                 )}
               >
                 <User className="h-4 w-4" />
@@ -596,8 +596,8 @@ function ContactModal({
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border transition-colors",
                   formData.type === "externe"
-                    ? "bg-orange-50 border-orange-200 text-orange-700"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                    ? "bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-900/30 dark:border-orange-800 dark:text-orange-400"
+                    : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
                 )}
               >
                 <Building2 className="h-4 w-4" />
@@ -609,7 +609,7 @@ function ContactModal({
           {/* Nom / Prénom */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 block">
                 Prénom
               </label>
               <input
@@ -618,12 +618,12 @@ function ContactModal({
                 onChange={(e) =>
                   setFormData({ ...formData, prenom: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none"
                 placeholder="Jean"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 block">
                 Nom <span className="text-red-500">*</span>
               </label>
               <input
@@ -632,7 +632,7 @@ function ContactModal({
                 onChange={(e) =>
                   setFormData({ ...formData, nom: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none"
                 placeholder="Dupont"
                 required
               />
@@ -641,7 +641,7 @@ function ContactModal({
 
           {/* Fonction */}
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 block">
               {formData.type === "interne"
                 ? "Rôle dans l'entreprise"
                 : "Fonction"}
@@ -652,7 +652,7 @@ function ContactModal({
               onChange={(e) =>
                 setFormData({ ...formData, fonction: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none"
+              className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none"
               placeholder={
                 formData.type === "interne"
                   ? "Ex: Graphiste, Commercial..."
@@ -664,7 +664,7 @@ function ContactModal({
           {/* Entreprise (externes uniquement) */}
           {formData.type === "externe" && (
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 block">
                 Entreprise
               </label>
               <input
@@ -673,7 +673,7 @@ function ContactModal({
                 onChange={(e) =>
                   setFormData({ ...formData, entreprise: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none"
                 placeholder="Nom de l'entreprise"
               />
             </div>
@@ -682,7 +682,7 @@ function ContactModal({
           {/* Coordonnées */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 block">
                 Téléphone
               </label>
               <input
@@ -691,12 +691,12 @@ function ContactModal({
                 onChange={(e) =>
                   setFormData({ ...formData, telephone: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none"
                 placeholder="06 12 34 56 78"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 block">
                 Email
               </label>
               <input
@@ -705,7 +705,7 @@ function ContactModal({
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none"
                 placeholder="email@exemple.com"
               />
             </div>
@@ -713,7 +713,7 @@ function ContactModal({
 
           {/* Notes */}
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 block">
               Notes
             </label>
             <textarea
@@ -722,7 +722,7 @@ function ContactModal({
                 setFormData({ ...formData, notes: e.target.value })
               }
               rows={3}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none resize-none"
+              className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none resize-none"
               placeholder="Informations complémentaires..."
             />
           </div>
@@ -732,7 +732,7 @@ function ContactModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
               Annuler
             </button>
@@ -773,18 +773,18 @@ function DeleteConfirmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">
+      <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2">
           Supprimer ce contact ?
         </h2>
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-600 dark:text-slate-400 mb-6">
           Êtes-vous sûr de vouloir supprimer <strong>{displayName}</strong> de
           l'annuaire ? Cette action est irréversible.
         </p>
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700 rounded-lg transition-colors"
           >
             Annuler
           </button>

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
+import { useThemeStore } from "@/stores/themeStore";
 import { supabase } from "@/lib/supabase";
 import { ROUTES } from "@/lib/constants";
 import { LoadingPage } from "@/components/ui/loading";
@@ -158,9 +159,27 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Theme initializer - s'assure que le thème est appliqué au chargement
+function ThemeInitializer({ children }: { children: React.ReactNode }) {
+  const { theme } = useThemeStore();
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "system") {
+      const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      root.classList.toggle("dark", systemDark);
+    } else {
+      root.classList.toggle("dark", theme === "dark");
+    }
+  }, [theme]);
+
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <ThemeInitializer>
       <AuthInitializer>
         <BrowserRouter>
           <Routes>
@@ -241,6 +260,7 @@ function App() {
           }}
         />
       </AuthInitializer>
+      </ThemeInitializer>
     </QueryClientProvider>
   );
 }

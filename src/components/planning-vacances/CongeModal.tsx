@@ -129,7 +129,7 @@ export function CongeModal({
 
         <div className="space-y-4">
           {/* Date sélectionnée */}
-          <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+          <div className="text-sm text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-700 rounded-lg p-3">
             <span className="font-medium capitalize">{formattedDate}</span>
           </div>
 
@@ -141,14 +141,14 @@ export function CongeModal({
                 {existingConges.map((conge) => (
                   <div
                     key={conge.userId}
-                    className="flex items-center justify-between bg-emerald-50 rounded-lg px-3 py-2"
+                    className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/30 rounded-lg px-3 py-2"
                   >
                     <div className="flex items-center gap-2">
-                      <Palmtree className="h-4 w-4 text-emerald-600" />
-                      <span className="text-sm font-medium text-emerald-700">
+                      <Palmtree className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
                         {conge.prenom}
                       </span>
-                      <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-800/50 px-2 py-0.5 rounded">
                         {getTypeLabel(conge.type)}
                       </span>
                     </div>
@@ -198,8 +198,8 @@ export function CongeModal({
                   className={cn(
                     "flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors",
                     typeConge === "conge"
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                      : "border-gray-200 hover:border-gray-300"
+                      ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                      : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500 text-gray-700 dark:text-slate-300"
                   )}
                 >
                   <Palmtree className="h-5 w-5" />
@@ -211,8 +211,8 @@ export function CongeModal({
                   className={cn(
                     "flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors",
                     typeConge === "conge_matin"
-                      ? "border-amber-500 bg-amber-50 text-amber-700"
-                      : "border-gray-200 hover:border-gray-300"
+                      ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+                      : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500 text-gray-700 dark:text-slate-300"
                   )}
                 >
                   <Sun className="h-5 w-5" />
@@ -224,8 +224,8 @@ export function CongeModal({
                   className={cn(
                     "flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors",
                     typeConge === "conge_aprem"
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                      : "border-gray-200 hover:border-gray-300"
+                      ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
+                      : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500 text-gray-700 dark:text-slate-300"
                   )}
                 >
                   <Moon className="h-5 w-5" />
@@ -262,7 +262,7 @@ export function CongeModal({
             </div>
 
             {/* Note sur les weekends */}
-            <p className="text-xs text-gray-500 italic">
+            <p className="text-xs text-gray-500 dark:text-slate-400 italic">
               Les weekends sont automatiquement exclus.
             </p>
           </div>

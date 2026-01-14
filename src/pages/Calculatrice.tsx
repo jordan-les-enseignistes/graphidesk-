@@ -133,11 +133,11 @@ export default function Calculatrice() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <Calculator className="h-7 w-7 text-blue-600" />
             Calculatrice
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Outils de calcul pour le quotidien
           </p>
         </div>
@@ -151,7 +151,7 @@ export default function Calculatrice() {
               <Square className="h-5 w-5 text-blue-600" />
               Calcul de surface (m²)
             </CardTitle>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               Calculer la surface en m² et vérifier les limites mairie
             </p>
           </CardHeader>
@@ -200,7 +200,7 @@ export default function Calculatrice() {
 
             {/* Limite mairie (optionnel) */}
             <div className="space-y-2">
-              <Label htmlFor="limite" className="text-gray-500">
+              <Label htmlFor="limite" className="text-gray-500 dark:text-slate-400">
                 Limite mairie (optionnel)
               </Label>
               <div className="flex gap-2">
@@ -213,7 +213,7 @@ export default function Calculatrice() {
                   onChange={(e) => setLimiteM2(e.target.value)}
                   className="flex-1"
                 />
-                <span className="flex items-center px-3 text-sm text-gray-500 bg-gray-100 rounded-md border">
+                <span className="flex items-center px-3 text-sm text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-700 rounded-md border dark:border-slate-600">
                   m²
                 </span>
               </div>
@@ -231,7 +231,7 @@ export default function Calculatrice() {
                     : "bg-blue-50 border-blue-300"
                 )}
               >
-                <p className="text-sm text-gray-600 mb-1">Surface totale</p>
+                <p className="text-sm text-gray-600 dark:text-slate-300 mb-1">Surface totale</p>
                 <p
                   className={cn(
                     "text-3xl font-bold",
@@ -277,7 +277,7 @@ export default function Calculatrice() {
               <Building2 className="h-5 w-5 text-orange-600" />
               Calcul façade mairie
             </CardTitle>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               Vérifier si vos enseignes respectent le % autorisé sur la façade
             </p>
           </CardHeader>
@@ -307,7 +307,7 @@ export default function Calculatrice() {
                     onChange={(e) => setPourcentageAutorise(e.target.value)}
                     className="flex-1"
                   />
-                  <span className="flex items-center px-3 text-sm text-gray-500 bg-gray-100 rounded-md border">
+                  <span className="flex items-center px-3 text-sm text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-700 rounded-md border dark:border-slate-600">
                     %
                   </span>
                 </div>
@@ -316,8 +316,8 @@ export default function Calculatrice() {
 
             {/* Surface autorisée */}
             {surfaceAutorisee !== null && (
-              <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                <p className="text-sm text-gray-600">
+              <div className="p-3 bg-orange-50 dark:bg-orange-500/30 border border-orange-200 dark:border-orange-500/50 rounded-lg">
+                <p className="text-sm text-gray-600 dark:text-slate-300">
                   Surface autorisée : <span className="font-bold text-orange-600">{surfaceAutorisee.toFixed(2)} m²</span>
                 </p>
               </div>
@@ -344,14 +344,14 @@ export default function Calculatrice() {
                 return (
                   <div
                     key={enseigne.id}
-                    className="p-3 border rounded-lg bg-gray-50 space-y-2"
+                    className="p-3 border dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-700/50 space-y-2"
                   >
                     <div className="flex items-center gap-2">
                       <Input
                         type="text"
                         value={enseigne.nom}
                         onChange={(e) => updateEnseigne(enseigne.id, "nom", e.target.value)}
-                        className="flex-1 font-medium bg-white"
+                        className="flex-1 font-medium bg-white dark:bg-slate-800"
                         placeholder="Nom de l'enseigne"
                       />
                       {enseignes.length > 1 && (
@@ -360,7 +360,7 @@ export default function Calculatrice() {
                           variant="ghost"
                           size="sm"
                           onClick={() => supprimerEnseigne(enseigne.id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/30"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -373,7 +373,7 @@ export default function Calculatrice() {
                           placeholder="Largeur"
                           value={enseigne.largeur}
                           onChange={(e) => updateEnseigne(enseigne.id, "largeur", e.target.value)}
-                          className="flex-1 bg-white"
+                          className="flex-1 bg-white dark:bg-slate-800"
                         />
                         <Select
                           value={enseigne.uniteLargeur}
@@ -388,7 +388,7 @@ export default function Calculatrice() {
                           placeholder="Hauteur"
                           value={enseigne.hauteur}
                           onChange={(e) => updateEnseigne(enseigne.id, "hauteur", e.target.value)}
-                          className="flex-1 bg-white"
+                          className="flex-1 bg-white dark:bg-slate-800"
                         />
                         <Select
                           value={enseigne.uniteHauteur}
@@ -399,7 +399,7 @@ export default function Calculatrice() {
                       </div>
                     </div>
                     {surface !== null && (
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-slate-300">
                         Surface : <span className="font-medium">{surface.toFixed(4)} m²</span>
                       </p>
                     )}
@@ -418,7 +418,7 @@ export default function Calculatrice() {
                     : "bg-green-50 border-green-300"
                 )}
               >
-                <p className="text-sm text-gray-600 mb-1">Total enseignes</p>
+                <p className="text-sm text-gray-600 dark:text-slate-300 mb-1">Total enseignes</p>
                 <p
                   className={cn(
                     "text-2xl font-bold",

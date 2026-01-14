@@ -205,9 +205,9 @@ function TimeInput({
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         placeholder="--"
-        className="w-7 text-center text-sm font-mono bg-white border border-gray-200 rounded px-0.5 py-0.5 hover:border-blue-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none transition-all"
+        className="w-7 text-center text-sm font-mono bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded px-0.5 py-0.5 hover:border-blue-300 dark:hover:border-blue-500 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:ring-blue-800 focus:outline-none transition-all dark:text-slate-200"
       />
-      <span className="text-gray-400 text-xs">:</span>
+      <span className="text-gray-400 dark:text-slate-500 text-xs">:</span>
       <input
         type="text"
         value={minutes}
@@ -215,7 +215,7 @@ function TimeInput({
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         placeholder="--"
-        className="w-7 text-center text-sm font-mono bg-white border border-gray-200 rounded px-0.5 py-0.5 hover:border-blue-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none transition-all"
+        className="w-7 text-center text-sm font-mono bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded px-0.5 py-0.5 hover:border-blue-300 dark:hover:border-blue-500 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:ring-blue-800 focus:outline-none transition-all dark:text-slate-200"
       />
     </div>
   );
@@ -279,12 +279,12 @@ function DayRow({
   // Weekend - ligne compacte grisée
   if (isWeekend) {
     return (
-      <tr className="bg-gray-50">
-        <td className="px-2 py-1 text-xs text-gray-400 font-medium">
+      <tr className="bg-gray-50 dark:bg-slate-800/50">
+        <td className="px-2 py-1 text-xs text-gray-400 dark:text-slate-500 font-medium">
           {JOUR_LABELS[jourSemaine].slice(0, 3)}
         </td>
-        <td className="px-2 py-1 text-xs text-gray-400">{jour}</td>
-        <td colSpan={5} className="px-2 py-1 text-xs text-gray-300 italic">
+        <td className="px-2 py-1 text-xs text-gray-400 dark:text-slate-500">{jour}</td>
+        <td colSpan={5} className="px-2 py-1 text-xs text-gray-300 dark:text-slate-600 italic">
           Weekend
         </td>
       </tr>
@@ -292,19 +292,19 @@ function DayRow({
   }
 
   const rowBg = isFerie
-    ? "bg-amber-50"
+    ? "bg-amber-50 dark:bg-amber-500/30"
     : isConge
-    ? "bg-emerald-50"
+    ? "bg-emerald-50 dark:bg-emerald-500/30"
     : isCongeMatin || isCongeAprem
-    ? "bg-emerald-50/50"
+    ? "bg-emerald-50/50 dark:bg-emerald-500/20"
     : isToday
-    ? "bg-blue-50"
-    : "bg-white hover:bg-gray-50";
+    ? "bg-blue-50 dark:bg-blue-500/30"
+    : "bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700";
 
   return (
     <tr className={cn(rowBg, "transition-colors")}>
       {/* Jour */}
-      <td className={cn("px-2 py-1.5 text-sm font-medium", isToday ? "text-blue-600" : "text-gray-600")}>
+      <td className={cn("px-2 py-1.5 text-sm font-medium", isToday ? "text-blue-600 dark:text-blue-400" : "text-gray-600 dark:text-slate-400")}>
         {JOUR_LABELS[jourSemaine].slice(0, 3)}
       </td>
       {/* Date */}
@@ -312,9 +312,9 @@ function DayRow({
         <span className={cn(
           "text-sm font-bold",
           isToday && "bg-blue-600 text-white rounded-full w-6 h-6 inline-flex items-center justify-center",
-          isFerie && !isToday && "text-amber-700",
-          hasAnyConge && !isToday && "text-emerald-700",
-          !isToday && !isFerie && !hasAnyConge && "text-gray-700"
+          isFerie && !isToday && "text-amber-700 dark:text-amber-400",
+          hasAnyConge && !isToday && "text-emerald-700 dark:text-emerald-400",
+          !isToday && !isFerie && !hasAnyConge && "text-gray-700 dark:text-slate-300"
         )}>
           {jour}
         </span>
@@ -322,13 +322,13 @@ function DayRow({
 
       {/* Contenu selon état */}
       {isFerie ? (
-        <td colSpan={5} className="px-2 py-1.5 text-sm text-amber-600 font-medium">
+        <td colSpan={5} className="px-2 py-1.5 text-sm text-amber-600 dark:text-amber-400 font-medium">
           {jourFerie?.nom || "Jour férié"}
         </td>
       ) : isConge ? (
         <>
           <td colSpan={4} className="px-2 py-1.5">
-            <span className="text-sm text-emerald-600 font-medium flex items-center gap-1">
+            <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
               <Palmtree className="h-4 w-4" />
               Congé (journée)
             </span>
@@ -336,7 +336,7 @@ function DayRow({
           <td className="px-2 py-1.5">
             <button
               onClick={handleClearConge}
-              className="p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 transition-colors"
+              className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-500/30 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
               title="Annuler le congé"
             >
               <X className="h-3.5 w-3.5" />
@@ -347,7 +347,7 @@ function DayRow({
         <>
           {/* Congé matin - afficher horaires après-midi */}
           <td colSpan={2} className="px-1 py-1.5">
-            <span className="text-sm text-emerald-600 font-medium flex items-center gap-1">
+            <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
               <Sun className="h-4 w-4" />
               Congé matin
             </span>
@@ -356,7 +356,7 @@ function DayRow({
             <div className="flex items-center gap-1">
               <TimeInput value={heureData?.aprem_debut || null} onChange={(v) => handleChange("aprem_debut", v)} />
               {isToday && (
-                <button onClick={() => handlePointer("aprem_debut")} className="p-1 rounded hover:bg-blue-100 text-blue-400" title="Pointer">
+                <button onClick={() => handlePointer("aprem_debut")} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/30 text-blue-400" title="Pointer">
                   <Timer className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -366,7 +366,7 @@ function DayRow({
             <div className="flex items-center gap-1">
               <TimeInput value={heureData?.aprem_fin || null} onChange={(v) => handleChange("aprem_fin", v)} />
               {isToday && (
-                <button onClick={() => handlePointer("aprem_fin")} className="p-1 rounded hover:bg-blue-100 text-blue-400" title="Pointer">
+                <button onClick={() => handlePointer("aprem_fin")} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/30 text-blue-400" title="Pointer">
                   <Timer className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -375,11 +375,11 @@ function DayRow({
           <td className="px-2 py-1.5 text-right">
             <div className="flex items-center justify-end gap-2">
               {total > 0 && (
-                <span className="text-sm font-semibold text-gray-700">{formatMinutesToHuman(total)}</span>
+                <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">{formatMinutesToHuman(total)}</span>
               )}
               <button
                 onClick={handleClearConge}
-                className="p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 transition-colors"
+                className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-500/30 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                 title="Annuler le congé"
               >
                 <X className="h-3.5 w-3.5" />
@@ -394,7 +394,7 @@ function DayRow({
             <div className="flex items-center gap-1">
               <TimeInput value={heureData?.matin_debut || null} onChange={(v) => handleChange("matin_debut", v)} />
               {isToday && (
-                <button onClick={() => handlePointer("matin_debut")} className="p-1 rounded hover:bg-blue-100 text-blue-400" title="Pointer">
+                <button onClick={() => handlePointer("matin_debut")} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/30 text-blue-400" title="Pointer">
                   <Timer className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -404,14 +404,14 @@ function DayRow({
             <div className="flex items-center gap-1">
               <TimeInput value={heureData?.matin_fin || null} onChange={(v) => handleChange("matin_fin", v)} />
               {isToday && (
-                <button onClick={() => handlePointer("matin_fin")} className="p-1 rounded hover:bg-blue-100 text-blue-400" title="Pointer">
+                <button onClick={() => handlePointer("matin_fin")} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/30 text-blue-400" title="Pointer">
                   <Timer className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
           </td>
           <td colSpan={2} className="px-1 py-1.5">
-            <span className="text-sm text-indigo-600 font-medium flex items-center gap-1">
+            <span className="text-sm text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-1">
               <Moon className="h-4 w-4" />
               Congé après-midi
             </span>
@@ -419,11 +419,11 @@ function DayRow({
           <td className="px-2 py-1.5 text-right">
             <div className="flex items-center justify-end gap-2">
               {total > 0 && (
-                <span className="text-sm font-semibold text-gray-700">{formatMinutesToHuman(total)}</span>
+                <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">{formatMinutesToHuman(total)}</span>
               )}
               <button
                 onClick={handleClearConge}
-                className="p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 transition-colors"
+                className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-500/30 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                 title="Annuler le congé"
               >
                 <X className="h-3.5 w-3.5" />
@@ -438,7 +438,7 @@ function DayRow({
             <div className="flex items-center gap-1">
               <TimeInput value={heureData?.matin_debut || null} onChange={(v) => handleChange("matin_debut", v)} />
               {isToday && (
-                <button onClick={() => handlePointer("matin_debut")} className="p-1 rounded hover:bg-blue-100 text-blue-400" title="Pointer">
+                <button onClick={() => handlePointer("matin_debut")} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/30 text-blue-400" title="Pointer">
                   <Timer className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -448,7 +448,7 @@ function DayRow({
             <div className="flex items-center gap-1">
               <TimeInput value={heureData?.matin_fin || null} onChange={(v) => handleChange("matin_fin", v)} />
               {isToday && (
-                <button onClick={() => handlePointer("matin_fin")} className="p-1 rounded hover:bg-blue-100 text-blue-400" title="Pointer">
+                <button onClick={() => handlePointer("matin_fin")} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/30 text-blue-400" title="Pointer">
                   <Timer className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -459,7 +459,7 @@ function DayRow({
             <div className="flex items-center gap-1">
               <TimeInput value={heureData?.aprem_debut || null} onChange={(v) => handleChange("aprem_debut", v)} />
               {isToday && (
-                <button onClick={() => handlePointer("aprem_debut")} className="p-1 rounded hover:bg-blue-100 text-blue-400" title="Pointer">
+                <button onClick={() => handlePointer("aprem_debut")} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/30 text-blue-400" title="Pointer">
                   <Timer className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -469,7 +469,7 @@ function DayRow({
             <div className="flex items-center gap-1">
               <TimeInput value={heureData?.aprem_fin || null} onChange={(v) => handleChange("aprem_fin", v)} />
               {isToday && (
-                <button onClick={() => handlePointer("aprem_fin")} className="p-1 rounded hover:bg-blue-100 text-blue-400" title="Pointer">
+                <button onClick={() => handlePointer("aprem_fin")} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/30 text-blue-400" title="Pointer">
                   <Timer className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -479,12 +479,12 @@ function DayRow({
           <td className="px-2 py-1.5 text-right">
             <div className="flex items-center justify-end gap-2">
               {total > 0 && (
-                <span className="text-sm font-semibold text-gray-700">{formatMinutesToHuman(total)}</span>
+                <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">{formatMinutesToHuman(total)}</span>
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="p-1 rounded hover:bg-emerald-100 text-gray-300 hover:text-emerald-600 transition-colors"
+                    className="p-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-500/30 text-gray-300 dark:text-slate-600 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                     title="Poser un congé"
                   >
                     <Palmtree className="h-3.5 w-3.5" />
@@ -536,7 +536,7 @@ function WeekTable({
   joursFeriesMap: Map<string, JourFerie>;
 }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-4 py-2 flex items-center justify-between">
         <span className="text-sm font-bold text-white">Semaine {weekNum}</span>
@@ -556,7 +556,7 @@ function WeekTable({
       {/* Table */}
       <table className="w-full">
         <thead>
-          <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500">
+          <tr className="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600 text-xs text-gray-500 dark:text-slate-400">
             <th className="px-2 py-1.5 text-left font-medium w-12">Jour</th>
             <th className="px-2 py-1.5 text-left font-medium w-10">#</th>
             <th className="px-1 py-1.5 text-center font-medium" colSpan={2}>Matin</th>
@@ -564,7 +564,7 @@ function WeekTable({
             <th className="px-2 py-1.5 text-right font-medium w-20">Total</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
           {days.map((day) => {
             const dateStr = formatDateStr(day);
             return (
@@ -811,7 +811,7 @@ export default function HeuresSupplementaires() {
             onClick={() => setSelectedUserId(null)}
             className={cn(
               "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              !selectedUserId ? "bg-blue-600 text-white shadow" : "bg-white text-gray-600 hover:bg-gray-50 border"
+              !selectedUserId ? "bg-blue-600 text-white shadow" : "bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 border dark:border-slate-600"
             )}
           >
             Moi
@@ -822,7 +822,7 @@ export default function HeuresSupplementaires() {
               onClick={() => setSelectedUserId(u.id)}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                selectedUserId === u.id ? "bg-blue-600 text-white shadow" : "bg-white text-gray-600 hover:bg-gray-50 border"
+                selectedUserId === u.id ? "bg-blue-600 text-white shadow" : "bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 border dark:border-slate-600"
               )}
             >
               {getPrenom(u.full_name)}
@@ -832,23 +832,23 @@ export default function HeuresSupplementaires() {
       )}
 
       {/* Légende */}
-      <div className="flex items-center gap-4 text-[10px] text-gray-500">
+      <div className="flex items-center gap-4 text-[10px] text-gray-500 dark:text-slate-400">
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-blue-100 border border-blue-300" />
+          <div className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-500/30 border border-blue-300 dark:border-blue-500" />
           <span>Aujourd'hui</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-amber-50 border border-amber-200" />
+          <div className="w-3 h-3 rounded bg-amber-50 dark:bg-amber-500/30 border border-amber-200 dark:border-amber-500" />
           <span>Férié</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-emerald-50 border border-emerald-200" />
+          <div className="w-3 h-3 rounded bg-emerald-50 dark:bg-emerald-500/30 border border-emerald-200 dark:border-emerald-500" />
           <span>Congé</span>
         </div>
       </div>
 
       {isLoading && (
-        <div className="text-center py-6 text-gray-500">
+        <div className="text-center py-6 text-gray-500 dark:text-slate-400">
           <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2" />
           Chargement...
         </div>
@@ -874,10 +874,10 @@ export default function HeuresSupplementaires() {
 
       {/* Vue équipe */}
       {isAdmin && allProfiles && allProfiles.length > 0 && (
-        <div className="bg-white rounded-xl border shadow-sm p-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 shadow-sm p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Users className="h-4 w-4 text-gray-400" />
-            <h3 className="font-semibold text-sm text-gray-700">Équipe</h3>
+            <Users className="h-4 w-4 text-gray-400 dark:text-slate-500" />
+            <h3 className="font-semibold text-sm text-gray-700 dark:text-slate-300">Équipe</h3>
           </div>
           <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
             {allProfiles.map((u) => {
@@ -900,19 +900,19 @@ export default function HeuresSupplementaires() {
                   className={cn(
                     "p-3 rounded-lg border transition-all text-left",
                     (isMe && !selectedUserId) || selectedUserId === u.id
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:bg-gray-50"
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-500/30"
+                      : "border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700"
                   )}
                 >
-                  <div className="font-medium text-sm text-gray-900">
+                  <div className="font-medium text-sm text-gray-900 dark:text-slate-200">
                     {getPrenom(u.full_name)}
-                    {isMe && <span className="text-xs text-gray-400 ml-1">(moi)</span>}
+                    {isMe && <span className="text-xs text-gray-400 dark:text-slate-500 ml-1">(moi)</span>}
                   </div>
-                  <div className={cn("text-lg font-bold", stats.heuresSup >= 0 ? "text-emerald-600" : "text-red-600")}>
+                  <div className={cn("text-lg font-bold", stats.heuresSup >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
                     {userFeuille ? (
                       <>{stats.heuresSup >= 0 ? "+" : ""}{formatMinutesToHuman(stats.heuresSup)}</>
                     ) : (
-                      <span className="text-gray-400 text-sm">Non initialisé</span>
+                      <span className="text-gray-400 dark:text-slate-500 text-sm">Non initialisé</span>
                     )}
                   </div>
                 </button>

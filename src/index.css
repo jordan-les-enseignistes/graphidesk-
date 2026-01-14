@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Dark mode basé sur la classe .dark (pas le système) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Source scanning pour Tailwind v4 */
 @source "./**/*.{js,ts,jsx,tsx}";
 @source "../index.html";
@@ -78,6 +81,31 @@
   --radius: 0.5rem;
 }
 
+/* Dark mode variables */
+.dark {
+  /* Couleurs principales - ajustées pour le dark mode */
+  --primary: #3a8ad4;
+  --primary-dark: #2470B8;
+  --primary-light: #60a5fa;
+  --secondary: #e5e7eb;
+
+  /* Backgrounds */
+  --bg-main: #0f172a;
+  --bg-sidebar: #1e293b;
+  --bg-sidebar-hover: #334155;
+  --bg-card: #1e293b;
+
+  /* Textes */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-sidebar: #e2e8f0;
+  --text-sidebar-muted: #64748b;
+
+  /* Bordures */
+  --border: #334155;
+  --border-focus: #3b82f6;
+}
+
 /* Base styles */
 html, body, #root {
   height: 100%;
@@ -116,6 +144,19 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 /* Focus visible pour accessibilité */

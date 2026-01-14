@@ -399,6 +399,12 @@ Le fichier attendu est le classeur Excel "Suivi des dossiers" avec des onglets p
 - Les données sont stockées par mois ISO (semaines comptables)
 - Fonction `getMoisComptableISO()` pour déterminer le mois ISO d'une date
 
+**Edge Function email (`supabase/functions/send-heures-sup-email/index.ts`)** :
+- Doit utiliser la MÊME logique de calcul que le frontend
+- Format horaires_base : `{ matin: { debut, fin }, aprem: { debut, fin } }` (pas `matin_debut`, `matin_fin`)
+- Parser les dates avec `parseDateString()` pour éviter les problèmes de timezone
+- Filtrer les heures par `validWeekNumbers` (semaines ISO du mois)
+
 ### 12.4 Actions groupées sur dossiers
 Les graphistes peuvent sélectionner plusieurs dossiers et effectuer des actions en masse :
 - **Changer statut** : Modifier le statut de tous les dossiers sélectionnés
@@ -410,6 +416,20 @@ Les graphistes peuvent sélectionner plusieurs dossiers et effectuer des actions
 - Scripts JSX dans `src-tauri/assets/fabrik/scripts/`
 - Actions Illustrator (.aia) dans `src-tauri/assets/fabrik/actions/`
 - Le chemin Illustrator est configurable par l'utilisateur
+
+### 12.6 Dark Mode (OBLIGATOIRE)
+**Tous les nouveaux composants et modifications DOIVENT inclure le support dark mode.**
+
+Classes TailwindCSS à utiliser :
+- **Textes** : `dark:text-slate-200` (principal), `dark:text-slate-300` (secondaire), `dark:text-slate-400` (muted)
+- **Backgrounds** : `dark:bg-slate-700`, `dark:bg-slate-800`, ou `dark:bg-*-900/30` pour les couleurs avec opacité
+- **Bordures** : `dark:border-slate-600`, `dark:border-slate-700`
+- **Hover states** : `dark:hover:bg-slate-600`, `dark:hover:text-white`
+
+Configuration :
+- Le thème est géré par `useThemeStore` (Zustand avec persistance localStorage)
+- La classe `.dark` est appliquée sur `<html>` pour activer le dark mode
+- TailwindCSS v4 utilise `@custom-variant dark (&:where(.dark, .dark *));` dans `index.css`
 
 ---
 

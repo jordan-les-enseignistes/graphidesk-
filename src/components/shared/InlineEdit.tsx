@@ -75,7 +75,7 @@ export function InlineEdit({ value, onSave, type = "text", className, placeholde
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
-            className="w-full min-h-[60px] rounded border border-blue-400 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full min-h-[60px] rounded border border-blue-400 bg-white dark:bg-slate-800 dark:text-slate-100 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder={placeholder}
           />
         </div>
@@ -92,7 +92,7 @@ export function InlineEdit({ value, onSave, type = "text", className, placeholde
           onBlur={handleSave}
           onKeyDown={handleKeyDown}
           className={cn(
-            "rounded border border-blue-400 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+            "rounded border border-blue-400 bg-white dark:bg-slate-800 dark:text-slate-100 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
             type === "date" ? "w-36" : "w-full"
           )}
           placeholder={placeholder}
@@ -107,14 +107,14 @@ export function InlineEdit({ value, onSave, type = "text", className, placeholde
     <button
       onClick={() => setIsEditing(true)}
       className={cn(
-        "group relative cursor-pointer rounded px-1 py-0.5 text-left transition-colors hover:bg-blue-50",
+        "group relative cursor-pointer rounded px-1 py-0.5 text-left transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/30",
         type === "textarea" && "whitespace-pre-wrap break-words",
         className
       )}
       title="Cliquer pour modifier"
     >
-      {displayText || <span className="text-gray-400 italic">{placeholder || "Cliquer pour ajouter"}</span>}
-      <Edit className="absolute -right-4 top-0 h-3 w-3 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100" />
+      {displayText || <span className="text-gray-400 dark:text-slate-500 italic">{placeholder || "Cliquer pour ajouter"}</span>}
+      <Edit className="absolute -right-4 top-0 h-3 w-3 text-gray-400 dark:text-slate-500 opacity-0 transition-opacity group-hover:opacity-100" />
     </button>
   );
 }

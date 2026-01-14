@@ -5,7 +5,7 @@ import { UnauthorizedDialog } from "@/components/shared/UnauthorizedDialog";
 
 export function MainLayout() {
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen w-screen overflow-hidden bg-gray-50 dark:bg-slate-900">
       {/* Sidebar */}
       <Sidebar />
 
@@ -15,7 +15,7 @@ export function MainLayout() {
         <Header />
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-6 dark:bg-slate-900">
           <Outlet />
         </main>
       </div>

@@ -21,11 +21,11 @@ export function GlobalSearch() {
   return (
     <button
       onClick={() => navigate(ROUTES.RECHERCHE)}
-      className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+      className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 hover:border-gray-300 dark:hover:border-slate-500 transition-colors"
     >
-      <Search className="h-4 w-4 text-gray-400" />
-      <span className="text-sm text-gray-500 hidden sm:inline">Recherche globale</span>
-      <kbd className="hidden md:inline-flex h-5 items-center gap-1 rounded border bg-gray-100 px-1.5 font-mono text-xs text-gray-500">
+      <Search className="h-4 w-4 text-gray-400 dark:text-slate-400" />
+      <span className="text-sm text-gray-500 dark:text-slate-300 hidden sm:inline">Recherche globale</span>
+      <kbd className="hidden md:inline-flex h-5 items-center gap-1 rounded border dark:border-slate-600 bg-gray-100 dark:bg-slate-600 px-1.5 font-mono text-xs text-gray-500 dark:text-slate-400">
         Ctrl K
       </kbd>
     </button>

@@ -16,15 +16,15 @@ export function Loading({ size = "md", className, text }: LoadingProps) {
 
   return (
     <div className={cn("flex flex-col items-center justify-center gap-2", className)}>
-      <Loader2 className={cn("animate-spin text-blue-600", sizeClasses[size])} />
-      {text && <p className="text-sm text-gray-500">{text}</p>}
+      <Loader2 className={cn("animate-spin text-blue-600 dark:text-blue-400", sizeClasses[size])} />
+      {text && <p className="text-sm text-gray-500 dark:text-slate-400">{text}</p>}
     </div>
   );
 }
 
 export function LoadingPage() {
   return (
-    <div className="flex h-screen w-screen items-center justify-center">
+    <div className="flex h-screen w-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
       <Loading size="lg" text="Chargement..." />
     </div>
   );
@@ -32,7 +32,7 @@ export function LoadingPage() {
 
 export function LoadingOverlay({ text = "Chargement..." }: { text?: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
       <Loading size="lg" text={text} />
     </div>
   );

@@ -57,7 +57,7 @@ export function StatusBadge({ statut, className, showIcon = true }: StatusBadgeP
       <span
         className={cn(
           "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap",
-          "bg-gray-100 text-gray-800 border-gray-200",
+          "bg-gray-100 text-gray-800 border-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600",
           className
         )}
       >

@@ -116,12 +116,12 @@ export default function TousLesDossiers() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
-            <Folders className="h-5 w-5 text-purple-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/50">
+            <Folders className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Tous les Dossiers</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Tous les Dossiers</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               {totalDossiers.toLocaleString()} dossier(s) actif(s)
             </p>
           </div>
@@ -132,7 +132,7 @@ export default function TousLesDossiers() {
       <div className="flex flex-wrap items-center gap-3">
         {/* Recherche */}
         <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
           <Input
             placeholder="Rechercher un dossier..."
             value={searchInput}
@@ -146,7 +146,7 @@ export default function TousLesDossiers() {
                 setSearchQuery("");
                 setSearchParams({});
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
             >
               <X className="h-4 w-4" />
             </button>
@@ -158,7 +158,7 @@ export default function TousLesDossiers() {
           <select
             value={statutFilter}
             onChange={(e) => setStatutFilter(e.target.value)}
-            className="w-full h-10 appearance-none rounded-md border border-gray-300 bg-white px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full h-10 appearance-none rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-slate-100 px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">Tous les statuts</option>
             {statuts?.map((s) => (
@@ -167,7 +167,7 @@ export default function TousLesDossiers() {
               </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 pointer-events-none" />
+          <ChevronDown className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-slate-400 pointer-events-none" />
         </div>
 
         {/* Filtre par graphiste */}
@@ -175,7 +175,7 @@ export default function TousLesDossiers() {
           <select
             value={graphisteFilter}
             onChange={(e) => setGraphisteFilter(e.target.value)}
-            className="w-full h-10 appearance-none rounded-md border border-gray-300 bg-white px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full h-10 appearance-none rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-slate-100 px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">Tous les graphistes</option>
             {activeGraphistes.map((g) => (
@@ -184,7 +184,7 @@ export default function TousLesDossiers() {
               </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 pointer-events-none" />
+          <ChevronDown className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-slate-400 pointer-events-none" />
         </div>
 
         {/* Bouton effacer filtres */}
@@ -207,7 +207,7 @@ export default function TousLesDossiers() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             Page {currentPage + 1} sur {totalPages}
             {hasFilters && ` (${totalDossiers} résultat${totalDossiers > 1 ? "s" : ""})`}
           </p>
@@ -268,7 +268,7 @@ export default function TousLesDossiers() {
 
       {/* Résumé si pas de pagination */}
       {totalPages <= 1 && dossiers.length > 0 && (
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-gray-500 dark:text-slate-400">
           {dossiers.length} dossier(s) affiché(s)
         </div>
       )}

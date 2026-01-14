@@ -143,7 +143,7 @@ function ColorComparison({
   };
 
   return (
-    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 shadow-sm overflow-hidden">
       {/* Comparaison visuelle côte à côte */}
       <div className="flex">
         {/* Couleur source (CMJN) */}
@@ -181,9 +181,9 @@ function ColorComparison({
       {/* Informations */}
       <div className="p-4 pt-2">
         <div className="text-center mb-3">
-          <p className="font-bold text-gray-900">{ralCode}</p>
-          <p className="text-sm text-gray-600">{ralName}</p>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="font-bold text-gray-900 dark:text-slate-100">{ralCode}</p>
+          <p className="text-sm text-gray-600 dark:text-slate-400">{ralName}</p>
+          <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
             {getDeltaEDescription(deltaE)}
           </p>
         </div>
@@ -192,10 +192,10 @@ function ColorComparison({
         <div className="grid grid-cols-3 gap-2 text-xs">
           <button
             onClick={() => handleCopy(targetColor.hex, `hex-${ralCode}`)}
-            className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+            className="flex flex-col items-center gap-1 p-2 bg-gray-50 dark:bg-slate-700/50 rounded hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
           >
-            <span className="text-gray-500">HEX</span>
-            <span className="font-mono font-medium flex items-center gap-1">
+            <span className="text-gray-500 dark:text-slate-400">HEX</span>
+            <span className="font-mono font-medium flex items-center gap-1 dark:text-slate-200">
               {targetColor.hex}
               {copied === `hex-${ralCode}` ? (
                 <Check className="w-3 h-3 text-green-500" />
@@ -211,10 +211,10 @@ function ColorComparison({
                 `rgb-${ralCode}`
               )
             }
-            className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+            className="flex flex-col items-center gap-1 p-2 bg-gray-50 dark:bg-slate-700/50 rounded hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
           >
-            <span className="text-gray-500">RGB</span>
-            <span className="font-mono font-medium flex items-center gap-1">
+            <span className="text-gray-500 dark:text-slate-400">RGB</span>
+            <span className="font-mono font-medium flex items-center gap-1 dark:text-slate-200">
               {targetColor.rgb.r},{targetColor.rgb.g},{targetColor.rgb.b}
               {copied === `rgb-${ralCode}` ? (
                 <Check className="w-3 h-3 text-green-500" />
@@ -230,10 +230,10 @@ function ColorComparison({
                 `cmyk-${ralCode}`
               )
             }
-            className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+            className="flex flex-col items-center gap-1 p-2 bg-gray-50 dark:bg-slate-700/50 rounded hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
           >
-            <span className="text-gray-500">CMJN</span>
-            <span className="font-mono font-medium flex items-center gap-1">
+            <span className="text-gray-500 dark:text-slate-400">CMJN</span>
+            <span className="font-mono font-medium flex items-center gap-1 dark:text-slate-200">
               {targetColor.cmyk.c}/{targetColor.cmyk.m}/{targetColor.cmyk.y}/
               {targetColor.cmyk.k}
               {copied === `cmyk-${ralCode}` ? (
@@ -275,7 +275,7 @@ function ColorCard({
 
   return (
     <div
-      className={`bg-white rounded-lg border shadow-sm overflow-hidden transition-all hover:shadow-md ${
+      className={`bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 shadow-sm overflow-hidden transition-all hover:shadow-md ${
         selected ? "ring-2 ring-blue-500" : ""
       } ${onClick ? "cursor-pointer" : ""}`}
       onClick={onClick}
@@ -294,18 +294,18 @@ function ColorCard({
       </div>
       <div className="p-3 space-y-2">
         <div>
-          <p className="font-medium text-gray-900 text-sm">{color.nameFr}</p>
-          <p className="text-xs text-gray-500">{color.name}</p>
+          <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">{color.nameFr}</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">{color.name}</p>
         </div>
         <div className="space-y-1 text-xs">
-          <div className="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
-            <span className="text-gray-600">HEX</span>
+          <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
+            <span className="text-gray-600 dark:text-slate-400">HEX</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleCopy(color.hex, "hex");
               }}
-              className="flex items-center gap-1 font-mono text-gray-800 hover:text-blue-600"
+              className="flex items-center gap-1 font-mono text-gray-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400"
             >
               {color.hex}
               {copied === "hex" ? (
@@ -315,8 +315,8 @@ function ColorCard({
               )}
             </button>
           </div>
-          <div className="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
-            <span className="text-gray-600">RGB</span>
+          <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
+            <span className="text-gray-600 dark:text-slate-400">RGB</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -325,7 +325,7 @@ function ColorCard({
                   "rgb"
                 );
               }}
-              className="flex items-center gap-1 font-mono text-gray-800 hover:text-blue-600"
+              className="flex items-center gap-1 font-mono text-gray-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400"
             >
               {color.rgb.r}, {color.rgb.g}, {color.rgb.b}
               {copied === "rgb" ? (
@@ -335,8 +335,8 @@ function ColorCard({
               )}
             </button>
           </div>
-          <div className="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
-            <span className="text-gray-600">CMJN</span>
+          <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
+            <span className="text-gray-600 dark:text-slate-400">CMJN</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -345,7 +345,7 @@ function ColorCard({
                   "cmyk"
                 );
               }}
-              className="flex items-center gap-1 font-mono text-gray-800 hover:text-blue-600"
+              className="flex items-center gap-1 font-mono text-gray-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400"
             >
               {color.cmyk.c}% {color.cmyk.m}% {color.cmyk.y}% {color.cmyk.k}%
               {copied === "cmyk" ? (
@@ -381,7 +381,7 @@ function CmykInput({
         className="w-3 h-8 rounded-full flex-shrink-0"
         style={{ backgroundColor: accentColor }}
       />
-      <label className="text-sm font-medium text-gray-700 min-w-0">
+      <label className="text-sm font-medium text-gray-700 dark:text-slate-300 min-w-0">
         <span className="hidden sm:inline">{label}</span>
         <span className="sm:hidden">{shortLabel}</span>
       </label>
@@ -394,9 +394,9 @@ function CmykInput({
           onChange={(e) =>
             onChange(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))
           }
-          className="w-16 px-2 py-2 text-sm border rounded-lg text-center font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-16 px-2 py-2 text-sm border rounded-lg text-center font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
         />
-        <span className="text-sm text-gray-500">%</span>
+        <span className="text-sm text-gray-500 dark:text-slate-400">%</span>
       </div>
     </div>
   );
@@ -426,7 +426,7 @@ function PantoneColorComparison({
   };
 
   return (
-    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 shadow-sm overflow-hidden">
       {/* Comparaison visuelle côte à côte */}
       <div className="flex">
         {/* Couleur source (CMJN) */}
@@ -464,8 +464,8 @@ function PantoneColorComparison({
       {/* Informations */}
       <div className="p-4 pt-2">
         <div className="text-center mb-3">
-          <p className="font-bold text-gray-900">Pantone {targetColor.code}</p>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="font-bold text-gray-900 dark:text-slate-100">Pantone {targetColor.code}</p>
+          <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
             {getDeltaEDescription(deltaE)}
           </p>
         </div>
@@ -474,10 +474,10 @@ function PantoneColorComparison({
         <div className="grid grid-cols-3 gap-2 text-xs">
           <button
             onClick={() => handleCopy(targetColor.hex, `hex-${targetColor.code}`)}
-            className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+            className="flex flex-col items-center gap-1 p-2 bg-gray-50 dark:bg-slate-700/50 rounded hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
           >
-            <span className="text-gray-500">HEX</span>
-            <span className="font-mono font-medium flex items-center gap-1">
+            <span className="text-gray-500 dark:text-slate-400">HEX</span>
+            <span className="font-mono font-medium flex items-center gap-1 dark:text-slate-200">
               {targetColor.hex}
               {copied === `hex-${targetColor.code}` ? (
                 <Check className="w-3 h-3 text-green-500" />
@@ -493,10 +493,10 @@ function PantoneColorComparison({
                 `rgb-${targetColor.code}`
               )
             }
-            className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+            className="flex flex-col items-center gap-1 p-2 bg-gray-50 dark:bg-slate-700/50 rounded hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
           >
-            <span className="text-gray-500">RGB</span>
-            <span className="font-mono font-medium flex items-center gap-1">
+            <span className="text-gray-500 dark:text-slate-400">RGB</span>
+            <span className="font-mono font-medium flex items-center gap-1 dark:text-slate-200">
               {targetColor.rgb.r},{targetColor.rgb.g},{targetColor.rgb.b}
               {copied === `rgb-${targetColor.code}` ? (
                 <Check className="w-3 h-3 text-green-500" />
@@ -512,10 +512,10 @@ function PantoneColorComparison({
                 `cmyk-${targetColor.code}`
               )
             }
-            className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+            className="flex flex-col items-center gap-1 p-2 bg-gray-50 dark:bg-slate-700/50 rounded hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
           >
-            <span className="text-gray-500">CMJN</span>
-            <span className="font-mono font-medium flex items-center gap-1">
+            <span className="text-gray-500 dark:text-slate-400">CMJN</span>
+            <span className="font-mono font-medium flex items-center gap-1 dark:text-slate-200">
               {targetColor.cmyk.c}/{targetColor.cmyk.m}/{targetColor.cmyk.y}/
               {targetColor.cmyk.k}
               {copied === `cmyk-${targetColor.code}` ? (
@@ -557,7 +557,7 @@ function PantoneColorCard({
 
   return (
     <div
-      className={`bg-white rounded-lg border shadow-sm overflow-hidden transition-all hover:shadow-md ${
+      className={`bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 shadow-sm overflow-hidden transition-all hover:shadow-md ${
         selected ? "ring-2 ring-purple-500" : ""
       } ${onClick ? "cursor-pointer" : ""}`}
       onClick={onClick}
@@ -576,17 +576,17 @@ function PantoneColorCard({
       </div>
       <div className="p-3 space-y-2">
         <div>
-          <p className="font-medium text-gray-900 text-sm">Pantone {color.code}</p>
+          <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">Pantone {color.code}</p>
         </div>
         <div className="space-y-1 text-xs">
-          <div className="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
-            <span className="text-gray-600">HEX</span>
+          <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
+            <span className="text-gray-600 dark:text-slate-400">HEX</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleCopy(color.hex, "hex");
               }}
-              className="flex items-center gap-1 font-mono text-gray-800 hover:text-purple-600"
+              className="flex items-center gap-1 font-mono text-gray-800 dark:text-slate-200 hover:text-purple-600 dark:hover:text-purple-400"
             >
               {color.hex}
               {copied === "hex" ? (
@@ -596,8 +596,8 @@ function PantoneColorCard({
               )}
             </button>
           </div>
-          <div className="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
-            <span className="text-gray-600">RGB</span>
+          <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
+            <span className="text-gray-600 dark:text-slate-400">RGB</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -606,7 +606,7 @@ function PantoneColorCard({
                   "rgb"
                 );
               }}
-              className="flex items-center gap-1 font-mono text-gray-800 hover:text-purple-600"
+              className="flex items-center gap-1 font-mono text-gray-800 dark:text-slate-200 hover:text-purple-600 dark:hover:text-purple-400"
             >
               {color.rgb.r}, {color.rgb.g}, {color.rgb.b}
               {copied === "rgb" ? (
@@ -616,8 +616,8 @@ function PantoneColorCard({
               )}
             </button>
           </div>
-          <div className="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
-            <span className="text-gray-600">CMJN</span>
+          <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1">
+            <span className="text-gray-600 dark:text-slate-400">CMJN</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -626,7 +626,7 @@ function PantoneColorCard({
                   "cmyk"
                 );
               }}
-              className="flex items-center gap-1 font-mono text-gray-800 hover:text-purple-600"
+              className="flex items-center gap-1 font-mono text-gray-800 dark:text-slate-200 hover:text-purple-600 dark:hover:text-purple-400"
             >
               {color.cmyk.c}% {color.cmyk.m}% {color.cmyk.y}% {color.cmyk.k}%
               {copied === "cmyk" ? (
@@ -781,19 +781,19 @@ export default function RalConverter() {
   }, [searchQuery, searchMode]);
 
   return (
-    <div className="min-h-screen bg-gray-50 -m-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 -m-6">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white dark:bg-slate-800 border-b dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-cyan-500 to-pink-500 rounded-lg">
               <Palette className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">
                 Nuancier
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 Correspondances RAL et Pantone depuis vos valeurs CMJN
               </p>
             </div>
@@ -803,16 +803,16 @@ export default function RalConverter() {
 
       <div className="max-w-7xl mx-auto px-6 py-6">
         {/* Mode de recherche */}
-        <div className="bg-white rounded-lg border shadow-sm p-4 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 shadow-sm p-4 mb-6">
           <div className="flex flex-col gap-4">
             {/* Toggle mode */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 bg-gray-100 rounded-lg p-1 gap-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 bg-gray-100 dark:bg-slate-700 rounded-lg p-1 gap-1">
               <button
                 onClick={() => setSearchMode("cmyk")}
                 className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-md text-sm font-medium transition-colors ${
                   searchMode === "cmyk"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-white dark:bg-slate-600 text-gray-900 dark:text-slate-100 shadow-sm"
+                    : "text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100"
                 }`}
               >
                 <ArrowRightLeft className="w-4 h-4 flex-shrink-0" />
@@ -822,8 +822,8 @@ export default function RalConverter() {
                 onClick={() => setSearchMode("pantone")}
                 className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-md text-sm font-medium transition-colors ${
                   searchMode === "pantone"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-white dark:bg-slate-600 text-gray-900 dark:text-slate-100 shadow-sm"
+                    : "text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100"
                 }`}
               >
                 <ArrowRightLeft className="w-4 h-4 flex-shrink-0" />
@@ -833,8 +833,8 @@ export default function RalConverter() {
                 onClick={() => setSearchMode("ral")}
                 className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-md text-sm font-medium transition-colors ${
                   searchMode === "ral"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-white dark:bg-slate-600 text-gray-900 dark:text-slate-100 shadow-sm"
+                    : "text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100"
                 }`}
               >
                 <Search className="w-4 h-4 flex-shrink-0" />
@@ -844,8 +844,8 @@ export default function RalConverter() {
                 onClick={() => setSearchMode("pantone-catalog")}
                 className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-md text-sm font-medium transition-colors ${
                   searchMode === "pantone-catalog"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-white dark:bg-slate-600 text-gray-900 dark:text-slate-100 shadow-sm"
+                    : "text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100"
                 }`}
               >
                 <Search className="w-4 h-4 flex-shrink-0" />
@@ -889,14 +889,14 @@ export default function RalConverter() {
                 </div>
 
                 {/* Aperçu de la couleur source */}
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg lg:ml-4">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg lg:ml-4">
                   <div
                     className="w-14 h-14 rounded-lg border-2 border-white shadow-md flex-shrink-0"
                     style={{ backgroundColor: sourceColorCss }}
                   />
                   <div className="text-sm">
-                    <p className="font-medium text-gray-900">Aperçu</p>
-                    <p className="text-gray-500 font-mono text-xs">
+                    <p className="font-medium text-gray-900 dark:text-slate-100">Aperçu</p>
+                    <p className="text-gray-500 dark:text-slate-400 font-mono text-xs">
                       RGB: {sourceRgb.r}, {sourceRgb.g}, {sourceRgb.b}
                     </p>
                   </div>
@@ -913,7 +913,7 @@ export default function RalConverter() {
                   placeholder="Rechercher par code (ex: RAL 1015) ou nom (ex: Ivoire)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-400"
                 />
               </div>
             )}
@@ -927,7 +927,7 @@ export default function RalConverter() {
                   placeholder="Rechercher par code (ex: 185, Process Yellow, Reflex Blue)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-400"
                 />
               </div>
             )}
@@ -938,10 +938,10 @@ export default function RalConverter() {
         {searchMode === "cmyk" && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 Couleurs RAL les plus proches
               </h2>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
+              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
                 <span className="flex items-center gap-1">
                   <span className="w-3 h-3 rounded-full bg-green-500"></span>
                   ΔE {"<"} 2
@@ -979,18 +979,18 @@ export default function RalConverter() {
             </div>
 
             {/* Légende Delta E */}
-            <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-              <h3 className="font-medium text-gray-800 mb-2">
+            <div className="mt-6 p-4 bg-gray-100 dark:bg-slate-800 rounded-lg">
+              <h3 className="font-medium text-gray-800 dark:text-slate-200 mb-2">
                 Comprendre le Delta E (ΔE)
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-sm dark:text-slate-300">
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 rounded bg-green-500"></span>
                   <span>{"<"} 1 : Imperceptible</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 rounded bg-green-400"></span>
-                  <span>1-2 : Très proche</span>
+                  <span>1-2 : Tres proche</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 rounded bg-lime-500"></span>
@@ -1006,7 +1006,7 @@ export default function RalConverter() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 rounded bg-red-500"></span>
-                  <span>{">"} 10 : Très différent</span>
+                  <span>{">"} 10 : Tres different</span>
                 </div>
               </div>
             </div>
@@ -1017,10 +1017,10 @@ export default function RalConverter() {
         {searchMode === "pantone" && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 Couleurs Pantone les plus proches
               </h2>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
+              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
                 <span className="flex items-center gap-1">
                   <span className="w-3 h-3 rounded-full bg-green-500"></span>
                   ΔE {"<"} 2
@@ -1056,18 +1056,18 @@ export default function RalConverter() {
             </div>
 
             {/* Légende Delta E */}
-            <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-              <h3 className="font-medium text-gray-800 mb-2">
+            <div className="mt-6 p-4 bg-gray-100 dark:bg-slate-800 rounded-lg">
+              <h3 className="font-medium text-gray-800 dark:text-slate-200 mb-2">
                 Comprendre le Delta E (ΔE)
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-sm dark:text-slate-300">
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 rounded bg-green-500"></span>
                   <span>{"<"} 1 : Imperceptible</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 rounded bg-green-400"></span>
-                  <span>1-2 : Très proche</span>
+                  <span>1-2 : Tres proche</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 rounded bg-lime-500"></span>
@@ -1083,13 +1083,13 @@ export default function RalConverter() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 rounded bg-red-500"></span>
-                  <span>{">"} 10 : Très différent</span>
+                  <span>{">"} 10 : Tres different</span>
                 </div>
               </div>
             </div>
 
             {/* Info sur le nombre de couleurs Pantone */}
-            <div className="mt-4 text-sm text-gray-500 text-center">
+            <div className="mt-4 text-sm text-gray-500 dark:text-slate-400 text-center">
               Base de données : {pantoneColors.length} couleurs Pantone
             </div>
           </div>
@@ -1098,7 +1098,7 @@ export default function RalConverter() {
         {/* Résultats de recherche RAL */}
         {searchMode === "ral" && searchQuery && (
           <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
               Résultats de recherche ({searchResults.length})
             </h2>
             {searchResults.length > 0 ? (
@@ -1113,7 +1113,7 @@ export default function RalConverter() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-8">
+              <p className="text-gray-500 dark:text-slate-400 text-center py-8">
                 Aucune couleur RAL trouvée pour "{searchQuery}"
               </p>
             )}
@@ -1123,12 +1123,12 @@ export default function RalConverter() {
         {/* Catalogue RAL complet */}
         {searchMode === "ral" && !searchQuery && (
           <div className="space-y-8">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
               Catalogue RAL Classic ({ralColors.length} couleurs)
             </h2>
             {Object.entries(colorGroups).map(([groupName, colors]) => (
               <div key={groupName}>
-                <h3 className="text-md font-medium text-gray-700 mb-3">
+                <h3 className="text-md font-medium text-gray-700 dark:text-slate-300 mb-3">
                   {groupName} ({colors.length})
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
@@ -1149,7 +1149,7 @@ export default function RalConverter() {
         {/* Résultats de recherche Pantone */}
         {searchMode === "pantone-catalog" && searchQuery && (
           <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
               Résultats de recherche ({pantoneSearchResults.length})
             </h2>
             {pantoneSearchResults.length > 0 ? (
@@ -1164,7 +1164,7 @@ export default function RalConverter() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-8">
+              <p className="text-gray-500 dark:text-slate-400 text-center py-8">
                 Aucune couleur Pantone trouvée pour "{searchQuery}"
               </p>
             )}
@@ -1174,12 +1174,12 @@ export default function RalConverter() {
         {/* Catalogue Pantone complet */}
         {searchMode === "pantone-catalog" && !searchQuery && (
           <div className="space-y-8">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
               Catalogue Pantone ({pantoneColors.length} couleurs)
             </h2>
             {Object.entries(pantoneGroups).map(([groupName, colors]) => (
               <div key={groupName}>
-                <h3 className="text-md font-medium text-gray-700 mb-3">
+                <h3 className="text-md font-medium text-gray-700 dark:text-slate-300 mb-3">
                   {groupName} ({colors.length})
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
@@ -1199,15 +1199,15 @@ export default function RalConverter() {
 
         {/* Couleur RAL sélectionnée - détails */}
         {selectedColor && (
-          <div className="fixed bottom-4 right-4 bg-white rounded-lg border shadow-lg p-4 w-80 z-20">
+          <div className="fixed bottom-4 right-4 bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 shadow-lg p-4 w-80 z-20">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-bold text-gray-900">{selectedColor.code}</h3>
-                <p className="text-sm text-gray-600">{selectedColor.nameFr}</p>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100">{selectedColor.code}</h3>
+                <p className="text-sm text-gray-600 dark:text-slate-400">{selectedColor.nameFr}</p>
               </div>
               <button
                 onClick={() => setSelectedColor(null)}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 text-xl leading-none"
               >
                 ×
               </button>
@@ -1218,18 +1218,18 @@ export default function RalConverter() {
             />
             <div className="space-y-1 text-sm">
               <p>
-                <span className="text-gray-500">HEX:</span>{" "}
+                <span className="text-gray-500 dark:text-slate-400">HEX:</span>{" "}
                 <span className="font-mono">{selectedColor.hex}</span>
               </p>
               <p>
-                <span className="text-gray-500">RGB:</span>{" "}
+                <span className="text-gray-500 dark:text-slate-400">RGB:</span>{" "}
                 <span className="font-mono">
                   {selectedColor.rgb.r}, {selectedColor.rgb.g},{" "}
                   {selectedColor.rgb.b}
                 </span>
               </p>
               <p>
-                <span className="text-gray-500">CMJN:</span>{" "}
+                <span className="text-gray-500 dark:text-slate-400">CMJN:</span>{" "}
                 <span className="font-mono">
                   {selectedColor.cmyk.c}% {selectedColor.cmyk.m}%{" "}
                   {selectedColor.cmyk.y}% {selectedColor.cmyk.k}%
@@ -1241,14 +1241,14 @@ export default function RalConverter() {
 
         {/* Couleur Pantone sélectionnée - détails */}
         {selectedPantone && (
-          <div className="fixed bottom-4 right-4 bg-white rounded-lg border shadow-lg p-4 w-80 z-20">
+          <div className="fixed bottom-4 right-4 bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 shadow-lg p-4 w-80 z-20">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-bold text-gray-900">Pantone {selectedPantone.code}</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100">Pantone {selectedPantone.code}</h3>
               </div>
               <button
                 onClick={() => setSelectedPantone(null)}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 text-xl leading-none"
               >
                 ×
               </button>
@@ -1259,18 +1259,18 @@ export default function RalConverter() {
             />
             <div className="space-y-1 text-sm">
               <p>
-                <span className="text-gray-500">HEX:</span>{" "}
+                <span className="text-gray-500 dark:text-slate-400">HEX:</span>{" "}
                 <span className="font-mono">{selectedPantone.hex}</span>
               </p>
               <p>
-                <span className="text-gray-500">RGB:</span>{" "}
+                <span className="text-gray-500 dark:text-slate-400">RGB:</span>{" "}
                 <span className="font-mono">
                   {selectedPantone.rgb.r}, {selectedPantone.rgb.g},{" "}
                   {selectedPantone.rgb.b}
                 </span>
               </p>
               <p>
-                <span className="text-gray-500">CMJN:</span>{" "}
+                <span className="text-gray-500 dark:text-slate-400">CMJN:</span>{" "}
                 <span className="font-mono">
                   {selectedPantone.cmyk.c}% {selectedPantone.cmyk.m}%{" "}
                   {selectedPantone.cmyk.y}% {selectedPantone.cmyk.k}%

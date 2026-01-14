@@ -324,12 +324,12 @@ export default function Franchises() {
       {/* Header compact */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-500/30">
             <Building2 className="h-4 w-4 text-orange-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Franchises</h1>
-            <p className="text-xs text-gray-500">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">Franchises</h1>
+            <p className="text-xs text-gray-500 dark:text-slate-400">
               {filteredFranchises.length} franchise(s)
             </p>
           </div>
@@ -344,14 +344,14 @@ export default function Franchises() {
       </div>
 
       {/* Onglets */}
-      <div className="flex items-center gap-1 border-b border-gray-200">
+      <div className="flex items-center gap-1 border-b border-gray-200 dark:border-slate-700">
         <button
           onClick={() => setActiveTab("attribution")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
             activeTab === "attribution"
               ? "border-orange-500 text-orange-600"
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
           )}
         >
           <Users className="h-4 w-4" />
@@ -363,7 +363,7 @@ export default function Franchises() {
             "flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
             activeTab === "fonctionnement"
               ? "border-orange-500 text-orange-600"
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
           )}
         >
           <FileText className="h-4 w-4" />
@@ -383,7 +383,7 @@ export default function Franchises() {
         <>
           {/* Recherche */}
           <div className="relative max-w-xs">
-        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
         <Input
           placeholder="Rechercher une franchise..."
           value={search}
@@ -393,7 +393,7 @@ export default function Franchises() {
         {search && (
           <button
             onClick={() => setSearch("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
           >
             <X className="h-3 w-3" />
           </button>
@@ -404,44 +404,44 @@ export default function Franchises() {
       {isLoading ? (
         <div className="flex items-center justify-center h-32">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-          <span className="ml-2 text-gray-500">Chargement...</span>
+          <span className="ml-2 text-gray-500 dark:text-slate-400">Chargement...</span>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {franchisesByGraphiste.map((group) => (
             <div
               key={group.graphiste.id}
-              className="rounded-lg border border-gray-200 bg-white overflow-hidden"
+              className="rounded-lg border border-gray-200 bg-white dark:bg-slate-800 dark:border-slate-700 overflow-hidden"
             >
               {/* Entête de colonne */}
-              <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+              <div className="bg-gray-50 dark:bg-slate-700/50 px-3 py-2 border-b border-gray-200 dark:border-slate-700">
                 <div className="flex items-center gap-2">
                   <span className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium",
                     group.graphiste.id === "unassigned"
-                      ? "bg-gray-100 text-gray-500"
+                      ? "bg-gray-100 text-gray-500 dark:bg-slate-600 dark:text-slate-400"
                       : getBadgeClassName(profiles?.find(p => p.id === group.graphiste.id)?.badge_color)
                   )}>
                     {group.graphiste.initials}
                   </span>
                   <div>
-                    <div className="font-medium text-sm">{getFirstName(group.graphiste.full_name)}</div>
-                    <div className="text-xs text-gray-500">{group.franchises.length} franchise(s)</div>
+                    <div className="font-medium text-sm dark:text-slate-200">{getFirstName(group.graphiste.full_name)}</div>
+                    <div className="text-xs text-gray-500 dark:text-slate-400">{group.franchises.length} franchise(s)</div>
                   </div>
                 </div>
               </div>
 
               {/* Liste des franchises */}
-              <div className="divide-y divide-gray-100 min-h-[60px]">
+              <div className="divide-y divide-gray-100 dark:divide-slate-700 min-h-[60px]">
                 {group.franchises.length === 0 ? (
-                  <div className="px-3 py-4 text-sm text-gray-400 text-center italic">
+                  <div className="px-3 py-4 text-sm text-gray-400 dark:text-slate-500 text-center italic">
                     Aucune franchise
                   </div>
                 ) : (
                   group.franchises.map((franchise) => (
                     <div
                       key={franchise.id}
-                      className="px-3 py-2 hover:bg-gray-50 group/item flex items-center justify-between gap-2"
+                      className="px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 group/item flex items-center justify-between gap-2"
                     >
                       <div className="flex-1 min-w-0">
                         {isAdmin ? (
@@ -451,7 +451,7 @@ export default function Franchises() {
                             className="text-sm truncate"
                           />
                         ) : (
-                          <span className="text-sm truncate block">{franchise.nom}</span>
+                          <span className="text-sm truncate block dark:text-slate-200">{franchise.nom}</span>
                         )}
                         {/* Badges des autres graphistes assignés */}
                         {franchise.assignments.length > 1 && (
@@ -461,7 +461,7 @@ export default function Franchises() {
                               .map((a) => (
                                 <span
                                   key={a.graphiste_id}
-                                  className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded"
+                                  className="text-[10px] text-gray-500 bg-gray-100 dark:bg-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded"
                                 >
                                   +{a.graphiste?.initials}
                                 </span>
@@ -476,7 +476,7 @@ export default function Franchises() {
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
-                                  className="h-6 w-6 flex items-center justify-center rounded hover:bg-blue-100 text-gray-500 hover:text-blue-600"
+                                  className="h-6 w-6 flex items-center justify-center rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-gray-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
                                   title="Transférer vers..."
                                 >
                                   <ArrowRightLeft className="h-3.5 w-3.5" />
@@ -509,7 +509,7 @@ export default function Franchises() {
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
-                                  className="h-6 w-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500"
+                                  className="h-6 w-6 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-500 dark:text-slate-400"
                                   title="Ajouter un graphiste"
                                 >
                                   <UserPlus className="h-3.5 w-3.5" />
@@ -543,7 +543,7 @@ export default function Franchises() {
                                 franchiseId: franchise.id,
                                 graphisteId: group.graphiste.id,
                               })}
-                              className="h-6 w-6 flex items-center justify-center rounded hover:bg-red-100 text-gray-400 hover:text-red-600"
+                              className="h-6 w-6 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400"
                               title="Retirer de ce graphiste"
                             >
                               <X className="h-3.5 w-3.5" />
@@ -552,7 +552,7 @@ export default function Franchises() {
                           {/* Supprimer la franchise */}
                           <button
                             onClick={() => setDeleteConfirm(franchise)}
-                            className="h-6 w-6 flex items-center justify-center rounded hover:bg-red-100 text-gray-400 hover:text-red-600"
+                            className="h-6 w-6 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400"
                             title="Supprimer la franchise"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -690,7 +690,7 @@ function FonctionnementView({ franchises, isLoading, search, setSearch }: Foncti
     return (
       <div className="flex items-center justify-center h-32">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-        <span className="ml-2 text-gray-500">Chargement...</span>
+        <span className="ml-2 text-gray-500 dark:text-slate-400">Chargement...</span>
       </div>
     );
   }
@@ -699,7 +699,7 @@ function FonctionnementView({ franchises, isLoading, search, setSearch }: Foncti
     <div className="space-y-4">
       {/* Recherche */}
       <div className="relative max-w-xs">
-        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
         <Input
           placeholder="Rechercher une franchise..."
           value={search}
@@ -709,7 +709,7 @@ function FonctionnementView({ franchises, isLoading, search, setSearch }: Foncti
         {search && (
           <button
             onClick={() => setSearch("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
           >
             <X className="h-3 w-3" />
           </button>
@@ -719,7 +719,7 @@ function FonctionnementView({ franchises, isLoading, search, setSearch }: Foncti
       {/* Liste des franchises */}
       <div className="space-y-2">
         {filteredFranchises.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-gray-500 dark:text-slate-400">
             Aucune franchise trouvée
           </div>
         ) : (
@@ -732,23 +732,23 @@ function FonctionnementView({ franchises, isLoading, search, setSearch }: Foncti
             return (
               <div
                 key={franchise.id}
-                className="bg-white rounded-lg border border-gray-200 overflow-hidden"
+                className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden"
               >
                 {/* Header de la franchise */}
                 <div
-                  className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50"
+                  className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50"
                   onClick={() => !isEditing && toggleExpand(franchise.id)}
                 >
                   <div className="flex items-center gap-3">
                     <Building2 className="h-4 w-4 text-orange-500" />
-                    <span className="font-medium">{franchise.nom}</span>
+                    <span className="font-medium dark:text-slate-200">{franchise.nom}</span>
                     {hasProcedure ? (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
                         <Check className="h-3 w-3" />
                         Documenté
                       </span>
                     ) : (
-                      <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded-full flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
                         Non documenté
                       </span>
@@ -762,7 +762,7 @@ function FonctionnementView({ franchises, isLoading, search, setSearch }: Foncti
                             e.stopPropagation();
                             setDossiersModalFranchise(franchise);
                           }}
-                          className="p-1.5 hover:bg-blue-100 rounded text-blue-500 hover:text-blue-700"
+                          className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
                           title="Voir les dossiers"
                         >
                           <FolderOpen className="h-4 w-4" />
@@ -773,7 +773,7 @@ function FonctionnementView({ franchises, isLoading, search, setSearch }: Foncti
                             setEditingFranchiseId(franchise.id);
                             setExpandedIds((prev) => new Set(prev).add(franchise.id));
                           }}
-                          className="p-1.5 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
+                          className="p-1.5 hover:bg-gray-200 dark:hover:bg-slate-600 rounded text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
                           title="Modifier"
                         >
                           <Pencil className="h-4 w-4" />
@@ -781,16 +781,16 @@ function FonctionnementView({ franchises, isLoading, search, setSearch }: Foncti
                       </>
                     )}
                     {isExpanded ? (
-                      <ChevronUp className="h-4 w-4 text-gray-400" />
+                      <ChevronUp className="h-4 w-4 text-gray-400 dark:text-slate-500" />
                     ) : (
-                      <ChevronDown className="h-4 w-4 text-gray-400" />
+                      <ChevronDown className="h-4 w-4 text-gray-400 dark:text-slate-500" />
                     )}
                   </div>
                 </div>
 
                 {/* Contenu expandé */}
                 {isExpanded && (
-                  <div className="border-t border-gray-200 px-4 py-4">
+                  <div className="border-t border-gray-200 dark:border-slate-700 px-4 py-4">
                     {isEditing ? (
                       <ProcedureForm
                         franchiseId={franchise.id}
@@ -907,14 +907,14 @@ function FranchiseDossiersModal({
         </DialogHeader>
 
         {/* Onglets */}
-        <div className="flex gap-1 border-b border-gray-200 -mx-6 px-6">
+        <div className="flex gap-1 border-b border-gray-200 dark:border-slate-700 -mx-6 px-6">
           <button
             onClick={() => setActiveTab("actifs")}
             className={cn(
               "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
               activeTab === "actifs"
                 ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
             )}
           >
             <FileText className="h-4 w-4 inline mr-1.5" />
@@ -926,7 +926,7 @@ function FranchiseDossiersModal({
               "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
               activeTab === "archives"
                 ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
             )}
           >
             <Archive className="h-4 w-4 inline mr-1.5" />
@@ -935,20 +935,20 @@ function FranchiseDossiersModal({
         </div>
 
         {/* Info recherche */}
-        <div className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-2">
+        <div className="text-xs text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-slate-700/50 rounded px-3 py-2">
           Recherche basée sur : <strong>{searchTerms.join(", ")}</strong>
-          <span className="ml-2 text-gray-400">(mots extraits du nom de la franchise)</span>
+          <span className="ml-2 text-gray-400 dark:text-slate-500">(mots extraits du nom de la franchise)</span>
         </div>
 
         {/* Liste des dossiers */}
         <div className="flex-1 overflow-y-auto -mx-6 px-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-              <span className="ml-2 text-gray-500">Chargement...</span>
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400 dark:text-slate-500" />
+              <span className="ml-2 text-gray-500 dark:text-slate-400">Chargement...</span>
             </div>
           ) : !dossiers || dossiers.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 dark:text-slate-400">
               {activeTab === "actifs"
                 ? "Aucun dossier actif trouvé pour cette franchise"
                 : "Aucune archive trouvée pour cette franchise"
@@ -959,18 +959,18 @@ function FranchiseDossiersModal({
               {dossiers.map((dossier) => (
                 <div
                   key={dossier.id}
-                  className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200"
+                  className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{dossier.nom}</p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                    <p className="font-medium text-sm truncate dark:text-slate-200">{dossier.nom}</p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-slate-400">
                       <span className="flex items-center gap-1">
                         <span
                           className={cn(
                             "flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium",
                             dossier.graphiste
                               ? getBadgeClassName(dossier.graphiste.badge_color)
-                              : "bg-gray-100 text-gray-600"
+                              : "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400"
                           )}
                         >
                           {dossier.graphiste?.initials || "AG"}
@@ -988,7 +988,7 @@ function FranchiseDossiersModal({
                   <div className="flex items-center gap-2 ml-4">
                     <StatusBadge statut={dossier.statut} />
                     {dossier.bat_count > 0 && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full">
                         {dossier.bat_count} BAT
                       </span>
                     )}
@@ -1013,7 +1013,7 @@ function ProcedureDisplay({
 }) {
   if (!procedure) {
     return (
-      <div className="text-center py-4 text-gray-400 italic">
+      <div className="text-center py-4 text-gray-400 dark:text-slate-500 italic">
         Aucune procédure documentée pour cette franchise.
         <br />
         Cliquez sur le crayon pour ajouter des informations.
@@ -1027,13 +1027,13 @@ function ProcedureDisplay({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {procedure.commercial && (
           <div>
-            <span className="text-xs font-medium text-gray-500">Commercial</span>
-            <p className="text-sm">{procedure.commercial}</p>
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Commercial</span>
+            <p className="text-sm dark:text-slate-200">{procedure.commercial}</p>
           </div>
         )}
         {assignedGraphistes.length > 0 && (
           <div>
-            <span className="text-xs font-medium text-gray-500">
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400">
               {assignedGraphistes.length > 1 ? "Graphistes référents" : "Graphiste référent"}
             </span>
             <div className="flex flex-wrap items-center gap-2 mt-0.5">
@@ -1045,7 +1045,7 @@ function ProcedureDisplay({
                   )}>
                     {g.initials}
                   </span>
-                  <span className="text-sm">{getFirstName(g.full_name)}</span>
+                  <span className="text-sm dark:text-slate-200">{getFirstName(g.full_name)}</span>
                 </div>
               ))}
             </div>
@@ -1053,8 +1053,8 @@ function ProcedureDisplay({
         )}
         {procedure.franchiseur_contacts && (
           <div>
-            <span className="text-xs font-medium text-gray-500">Contact franchiseur</span>
-            <p className="text-sm whitespace-pre-line">{procedure.franchiseur_contacts}</p>
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Contact franchiseur</span>
+            <p className="text-sm whitespace-pre-line dark:text-slate-200">{procedure.franchiseur_contacts}</p>
           </div>
         )}
       </div>
@@ -1069,17 +1069,17 @@ function ProcedureDisplay({
 
       {/* Détails signalétique provisoire */}
       {procedure.signaletique_provisoire && procedure.signaletique_provisoire_details && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-          <span className="text-xs font-medium text-yellow-700">Signalétique provisoire à prévoir</span>
-          <p className="text-sm text-yellow-800 mt-1">{procedure.signaletique_provisoire_details}</p>
+        <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+          <span className="text-xs font-medium text-yellow-700 dark:text-yellow-400">Signalétique provisoire à prévoir</span>
+          <p className="text-sm text-yellow-800 dark:text-yellow-300 mt-1">{procedure.signaletique_provisoire_details}</p>
         </div>
       )}
 
       {/* Étapes clés */}
       {procedure.etapes_cles && (
-        <div className="bg-gray-50 rounded-lg p-4">
-          <span className="text-xs font-medium text-gray-500 block mb-2">Étapes clés / Informations</span>
-          <div className="text-sm whitespace-pre-line">{procedure.etapes_cles}</div>
+        <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4">
+          <span className="text-xs font-medium text-gray-500 dark:text-slate-400 block mb-2">Étapes clés / Informations</span>
+          <div className="text-sm whitespace-pre-line dark:text-slate-200">{procedure.etapes_cles}</div>
         </div>
       )}
     </div>
@@ -1093,8 +1093,8 @@ function OptionBadge({ label, value }: { label: string; value: boolean }) {
       className={cn(
         "text-xs px-2 py-1 rounded-full flex items-center gap-1",
         value
-          ? "bg-green-100 text-green-700"
-          : "bg-gray-100 text-gray-500"
+          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+          : "bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400"
       )}
     >
       {value ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
@@ -1152,46 +1152,46 @@ function ProcedureForm({
       {/* Contacts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="text-xs font-medium text-gray-700 block mb-1">Commercial</label>
+          <label className="text-xs font-medium text-gray-700 dark:text-slate-300 block mb-1">Commercial</label>
           <input
             type="text"
             value={formData.commercial}
             onChange={(e) => setFormData({ ...formData, commercial: e.target.value })}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none"
+            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none"
             placeholder="Nom du commercial"
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-700 block mb-1">
+          <label className="text-xs font-medium text-gray-700 dark:text-slate-300 block mb-1">
             {assignedGraphistes.length > 1 ? "Graphistes référents" : "Graphiste référent"}
           </label>
           {assignedGraphistes.length === 0 ? (
-            <p className="text-sm text-gray-400 italic py-2">
+            <p className="text-sm text-gray-400 dark:text-slate-500 italic py-2">
               Aucun graphiste assigné
             </p>
           ) : (
             <div className="flex flex-wrap items-center gap-2 py-2">
               {assignedGraphistes.map((g) => (
-                <div key={g.id} className="flex items-center gap-1.5 bg-gray-100 rounded-full px-2 py-1">
+                <div key={g.id} className="flex items-center gap-1.5 bg-gray-100 dark:bg-slate-600 rounded-full px-2 py-1">
                   <span className={cn(
                     "flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium",
                     getBadgeClassName(g.badge_color)
                   )}>
                     {g.initials}
                   </span>
-                  <span className="text-xs">{getFirstName(g.full_name)}</span>
+                  <span className="text-xs dark:text-slate-200">{getFirstName(g.full_name)}</span>
                 </div>
               ))}
             </div>
           )}
-          <p className="text-xs text-gray-400 mt-1">Géré dans l'onglet Attribution</p>
+          <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Géré dans l'onglet Attribution</p>
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-700 block mb-1">Contact franchiseur (emails)</label>
+          <label className="text-xs font-medium text-gray-700 dark:text-slate-300 block mb-1">Contact franchiseur (emails)</label>
           <textarea
             value={formData.franchiseur_contacts}
             onChange={(e) => setFormData({ ...formData, franchiseur_contacts: e.target.value })}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none resize-none"
+            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none resize-none"
             rows={2}
             placeholder="email@exemple.com"
           />
@@ -1225,14 +1225,14 @@ function ProcedureForm({
       {/* Détails signalétique provisoire */}
       {formData.signaletique_provisoire && (
         <div>
-          <label className="text-xs font-medium text-gray-700 block mb-1">
+          <label className="text-xs font-medium text-gray-700 dark:text-slate-300 block mb-1">
             Que faut-il prévoir pour la signalétique provisoire ?
           </label>
           <input
             type="text"
             value={formData.signaletique_provisoire_details}
             onChange={(e) => setFormData({ ...formData, signaletique_provisoire_details: e.target.value })}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none"
+            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none"
             placeholder="Ex: Adhésif format A0, bâche..."
           />
         </div>
@@ -1240,13 +1240,13 @@ function ProcedureForm({
 
       {/* Étapes clés */}
       <div>
-        <label className="text-xs font-medium text-gray-700 block mb-1">
+        <label className="text-xs font-medium text-gray-700 dark:text-slate-300 block mb-1">
           Étapes clés / Informations supplémentaires
         </label>
         <textarea
           value={formData.etapes_cles}
           onChange={(e) => setFormData({ ...formData, etapes_cles: e.target.value })}
-          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none resize-none"
+          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:border-blue-500 dark:focus:ring-blue-800 focus:outline-none resize-none"
           rows={6}
           placeholder="• Étape 1...&#10;• Étape 2...&#10;• Information importante..."
         />
@@ -1257,7 +1257,7 @@ function ProcedureForm({
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700 rounded-lg transition-colors"
         >
           Annuler
         </button>
@@ -1291,7 +1291,7 @@ function ToggleOption({
         onClick={() => onChange(!checked)}
         className={cn(
           "w-10 h-6 rounded-full transition-colors relative flex-shrink-0",
-          checked ? "bg-green-500" : "bg-gray-200"
+          checked ? "bg-green-500" : "bg-gray-200 dark:bg-slate-600"
         )}
       >
         <span
@@ -1301,7 +1301,7 @@ function ToggleOption({
           )}
         />
       </button>
-      <span className="text-xs text-gray-700">{label}</span>
+      <span className="text-xs text-gray-700 dark:text-slate-300">{label}</span>
     </label>
   );
 }

@@ -152,7 +152,7 @@ export default function PlanningVacances() {
                     key={jour}
                     className={cn(
                       "text-center text-sm font-medium py-2",
-                      i >= 5 ? "text-gray-400" : "text-gray-700"
+                      i >= 5 ? "text-gray-400 dark:text-slate-500" : "text-gray-700 dark:text-slate-300"
                     )}
                   >
                     {jour}
@@ -182,22 +182,22 @@ export default function PlanningVacances() {
                         // Jour hors mois courant
                         !isCurrentMonthDay && "opacity-40",
                         // Weekend
-                        isWeekend && isCurrentMonthDay && "bg-gray-50",
+                        isWeekend && isCurrentMonthDay && "bg-gray-50 dark:bg-slate-800",
                         // Jour férié
-                        jourFerie && isCurrentMonthDay && "bg-amber-50 border-amber-200",
+                        jourFerie && isCurrentMonthDay && "bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-700",
                         // Jour avec congés
                         congesJour.length > 0 &&
                           !jourFerie &&
                           isCurrentMonthDay &&
-                          "bg-emerald-50 border-emerald-200",
+                          "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700",
                         // Jour normal
                         !isWeekend &&
                           !jourFerie &&
                           congesJour.length === 0 &&
                           isCurrentMonthDay &&
-                          "bg-white border-gray-200",
+                          "bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700",
                         // Aujourd'hui
-                        isToday && "ring-2 ring-blue-500 ring-offset-1"
+                        isToday && "ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-slate-900"
                       )}
                     >
                       {/* Numéro du jour */}
@@ -205,10 +205,10 @@ export default function PlanningVacances() {
                         className={cn(
                           "text-sm font-medium mb-1",
                           isWeekend && isCurrentMonthDay
-                            ? "text-gray-400"
+                            ? "text-gray-400 dark:text-slate-500"
                             : isCurrentMonthDay
-                            ? "text-gray-900"
-                            : "text-gray-400"
+                            ? "text-gray-900 dark:text-slate-100"
+                            : "text-gray-400 dark:text-slate-500"
                         )}
                       >
                         {date.getDate()}
@@ -216,7 +216,7 @@ export default function PlanningVacances() {
 
                       {/* Jour férié */}
                       {jourFerie && isCurrentMonthDay && (
-                        <div className="text-xs text-amber-700 font-medium truncate mb-1">
+                        <div className="text-xs text-amber-700 dark:text-amber-400 font-medium truncate mb-1">
                           {jourFerie}
                         </div>
                       )}
@@ -227,7 +227,7 @@ export default function PlanningVacances() {
                           {congesJour.map((conge) => (
                             <div
                               key={conge.userId}
-                              className="text-xs text-emerald-700 truncate flex items-center gap-1"
+                              className="text-xs text-emerald-700 dark:text-emerald-400 truncate flex items-center gap-1"
                             >
                               {renderCongeType(conge.type)}
                               <span>{conge.prenom}</span>
@@ -241,31 +241,31 @@ export default function PlanningVacances() {
               </div>
 
               {/* Légende */}
-              <div className="flex flex-wrap items-center gap-4 pt-4 border-t">
+              <div className="flex flex-wrap items-center gap-4 pt-4 border-t dark:border-slate-700">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-amber-50 border border-amber-200" />
-                  <span className="text-sm text-gray-600">Jour férié</span>
+                  <div className="w-4 h-4 rounded bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700" />
+                  <span className="text-sm text-gray-600 dark:text-slate-400">Jour férié</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Palmtree className="h-4 w-4 text-emerald-600" />
-                  <span className="text-sm text-gray-600">Journée</span>
+                  <span className="text-sm text-gray-600 dark:text-slate-400">Journée</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Sun className="h-4 w-4 text-amber-500" />
-                  <span className="text-sm text-gray-600">Matin</span>
+                  <span className="text-sm text-gray-600 dark:text-slate-400">Matin</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Moon className="h-4 w-4 text-indigo-500" />
-                  <span className="text-sm text-gray-600">Après-midi</span>
+                  <span className="text-sm text-gray-600 dark:text-slate-400">Après-midi</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-white border-2 border-blue-500" />
-                  <span className="text-sm text-gray-600">Aujourd'hui</span>
+                  <div className="w-4 h-4 rounded bg-white dark:bg-slate-800 border-2 border-blue-500" />
+                  <span className="text-sm text-gray-600 dark:text-slate-400">Aujourd'hui</span>
                 </div>
               </div>
 
               {/* Instruction */}
-              <p className="text-xs text-gray-500 italic text-center">
+              <p className="text-xs text-gray-500 dark:text-slate-400 italic text-center">
                 Cliquez sur un jour pour ajouter ou modifier des congés
               </p>
             </div>

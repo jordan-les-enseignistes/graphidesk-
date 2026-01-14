@@ -84,15 +84,15 @@ function CreateFeedbackModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
               Nouveau feedback
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
             >
               <X className="w-5 h-5" />
             </button>
@@ -102,7 +102,7 @@ function CreateFeedbackModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
               Type de feedback
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -117,8 +117,8 @@ function CreateFeedbackModal({
                     }
                     className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors ${
                       formData.type === type.value
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-500/30 text-blue-700 dark:text-blue-300"
+                        : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500 text-gray-700 dark:text-slate-300"
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -131,7 +131,7 @@ function CreateFeedbackModal({
 
           {/* Titre */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Titre
             </label>
             <input
@@ -141,14 +141,14 @@ function CreateFeedbackModal({
                 setFormData({ ...formData, titre: e.target.value })
               }
               placeholder="Résumé court du feedback..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Description
             </label>
             <textarea
@@ -158,14 +158,14 @@ function CreateFeedbackModal({
               }
               placeholder="Décrivez en détail votre demande ou le bug rencontré..."
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
               required
             />
           </div>
 
           {/* Priorité */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
               Priorité
             </label>
             <div className="flex gap-2">
@@ -178,8 +178,8 @@ function CreateFeedbackModal({
                   }
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     formData.priorite === priorite.value
-                      ? priorite.color + " ring-2 ring-offset-1 ring-gray-400"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? priorite.color + " ring-2 ring-offset-1 ring-gray-400 dark:ring-slate-500"
+                      : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600"
                   }`}
                 >
                   {priorite.label}
@@ -193,7 +193,7 @@ function CreateFeedbackModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             >
               Annuler
             </button>
@@ -242,16 +242,16 @@ function FeedbackDetailModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
               <div className={`p-2 rounded-lg ${typeInfo?.color}`}>
                 <TypeIcon className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
                   {feedback.titre}
                 </h2>
                 <div className="flex items-center gap-2 mt-1">
@@ -269,7 +269,7 @@ function FeedbackDetailModal({
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
             >
               <X className="w-5 h-5" />
             </button>
@@ -279,10 +279,10 @@ function FeedbackDetailModal({
         {/* Content */}
         <div className="p-6 space-y-6">
           {/* Auteur et date */}
-          <div className="flex items-center gap-4 text-sm text-gray-500">
+          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-slate-400">
             <span>
               Par{" "}
-              <span className="font-medium text-gray-700">
+              <span className="font-medium text-gray-700 dark:text-slate-300">
                 {getFirstName(feedback.author?.full_name) || "Inconnu"}
               </span>
             </span>
@@ -296,10 +296,10 @@ function FeedbackDetailModal({
 
           {/* Description */}
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
               Description
             </h3>
-            <p className="text-gray-600 whitespace-pre-wrap bg-gray-50 rounded-lg p-4">
+            <p className="text-gray-600 dark:text-slate-300 whitespace-pre-wrap bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4">
               {feedback.description}
             </p>
           </div>
@@ -307,10 +307,10 @@ function FeedbackDetailModal({
           {/* Commentaire admin existant */}
           {feedback.admin_comment && !isAdmin && (
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                 Réponse de l'équipe
               </h3>
-              <p className="text-gray-600 whitespace-pre-wrap bg-blue-50 rounded-lg p-4 border border-blue-100">
+              <p className="text-gray-600 dark:text-slate-300 whitespace-pre-wrap bg-blue-50 dark:bg-blue-500/30 rounded-lg p-4 border border-blue-100 dark:border-blue-500/50">
                 {feedback.admin_comment}
               </p>
             </div>
@@ -318,12 +318,12 @@ function FeedbackDetailModal({
 
           {/* Section Admin */}
           {isAdmin && (
-            <div className="border-t border-gray-200 pt-6 space-y-4">
-              <h3 className="font-medium text-gray-900">Actions admin</h3>
+            <div className="border-t border-gray-200 dark:border-slate-700 pt-6 space-y-4">
+              <h3 className="font-medium text-gray-900 dark:text-slate-100">Actions admin</h3>
 
               {/* Commentaire admin */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Commentaire / Réponse
                 </label>
                 <textarea
@@ -331,7 +331,7 @@ function FeedbackDetailModal({
                   onChange={(e) => setAdminComment(e.target.value)}
                   placeholder="Ajouter un commentaire pour l'utilisateur..."
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                 />
               </div>
 
@@ -341,7 +341,7 @@ function FeedbackDetailModal({
                   <button
                     onClick={() => onUpdateStatut("accepte", adminComment)}
                     disabled={isUpdating}
-                    className="px-3 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium flex items-center gap-2"
+                    className="px-3 py-2 bg-green-100 dark:bg-green-500/30 text-green-800 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-500/40 transition-colors text-sm font-medium flex items-center gap-2"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     Accepter
@@ -351,7 +351,7 @@ function FeedbackDetailModal({
                   <button
                     onClick={() => onUpdateStatut("refuse", adminComment)}
                     disabled={isUpdating}
-                    className="px-3 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium flex items-center gap-2"
+                    className="px-3 py-2 bg-red-100 dark:bg-red-500/30 text-red-800 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-500/40 transition-colors text-sm font-medium flex items-center gap-2"
                   >
                     <XCircle className="w-4 h-4" />
                     Refuser
@@ -361,7 +361,7 @@ function FeedbackDetailModal({
                   <button
                     onClick={() => onUpdateStatut("en_cours", adminComment)}
                     disabled={isUpdating}
-                    className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium flex items-center gap-2"
+                    className="px-3 py-2 bg-blue-100 dark:bg-blue-500/30 text-blue-800 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-500/40 transition-colors text-sm font-medium flex items-center gap-2"
                   >
                     <Loader2 className="w-4 h-4" />
                     En cours
@@ -371,7 +371,7 @@ function FeedbackDetailModal({
                   <button
                     onClick={() => onUpdateStatut("termine", adminComment)}
                     disabled={isUpdating}
-                    className="px-3 py-2 bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200 transition-colors text-sm font-medium flex items-center gap-2"
+                    className="px-3 py-2 bg-emerald-100 dark:bg-emerald-500/30 text-emerald-800 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-500/40 transition-colors text-sm font-medium flex items-center gap-2"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     Terminé
@@ -380,7 +380,7 @@ function FeedbackDetailModal({
               </div>
 
               {/* Supprimer */}
-              <div className="pt-4 border-t border-gray-200">
+              <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
                 {!showDeleteConfirm ? (
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
@@ -391,7 +391,7 @@ function FeedbackDetailModal({
                   </button>
                 ) : (
                   <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600">Confirmer ?</span>
+                    <span className="text-sm text-gray-600 dark:text-slate-400">Confirmer ?</span>
                     <button
                       onClick={onDelete}
                       className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
@@ -400,7 +400,7 @@ function FeedbackDetailModal({
                     </button>
                     <button
                       onClick={() => setShowDeleteConfirm(false)}
-                      className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+                      className="px-3 py-1 bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-200 rounded text-sm hover:bg-gray-300 dark:hover:bg-slate-500"
                     >
                       Annuler
                     </button>
@@ -412,10 +412,10 @@ function FeedbackDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200">
+        <div className="p-6 border-t border-gray-200 dark:border-slate-700">
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
           >
             Fermer
           </button>
@@ -444,7 +444,7 @@ function FeedbackCard({
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
+      className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 hover:shadow-md transition-shadow cursor-pointer"
     >
       <div className="flex items-start gap-3">
         {/* Icône type */}
@@ -455,7 +455,7 @@ function FeedbackCard({
         {/* Contenu */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-medium text-gray-900 truncate">
+            <h3 className="font-medium text-gray-900 dark:text-slate-100 truncate">
               {feedback.titre}
             </h3>
             <div className={`px-2 py-0.5 rounded text-xs flex-shrink-0 flex items-center gap-1 ${statutInfo?.color}`}>
@@ -464,11 +464,11 @@ function FeedbackCard({
             </div>
           </div>
 
-          <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1 line-clamp-2">
             {feedback.description}
           </p>
 
-          <div className="flex items-center gap-3 mt-3 text-xs text-gray-400">
+          <div className="flex items-center gap-3 mt-3 text-xs text-gray-400 dark:text-slate-500">
             <span className={`px-2 py-0.5 rounded ${prioriteInfo?.color}`}>
               {prioriteInfo?.label}
             </span>
@@ -550,9 +550,9 @@ export default function Feedbacks() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white dark:bg-slate-800 border-b dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -560,8 +560,8 @@ export default function Feedbacks() {
                 <MessageSquarePlus className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Feedbacks</h1>
-                <p className="text-sm text-gray-500">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Feedbacks</h1>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   Suggestions, bugs et demandes d'amélioration
                 </p>
               </div>
@@ -580,21 +580,21 @@ export default function Feedbacks() {
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg border p-4">
-            <p className="text-sm text-gray-500">Total</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+          <div className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 p-4">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Total</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{stats.total}</p>
           </div>
-          <div className="bg-white rounded-lg border p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 p-4">
             <p className="text-sm text-yellow-600">En attente</p>
             <p className="text-2xl font-bold text-yellow-600">
               {stats.en_attente}
             </p>
           </div>
-          <div className="bg-white rounded-lg border p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 p-4">
             <p className="text-sm text-blue-600">En cours</p>
             <p className="text-2xl font-bold text-blue-600">{stats.en_cours}</p>
           </div>
-          <div className="bg-white rounded-lg border p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 p-4">
             <p className="text-sm text-emerald-600">Terminés</p>
             <p className="text-2xl font-bold text-emerald-600">
               {stats.termine}
@@ -603,17 +603,17 @@ export default function Feedbacks() {
         </div>
 
         {/* Filtres */}
-        <div className="bg-white rounded-lg border p-4 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 p-4 mb-6">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-600">Filtrer par statut :</span>
+            <Filter className="w-4 h-4 text-gray-400 dark:text-slate-500" />
+            <span className="text-sm text-gray-600 dark:text-slate-400">Filtrer par statut :</span>
             <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => setStatutFilter("all")}
                 className={`px-3 py-1 rounded-full text-sm transition-colors ${
                   statutFilter === "all"
-                    ? "bg-gray-800 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "bg-gray-800 dark:bg-slate-600 text-white"
+                    : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600"
                 }`}
               >
                 Tous
@@ -624,8 +624,8 @@ export default function Feedbacks() {
                   onClick={() => setStatutFilter(statut.value)}
                   className={`px-3 py-1 rounded-full text-sm transition-colors ${
                     statutFilter === statut.value
-                      ? statut.color + " ring-2 ring-offset-1 ring-gray-300"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? statut.color + " ring-2 ring-offset-1 ring-gray-300 dark:ring-slate-500"
+                      : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600"
                   }`}
                 >
                   {statut.label}
@@ -661,9 +661,9 @@ export default function Feedbacks() {
                       ))}
                     </div>
                   ) : statutFilter !== "termine" && (
-                    <div className="text-center py-8 bg-white rounded-lg border mb-6">
+                    <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 mb-6">
                       <CheckCircle2 className="w-10 h-10 text-emerald-300 mx-auto mb-3" />
-                      <p className="text-gray-500">Tous les feedbacks actifs ont été traités !</p>
+                      <p className="text-gray-500 dark:text-slate-400">Tous les feedbacks actifs ont été traités !</p>
                     </div>
                   )}
 
@@ -672,11 +672,11 @@ export default function Feedbacks() {
                     <div className="mt-6">
                       <button
                         onClick={() => setShowTermines(!showTermines)}
-                        className="w-full flex items-center justify-between px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
+                        className="w-full flex items-center justify-between px-4 py-3 bg-emerald-50 dark:bg-emerald-500/30 border border-emerald-200 dark:border-emerald-500/50 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-500/40 transition-colors"
                       >
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                          <span className="font-medium text-emerald-800">
+                          <span className="font-medium text-emerald-800 dark:text-emerald-300">
                             Feedbacks terminés ({feedbacksTermines.length})
                           </span>
                         </div>
@@ -719,11 +719,11 @@ export default function Feedbacks() {
                     <div className="mt-6">
                       <button
                         onClick={() => setShowRefuses(!showRefuses)}
-                        className="w-full flex items-center justify-between px-4 py-3 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                        className="w-full flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-500/30 border border-red-200 dark:border-red-500/50 rounded-lg hover:bg-red-100 dark:hover:bg-red-500/40 transition-colors"
                       >
                         <div className="flex items-center gap-2">
                           <XCircle className="w-5 h-5 text-red-600" />
-                          <span className="font-medium text-red-800">
+                          <span className="font-medium text-red-800 dark:text-red-300">
                             Feedbacks refusés ({feedbacksRefuses.length})
                           </span>
                         </div>
@@ -765,9 +765,9 @@ export default function Feedbacks() {
             })()}
           </>
         ) : (
-          <div className="text-center py-12 bg-white rounded-lg border">
-            <MessageSquarePlus className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Aucun feedback pour le moment</p>
+          <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700">
+            <MessageSquarePlus className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-slate-400">Aucun feedback pour le moment</p>
             <button
               onClick={() => setShowCreateModal(true)}
               className="mt-4 text-blue-600 hover:text-blue-700 font-medium"

@@ -82,15 +82,15 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
             onClick={() => setLightingType("lumineux")}
             className={`p-3 rounded-lg border-2 transition-all text-left ${
               lightingType === "lumineux"
-                ? "border-orange-500 bg-orange-50"
-                : "border-slate-200 hover:border-slate-300"
+                ? "border-orange-500 bg-orange-50 dark:bg-orange-900/30 dark:border-orange-400"
+                : "border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500"
             }`}
           >
             <div className="flex items-center gap-2">
               <span className="text-xl">💡</span>
               <div>
-                <div className="font-medium text-sm">Lumineux</div>
-                <div className="text-xs text-slate-500">Épaisseur totale {DEFAULT_DEPTH_LUMINEUX}mm ({DEFAULT_DEPTH_LUMINEUX / 2}mm/face)</div>
+                <div className="font-medium text-sm dark:text-slate-200">Lumineux</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Épaisseur totale {DEFAULT_DEPTH_LUMINEUX}mm ({DEFAULT_DEPTH_LUMINEUX / 2}mm/face)</div>
               </div>
             </div>
           </button>
@@ -99,15 +99,15 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
             onClick={() => setLightingType("non-lumineux")}
             className={`p-3 rounded-lg border-2 transition-all text-left ${
               lightingType === "non-lumineux"
-                ? "border-slate-600 bg-slate-50"
-                : "border-slate-200 hover:border-slate-300"
+                ? "border-slate-600 bg-slate-50 dark:bg-slate-700/50 dark:border-slate-400"
+                : "border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500"
             }`}
           >
             <div className="flex items-center gap-2">
               <span className="text-xl">🔳</span>
               <div>
-                <div className="font-medium text-sm">Non lumineux</div>
-                <div className="text-xs text-slate-500">Épaisseur totale {DEFAULT_DEPTH_NON_LUMINEUX}mm ({DEFAULT_DEPTH_NON_LUMINEUX / 2}mm/face)</div>
+                <div className="font-medium text-sm dark:text-slate-200">Non lumineux</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Épaisseur totale {DEFAULT_DEPTH_NON_LUMINEUX}mm ({DEFAULT_DEPTH_NON_LUMINEUX / 2}mm/face)</div>
               </div>
             </div>
           </button>
@@ -122,7 +122,7 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
 
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-1">
-            <Label htmlFor="largeur" className="text-xs text-slate-600">
+            <Label htmlFor="largeur" className="text-xs text-slate-600 dark:text-slate-400">
               Largeur (mm)
             </Label>
             <Input
@@ -137,7 +137,7 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="hauteur" className="text-xs text-slate-600">
+            <Label htmlFor="hauteur" className="text-xs text-slate-600 dark:text-slate-400">
               Hauteur (mm)
             </Label>
             <Input
@@ -152,7 +152,7 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="epaisseur" className="text-xs text-slate-600">
+            <Label htmlFor="epaisseur" className="text-xs text-slate-600 dark:text-slate-400">
               Épaisseur totale (mm)
             </Label>
             <Input
@@ -170,11 +170,11 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
 
         {/* Info épaisseur */}
         {epaisseur > 0 && (
-          <div className="text-sm text-slate-600 bg-slate-50 rounded-lg p-3">
+          <div className="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
             <p>
-              Épaisseur par face : <strong>{epaisseurParFace} mm</strong>
+              Épaisseur par face : <strong className="dark:text-slate-200">{epaisseurParFace} mm</strong>
             </p>
-            <p className="text-xs mt-1 text-slate-500">
+            <p className="text-xs mt-1 text-slate-500 dark:text-slate-400">
               L'épaisseur totale est divisée par 2 pour chaque face du caisson.
             </p>
           </div>
@@ -190,7 +190,7 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
               checked={drillingHoles}
               onChange={(e) => setDrillingHoles(e.target.checked)}
             />
-            <label htmlFor="drillingHoles" className="text-sm cursor-pointer flex items-center gap-2">
+            <label htmlFor="drillingHoles" className="text-sm cursor-pointer flex items-center gap-2 dark:text-slate-300">
               <span>🔩</span> Trous de perçage Ø3mm
             </label>
           </div>
@@ -205,7 +205,7 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
         </div>
 
         {showDetails && (
-          <div className="text-xs text-slate-600 bg-slate-50 rounded-lg p-3 space-y-1">
+          <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-1">
             <p>• Distance des angles de découpe : <strong>50mm</strong></p>
             <p>• Distance du bord extérieur : <strong>10mm</strong></p>
             <p>• Espacement max entre trous : <strong>750mm</strong></p>
@@ -227,12 +227,12 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
             onClick={() => setEntraxeMode("auto")}
             className={`p-3 rounded-lg border-2 transition-all text-left ${
               entraxeMode === "auto"
-                ? "border-amber-500 bg-amber-50"
-                : "border-slate-200 hover:border-slate-300"
+                ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-400"
+                : "border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500"
             }`}
           >
-            <div className="font-medium text-sm">Automatique</div>
-            <div className="text-xs text-slate-500 mt-1">
+            <div className="font-medium text-sm dark:text-slate-200">Automatique</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Potences aux extrémités (standard)
             </div>
           </button>
@@ -241,12 +241,12 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
             onClick={() => setEntraxeMode("custom")}
             className={`p-3 rounded-lg border-2 transition-all text-left ${
               entraxeMode === "custom"
-                ? "border-amber-500 bg-amber-50"
-                : "border-slate-200 hover:border-slate-300"
+                ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-400"
+                : "border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500"
             }`}
           >
-            <div className="font-medium text-sm">Personnalisé</div>
-            <div className="text-xs text-slate-500 mt-1">
+            <div className="font-medium text-sm dark:text-slate-200">Personnalisé</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Entraxe réduit (espace limité)
             </div>
           </button>
@@ -255,7 +255,7 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
         {entraxeMode === "custom" && (
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
-              <Label htmlFor="espaceFix" className="text-xs text-slate-600">
+              <Label htmlFor="espaceFix" className="text-xs text-slate-600 dark:text-slate-400">
                 Espace de fixation disponible (mm)
               </Label>
               <Input
@@ -272,25 +272,25 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
             </div>
 
             {hauteur > 0 && (
-              <div className="text-xs text-slate-600 bg-slate-50 rounded-lg p-3 space-y-1">
+              <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-1">
                 <p>
-                  <span className="text-amber-600">ℹ️</span> Espace max possible : <strong>{espaceFixMax} mm</strong> (min: {espaceFixMin} mm)
+                  <span className="text-amber-600 dark:text-amber-400">ℹ️</span> Espace max possible : <strong className="dark:text-slate-200">{espaceFixMax} mm</strong> (min: {espaceFixMin} mm)
                 </p>
-                <p className="text-slate-500">
+                <p className="text-slate-500 dark:text-slate-400">
                   Les potences seront centrées verticalement sur le panneau.
                 </p>
                 {espaceFix >= espaceFixMin && espaceFix <= espaceFixMax && (
-                  <p className="text-green-600 mt-2">
+                  <p className="text-green-600 dark:text-green-400 mt-2">
                     ✓ Entraxe entre potences : <strong>{entraxeFromEspaceFix} mm</strong>
                   </p>
                 )}
                 {espaceFix > espaceFixMax && (
-                  <p className="text-red-500 mt-2">
+                  <p className="text-red-500 dark:text-red-400 mt-2">
                     L'espace de fixation ne peut pas dépasser {espaceFixMax} mm pour cette hauteur
                   </p>
                 )}
                 {espaceFix > 0 && espaceFix < espaceFixMin && (
-                  <p className="text-red-500 mt-2">
+                  <p className="text-red-500 dark:text-red-400 mt-2">
                     L'espace de fixation minimum est de {espaceFixMin} mm
                   </p>
                 )}
@@ -301,25 +301,25 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
       </Card>
 
       {/* Caractéristiques spéciales */}
-      <Card className="p-4 bg-slate-50">
-        <h4 className="font-medium mb-3 flex items-center gap-2">
+      <Card className="p-4 bg-slate-50 dark:bg-slate-700/50">
+        <h4 className="font-medium mb-3 flex items-center gap-2 dark:text-slate-200">
           <span>⚙️</span> Caractéristiques automatiques
         </h4>
-        <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="grid grid-cols-2 gap-3 text-sm dark:text-slate-300">
           <div className="flex items-start gap-2">
-            <span className="text-green-500">✓</span>
+            <span className="text-green-500 dark:text-green-400">✓</span>
             <span>Encoches potences (16×34mm) pour fixation drapeau</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-green-500">✓</span>
+            <span className="text-green-500 dark:text-green-400">✓</span>
             <span>Faces en miroir pour assemblage parfait</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-green-500">✓</span>
+            <span className="text-green-500 dark:text-green-400">✓</span>
             <span>Rainures de pliage sur tous les côtés</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-green-500">✓</span>
+            <span className="text-green-500 dark:text-green-400">✓</span>
             <span>Espacement de 10mm entre les deux faces</span>
           </div>
         </div>
@@ -327,18 +327,18 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
 
       {/* Aperçu calcul */}
       {largeur > 0 && hauteur > 0 && (
-        <Card className="p-4 bg-slate-50">
-          <h4 className="font-medium mb-2 flex items-center gap-2">
+        <Card className="p-4 bg-slate-50 dark:bg-slate-700/50">
+          <h4 className="font-medium mb-2 flex items-center gap-2 dark:text-slate-200">
             <span>📋</span> Aperçu du calcul
           </h4>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-slate-600">Face visible :</span>
-              <span className="ml-2 font-medium">{largeur} × {hauteur} mm</span>
+              <span className="text-slate-600 dark:text-slate-400">Face visible :</span>
+              <span className="ml-2 font-medium dark:text-slate-200">{largeur} × {hauteur} mm</span>
             </div>
             <div>
-              <span className="text-slate-600">Format fini (×2) :</span>
-              <span className="ml-2 font-medium text-green-600">
+              <span className="text-slate-600 dark:text-slate-400">Format fini (×2) :</span>
+              <span className="ml-2 font-medium text-green-600 dark:text-green-400">
                 {largeurFinale} × {hauteurFinale} mm
               </span>
             </div>
@@ -348,7 +348,7 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
 
       {/* Prévisualisation SVG */}
       <div>
-        <h4 className="font-medium mb-3 flex items-center gap-2">
+        <h4 className="font-medium mb-3 flex items-center gap-2 dark:text-slate-200">
           <span>👁️</span> Prévisualisation
         </h4>
         <CaissonDoublePreview

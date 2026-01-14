@@ -245,12 +245,12 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex flex-col bg-slate-800 text-white transition-all duration-300",
+        "flex flex-col bg-slate-800 dark:bg-slate-900 text-white transition-all duration-300",
         collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Header */}
-      <div className="flex h-16 items-center justify-between border-b border-slate-700 px-4">
+      <div className="flex h-16 items-center justify-between border-b border-slate-700 dark:border-slate-800 px-4">
         {!collapsed && (
           <div className="flex items-center gap-2">
             <img src="/icon.svg" alt="GraphiDesk" className="h-8 w-8" />
@@ -268,7 +268,7 @@ export function Sidebar() {
         <NavItemComponent item={dashboardItem} />
 
         {/* Séparateur */}
-        <div className="my-3 border-t border-slate-700" />
+        <div className="my-3 border-t border-slate-700 dark:border-slate-800" />
 
         {/* Groupes de navigation */}
         {navGroups.map((group) => (
@@ -278,14 +278,14 @@ export function Sidebar() {
         {/* Groupe Administration (admin only) */}
         {isAdmin && (
           <>
-            <div className="my-3 border-t border-slate-700" />
+            <div className="my-3 border-t border-slate-700 dark:border-slate-800" />
             <NavGroupComponent group={adminGroup} />
           </>
         )}
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-slate-700 p-3">
+      <div className="border-t border-slate-700 dark:border-slate-800 p-3">
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="flex w-full items-center justify-center rounded-lg p-2 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"

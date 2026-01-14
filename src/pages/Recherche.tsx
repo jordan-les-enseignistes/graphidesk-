@@ -54,8 +54,8 @@ const CATEGORY_CONFIG: Record<
   archives: {
     label: "Archives",
     icon: <Archive className="h-4 w-4" />,
-    color: "text-gray-600",
-    bgColor: "bg-gray-100",
+    color: "text-gray-600 dark:text-slate-400",
+    bgColor: "bg-gray-100 dark:bg-slate-700",
   },
   franchises: {
     label: "Franchises",
@@ -445,8 +445,8 @@ export default function Recherche() {
           <Search className="h-5 w-5 text-blue-600" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Recherche globale</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Recherche globale</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             Recherchez dans tous les modules de l'application
           </p>
         </div>
@@ -454,7 +454,7 @@ export default function Recherche() {
 
       {/* Barre de recherche */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
         <Input
           id="search-input"
           type="text"
@@ -466,17 +466,17 @@ export default function Recherche() {
         {searchInput && (
           <button
             onClick={() => setSearchInput("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
           >
-            <X className="h-5 w-5 text-gray-400" />
+            <X className="h-5 w-5 text-gray-400 dark:text-slate-500" />
           </button>
         )}
       </div>
 
       {/* Filtres par catégorie */}
-      <div className="bg-white rounded-xl border p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-4">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium text-gray-700">Filtrer par catégorie</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Filtrer par catégorie</span>
           <div className="flex gap-2">
             <button
               onClick={selectAllCategories}
@@ -484,10 +484,10 @@ export default function Recherche() {
             >
               Tout sélectionner
             </button>
-            <span className="text-gray-300">|</span>
+            <span className="text-gray-300 dark:text-slate-600">|</span>
             <button
               onClick={clearAllCategories}
-              className="text-xs text-gray-500 hover:text-gray-700"
+              className="text-xs text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
             >
               Tout désélectionner
             </button>
@@ -506,7 +506,7 @@ export default function Recherche() {
                   "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors",
                   isSelected
                     ? `${config.bgColor} ${config.color} border-current`
-                    : "bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100"
+                    : "bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-slate-500 border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600"
                 )}
               >
                 {config.icon}
@@ -514,7 +514,7 @@ export default function Recherche() {
                 {searchQuery.length >= 2 && (
                   <span className={cn(
                     "ml-1 px-1.5 py-0.5 rounded text-xs",
-                    isSelected ? "bg-white/50" : "bg-gray-200"
+                    isSelected ? "bg-white/50 dark:bg-black/20" : "bg-gray-200 dark:bg-slate-600"
                   )}>
                     {count}
                   </span>
@@ -526,30 +526,30 @@ export default function Recherche() {
       </div>
 
       {/* Résultats */}
-      <div className="bg-white rounded-xl border">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700">
         {searchQuery.length < 2 ? (
           <div className="py-16 text-center">
-            <Search className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">Tapez au moins 2 caractères pour lancer la recherche</p>
+            <Search className="h-12 w-12 mx-auto text-gray-300 dark:text-slate-600 mb-4" />
+            <p className="text-gray-500 dark:text-slate-400">Tapez au moins 2 caractères pour lancer la recherche</p>
           </div>
         ) : isLoading ? (
-          <div className="py-16 flex items-center justify-center gap-3 text-gray-400">
+          <div className="py-16 flex items-center justify-center gap-3 text-gray-400 dark:text-slate-500">
             <Loader2 className="h-6 w-6 animate-spin" />
             <span>Recherche en cours...</span>
           </div>
         ) : results.length === 0 ? (
           <div className="py-16 text-center">
-            <Search className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">Aucun résultat pour "{searchQuery}"</p>
-            <p className="text-sm text-gray-400 mt-1">
+            <Search className="h-12 w-12 mx-auto text-gray-300 dark:text-slate-600 mb-4" />
+            <p className="text-gray-500 dark:text-slate-400">Aucun résultat pour "{searchQuery}"</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500 mt-1">
               Essayez avec d'autres mots-clés ou vérifiez les filtres
             </p>
           </div>
         ) : (
-          <div className="divide-y">
+          <div className="divide-y dark:divide-slate-700">
             {/* En-tête avec compteur */}
-            <div className="px-4 py-3 bg-gray-50 rounded-t-xl">
-              <span className="text-sm font-medium text-gray-700">
+            <div className="px-4 py-3 bg-gray-50 dark:bg-slate-700/50 rounded-t-xl">
+              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                 {results.length} résultat{results.length > 1 ? "s" : ""} trouvé{results.length > 1 ? "s" : ""}
               </span>
             </div>
@@ -566,10 +566,10 @@ export default function Recherche() {
                     <span className={cn("p-1.5 rounded", config.bgColor, config.color)}>
                       {config.icon}
                     </span>
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                       {config.label}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-slate-500">
                       ({categoryResults.length})
                     </span>
                   </div>
@@ -578,19 +578,19 @@ export default function Recherche() {
                       <button
                         key={result.id}
                         onClick={() => handleResultClick(result)}
-                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-gray-50 text-left transition-colors group"
+                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 dark:border-slate-700 hover:border-gray-200 dark:hover:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 text-left transition-colors group"
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">
+                          <div className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
                             {result.title}
                           </div>
                           {result.subtitle && (
-                            <div className="text-xs text-gray-500 truncate">
+                            <div className="text-xs text-gray-500 dark:text-slate-400 truncate">
                               {result.subtitle}
                             </div>
                           )}
                         </div>
-                        <ExternalLink className="h-4 w-4 text-gray-300 group-hover:text-blue-500 flex-shrink-0" />
+                        <ExternalLink className="h-4 w-4 text-gray-300 dark:text-slate-600 group-hover:text-blue-500 dark:group-hover:text-blue-400 flex-shrink-0" />
                       </button>
                     ))}
                   </div>

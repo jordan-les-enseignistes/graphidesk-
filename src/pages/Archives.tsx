@@ -171,12 +171,12 @@ export default function Archives() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
-            <Archive className="h-5 w-5 text-gray-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-slate-700">
+            <Archive className="h-5 w-5 text-gray-600 dark:text-slate-300" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Archives</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Archives</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               {totalArchives.toLocaleString()} dossier(s) archivé(s)
             </p>
           </div>
@@ -190,7 +190,7 @@ export default function Archives() {
 
       {/* Recherche */}
       <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
         <Input
           placeholder="Rechercher dans toutes les archives..."
           value={searchInput}
@@ -203,7 +203,7 @@ export default function Archives() {
               setSearchInput("");
               setSearchQuery("");
             }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
           >
             <X className="h-4 w-4" />
           </button>
@@ -211,10 +211,10 @@ export default function Archives() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
         <Table>
           <TableHeader>
-            <TableRow className="bg-gray-50">
+            <TableRow className="bg-gray-50 dark:bg-slate-700/50">
               <TableHead>Dossier</TableHead>
               <TableHead>Graphiste</TableHead>
               <TableHead>Date création</TableHead>
@@ -229,13 +229,13 @@ export default function Archives() {
                 <TableCell colSpan={6} className="h-32 text-center">
                   <div className="flex items-center justify-center">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                    <span className="ml-2 text-gray-500">Chargement...</span>
+                    <span className="ml-2 text-gray-500 dark:text-slate-400">Chargement...</span>
                   </div>
                 </TableCell>
               </TableRow>
             ) : archives.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-gray-500">
+                <TableCell colSpan={6} className="h-32 text-center text-gray-500 dark:text-slate-400">
                   {searchQuery ? "Aucun résultat pour cette recherche" : "Aucune archive"}
                 </TableCell>
               </TableRow>
@@ -243,7 +243,7 @@ export default function Archives() {
               archives.map((dossier) => (
                 <TableRow
                   key={dossier.id}
-                  className="cursor-pointer hover:bg-gray-50"
+                  className="cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50"
                   onClick={() => handleShowDetails(dossier)}
                 >
                   <TableCell className="font-medium">{dossier.nom}</TableCell>
@@ -253,23 +253,23 @@ export default function Archives() {
                         "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium",
                         dossier.graphiste
                           ? getBadgeClassName(dossier.graphiste.badge_color)
-                          : "bg-gray-100 text-gray-600"
+                          : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300"
                       )}>
                         {dossier.graphiste?.initials || "AG"}
                       </span>
                       {dossier.graphiste ? getFirstName(dossier.graphiste.full_name) : "Ancien Graphiste"}
                     </span>
                   </TableCell>
-                  <TableCell className="text-gray-500 whitespace-nowrap">
+                  <TableCell className="text-gray-500 dark:text-slate-400 whitespace-nowrap">
                     {formatDateTime(dossier.date_creation)}
                   </TableCell>
-                  <TableCell className="text-gray-500 whitespace-nowrap">
+                  <TableCell className="text-gray-500 dark:text-slate-400 whitespace-nowrap">
                     {dossier.date_archivage ? formatDate(dossier.date_archivage) : "-"}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
-                      <FileCheck className={`h-4 w-4 ${dossier.bat_count > 0 ? "text-green-600" : "text-gray-300"}`} />
-                      <span className={`font-medium ${dossier.bat_count > 0 ? "text-green-700" : "text-gray-400"}`}>
+                      <FileCheck className={`h-4 w-4 ${dossier.bat_count > 0 ? "text-green-600" : "text-gray-300 dark:text-slate-600"}`} />
+                      <span className={`font-medium ${dossier.bat_count > 0 ? "text-green-700 dark:text-green-500" : "text-gray-400 dark:text-slate-500"}`}>
                         {dossier.bat_count || 0}
                       </span>
                     </div>
@@ -319,7 +319,7 @@ export default function Archives() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             Page {currentPage + 1} sur {totalPages}
             {searchQuery && ` (${totalArchives} résultat${totalArchives > 1 ? "s" : ""})`}
           </p>
@@ -380,7 +380,7 @@ export default function Archives() {
 
       {/* Résumé si pas de pagination */}
       {totalPages <= 1 && (
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-gray-500 dark:text-slate-400">
           {archives.length} dossier(s) affiché(s)
         </div>
       )}
@@ -435,9 +435,9 @@ export default function Archives() {
               {/* Informations générales */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-500">Graphiste :</span>
-                  <span className={`font-medium ${!detailDossier.graphiste ? "text-gray-500" : ""}`}>
+                  <User className="h-4 w-4 text-gray-400 dark:text-slate-500" />
+                  <span className="text-gray-500 dark:text-slate-400">Graphiste :</span>
+                  <span className={`font-medium ${!detailDossier.graphiste ? "text-gray-500 dark:text-slate-400" : ""}`}>
                     {detailDossier.graphiste ? getFirstName(detailDossier.graphiste.full_name) : "Ancien Graphiste"}
                   </span>
                 </div>
@@ -445,13 +445,13 @@ export default function Archives() {
                   <StatusBadge statut={detailDossier.statut} />
                 </div>
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-500">Créé le :</span>
+                  <Calendar className="h-4 w-4 text-gray-400 dark:text-slate-500" />
+                  <span className="text-gray-500 dark:text-slate-400">Créé le :</span>
                   <span className="font-medium">{formatDateTime(detailDossier.date_creation)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-500">Archivé le :</span>
+                  <Calendar className="h-4 w-4 text-gray-400 dark:text-slate-500" />
+                  <span className="text-gray-500 dark:text-slate-400">Archivé le :</span>
                   <span className="font-medium">
                     {detailDossier.date_archivage ? formatDate(detailDossier.date_archivage) : "-"}
                   </span>
@@ -461,11 +461,11 @@ export default function Archives() {
               {/* Commentaires */}
               {detailDossier.commentaires && (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-200">
                     <MessageSquare className="h-4 w-4" />
                     Commentaires
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm whitespace-pre-wrap">
+                  <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 p-3 text-sm whitespace-pre-wrap">
                     {detailDossier.commentaires}
                   </div>
                 </div>
@@ -473,36 +473,36 @@ export default function Archives() {
 
               {/* Liste des BAT */}
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-200">
                   <FileCheck className="h-4 w-4" />
                   Historique des BAT ({detailDossier.bat_count || 0})
                 </div>
 
                 {loadingBats ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-400 dark:text-slate-500" />
                   </div>
                 ) : detailBats.length === 0 ? (
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-500">
+                  <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 p-4 text-center text-sm text-gray-500 dark:text-slate-400">
                     Aucun BAT enregistré pour ce dossier
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-gray-200 divide-y">
+                  <div className="rounded-lg border border-gray-200 dark:border-slate-700 divide-y dark:divide-slate-700">
                     {detailBats.map((bat, index) => (
                       <div key={bat.id} className="p-3 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50 text-sm font-bold text-green-700 dark:text-green-400">
                             {index + 1}
                           </span>
                           <div>
                             <p className="text-sm font-medium">BAT {index + 1}</p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-slate-400">
                               Envoyé le {formatDate(bat.date_envoi)}
                             </p>
                           </div>
                         </div>
                         {bat.notes && (
-                          <p className="text-sm text-gray-500 max-w-xs truncate" title={bat.notes}>
+                          <p className="text-sm text-gray-500 dark:text-slate-400 max-w-xs truncate" title={bat.notes}>
                             {bat.notes}
                           </p>
                         )}
@@ -514,7 +514,7 @@ export default function Archives() {
 
               {/* Bouton restaurer (admin uniquement) */}
               {isAdmin && (
-                <div className="flex justify-end pt-4 border-t">
+                <div className="flex justify-end pt-4 border-t dark:border-slate-700">
                   <Button
                     variant="outline"
                     onClick={() => {

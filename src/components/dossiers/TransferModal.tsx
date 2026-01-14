@@ -78,9 +78,9 @@ export function TransferModal({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="rounded-lg bg-gray-50 p-3">
-            <p className="text-sm font-medium text-gray-900">{dossier.nom}</p>
-            <p className="text-xs text-gray-500">
+          <div className="rounded-lg bg-gray-50 dark:bg-slate-700/50 p-3">
+            <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{dossier.nom}</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">
               Actuellement assigné à : {getFirstName(dossier.graphiste?.full_name)}
             </p>
           </div>

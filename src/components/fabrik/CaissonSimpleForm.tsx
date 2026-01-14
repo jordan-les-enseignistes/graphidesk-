@@ -104,15 +104,15 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
             onClick={() => setLightingType("lumineux")}
             className={`p-3 rounded-lg border-2 transition-all text-left ${
               lightingType === "lumineux"
-                ? "border-orange-500 bg-orange-50"
-                : "border-slate-200 hover:border-slate-300"
+                ? "border-orange-500 bg-orange-50 dark:bg-orange-900/30 dark:border-orange-400"
+                : "border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500"
             }`}
           >
             <div className="flex items-center gap-2">
               <span className="text-xl">💡</span>
               <div>
-                <div className="font-medium text-sm">Lumineux</div>
-                <div className="text-xs text-slate-500">Profondeur {DEFAULT_DEPTH_LUMINEUX}mm</div>
+                <div className="font-medium text-sm dark:text-slate-200">Lumineux</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Profondeur {DEFAULT_DEPTH_LUMINEUX}mm</div>
               </div>
             </div>
           </button>
@@ -121,15 +121,15 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
             onClick={() => setLightingType("non-lumineux")}
             className={`p-3 rounded-lg border-2 transition-all text-left ${
               lightingType === "non-lumineux"
-                ? "border-slate-600 bg-slate-50"
-                : "border-slate-200 hover:border-slate-300"
+                ? "border-slate-600 bg-slate-50 dark:bg-slate-700/50 dark:border-slate-400"
+                : "border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500"
             }`}
           >
             <div className="flex items-center gap-2">
               <span className="text-xl">🔳</span>
               <div>
-                <div className="font-medium text-sm">Non lumineux</div>
-                <div className="text-xs text-slate-500">Profondeur {DEFAULT_DEPTH_NON_LUMINEUX}mm</div>
+                <div className="font-medium text-sm dark:text-slate-200">Non lumineux</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Profondeur {DEFAULT_DEPTH_NON_LUMINEUX}mm</div>
               </div>
             </div>
           </button>
@@ -144,7 +144,7 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
 
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-1">
-            <Label htmlFor="largeur" className="text-xs text-slate-600">
+            <Label htmlFor="largeur" className="text-xs text-slate-600 dark:text-slate-400">
               Largeur (mm)
             </Label>
             <Input
@@ -159,7 +159,7 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="hauteur" className="text-xs text-slate-600">
+            <Label htmlFor="hauteur" className="text-xs text-slate-600 dark:text-slate-400">
               Hauteur (mm)
             </Label>
             <Input
@@ -174,7 +174,7 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="profondeur" className="text-xs text-slate-600">
+            <Label htmlFor="profondeur" className="text-xs text-slate-600 dark:text-slate-400">
               Profondeur (mm)
             </Label>
             <Input
@@ -199,8 +199,8 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
               checked={isMultiThickness}
               onChange={(e) => handleMultiThicknessToggle(e.target.checked)}
             />
-            <label htmlFor="multiThickness" className="text-sm cursor-pointer flex items-center gap-2">
-              <Settings2 className="h-4 w-4 text-slate-500" />
+            <label htmlFor="multiThickness" className="text-sm cursor-pointer flex items-center gap-2 dark:text-slate-300">
+              <Settings2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               Rabats multi-épaisseurs
             </label>
           </div>
@@ -208,7 +208,7 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
           {isMultiThickness && (
             <div className="mt-4 grid grid-cols-4 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs text-slate-600 flex items-center gap-1">
+                <Label className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
                   <span>⬆️</span> Haut (mm)
                 </Label>
                 <Input
@@ -220,7 +220,7 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-slate-600 flex items-center gap-1">
+                <Label className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
                   <span>⬇️</span> Bas (mm)
                 </Label>
                 <Input
@@ -232,7 +232,7 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-slate-600 flex items-center gap-1">
+                <Label className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
                   <span>⬅️</span> Gauche (mm)
                 </Label>
                 <Input
@@ -244,7 +244,7 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-slate-600 flex items-center gap-1">
+                <Label className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
                   <span>➡️</span> Droite (mm)
                 </Label>
                 <Input
@@ -269,7 +269,7 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
               checked={drillingHoles}
               onChange={(e) => setDrillingHoles(e.target.checked)}
             />
-            <label htmlFor="drillingHoles" className="text-sm cursor-pointer flex items-center gap-2">
+            <label htmlFor="drillingHoles" className="text-sm cursor-pointer flex items-center gap-2 dark:text-slate-300">
               <span>🔩</span> Trous de perçage Ø3mm
             </label>
           </div>
@@ -284,7 +284,7 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
         </div>
 
         {showDrillingDetails && (
-          <div className="text-xs text-slate-600 bg-slate-50 rounded-lg p-3 space-y-1">
+          <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-1">
             <p>• Distance des angles de découpe : <strong>50mm</strong></p>
             <p>• Distance du bord extérieur : <strong>25mm</strong></p>
             <p>• Espacement max entre trous : <strong>750mm</strong></p>
@@ -295,18 +295,18 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
 
       {/* Aperçu calcul */}
       {largeur > 0 && hauteur > 0 && (
-        <Card className="p-4 bg-slate-50">
-          <h4 className="font-medium mb-2 flex items-center gap-2">
+        <Card className="p-4 bg-slate-50 dark:bg-slate-700/50">
+          <h4 className="font-medium mb-2 flex items-center gap-2 dark:text-slate-200">
             <span>📋</span> Aperçu du calcul
           </h4>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-slate-600">Face visible :</span>
-              <span className="ml-2 font-medium">{largeur} × {hauteur} mm</span>
+              <span className="text-slate-600 dark:text-slate-400">Face visible :</span>
+              <span className="ml-2 font-medium dark:text-slate-200">{largeur} × {hauteur} mm</span>
             </div>
             <div>
-              <span className="text-slate-600">Format fini :</span>
-              <span className={`ml-2 font-medium ${depasseFormat ? "text-red-600" : "text-green-600"}`}>
+              <span className="text-slate-600 dark:text-slate-400">Format fini :</span>
+              <span className={`ml-2 font-medium ${depasseFormat ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
                 {largeurFinale} × {hauteurFinale} mm
               </span>
             </div>
@@ -316,7 +316,7 @@ export function CaissonSimpleForm({ onGenerate, isProcessing }: CaissonSimpleFor
 
       {/* Prévisualisation SVG */}
       <div>
-        <h4 className="font-medium mb-3 flex items-center gap-2">
+        <h4 className="font-medium mb-3 flex items-center gap-2 dark:text-slate-200">
           <span>👁️</span> Prévisualisation
         </h4>
         <CaissonPreview

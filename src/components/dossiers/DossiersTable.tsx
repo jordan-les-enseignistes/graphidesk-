@@ -71,9 +71,10 @@ interface DossiersTableProps {
 type SortField = "nom" | "date_creation" | "bat_count" | "statut";
 type SortDirection = "asc" | "desc";
 
-// Map des classes Tailwind bg-*-50 vers des couleurs RGB plus saturées (-200 level)
-// Pour avoir un vrai impact visuel quand l'intensité est à 100%
-const tailwindBgToRgb: Record<string, string> = {
+// Map des classes Tailwind bg-*-50 vers des couleurs RGB
+// Light mode : couleurs pastel claires (-200 level)
+// Dark mode : couleurs sombres avec opacité réduite
+const tailwindBgToRgbLight: Record<string, string> = {
   "bg-red-50": "254, 202, 202",      // red-200
   "bg-orange-50": "254, 215, 170",   // orange-200
   "bg-yellow-50": "254, 240, 138",   // yellow-200
@@ -84,6 +85,20 @@ const tailwindBgToRgb: Record<string, string> = {
   "bg-gray-50": "229, 231, 235",     // gray-200
   "bg-indigo-50": "199, 210, 254",   // indigo-200
   "bg-cyan-50": "165, 243, 252",     // cyan-200
+};
+
+// Dark mode : couleurs plus saturées et sombres
+const tailwindBgToRgbDark: Record<string, string> = {
+  "bg-red-50": "127, 29, 29",        // red-900
+  "bg-orange-50": "124, 45, 18",     // orange-900
+  "bg-yellow-50": "113, 63, 18",     // yellow-900
+  "bg-green-50": "20, 83, 45",       // green-900
+  "bg-blue-50": "30, 58, 138",       // blue-900
+  "bg-purple-50": "76, 29, 149",     // purple-900
+  "bg-pink-50": "131, 24, 67",       // pink-900
+  "bg-gray-50": "55, 65, 81",        // gray-700
+  "bg-indigo-50": "49, 46, 129",     // indigo-900
+  "bg-cyan-50": "22, 78, 99",        // cyan-900
 };
 
 export function DossiersTable({
@@ -328,7 +343,7 @@ export function DossiersTable({
           {!hideFilters && (
             <>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
                 <Input
                   placeholder="Rechercher un dossier..."
                   value={search}
@@ -338,7 +353,7 @@ export function DossiersTable({
                 {search && (
                   <button
                     onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -357,8 +372,8 @@ export function DossiersTable({
           )}
 
           {selectedIds.size > 0 && (
-            <div className="flex items-center gap-2 border-l pl-2">
-              <span className="text-sm text-gray-500">
+            <div className="flex items-center gap-2 border-l dark:border-slate-600 pl-2">
+              <span className="text-sm text-gray-500 dark:text-slate-400">
                 {selectedIds.size} sélectionné(s)
               </span>
               <Button
@@ -403,8 +418,8 @@ export function DossiersTable({
               className={cn(
                 "px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors",
                 !statutFilter
-                  ? "bg-gray-800 text-white border-gray-800"
-                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                  ? "bg-gray-800 text-white border-gray-800 dark:bg-slate-200 dark:text-slate-900 dark:border-slate-200"
+                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700"
               )}
             >
               Tous
@@ -417,7 +432,7 @@ export function DossiersTable({
                   "px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors",
                   statutFilter === s.value
                     ? s.color
-                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700"
                 )}
               >
                 {s.label}
@@ -432,7 +447,7 @@ export function DossiersTable({
                 onClick={() => setDateSortMode(dateSortMode === "oldest" ? "newest" : "oldest")}
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors",
-                  "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                  "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700"
                 )}
               >
                 {dateSortMode === "oldest" ? (
@@ -446,7 +461,7 @@ export function DossiersTable({
                     <span className="hidden sm:inline">Récents d'abord</span>
                   </>
                 )}
-                <ArrowUpDown className="h-3 w-3 text-gray-400" />
+                <ArrowUpDown className="h-3 w-3 text-gray-400 dark:text-slate-500" />
               </button>
             </Tooltip>
           )}
@@ -454,17 +469,17 @@ export function DossiersTable({
       )}
 
       {/* Table */}
-      <div className="rounded-lg border border-gray-200 bg-white overflow-x-auto">
+      <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-x-auto">
         <Table style={allowColumnResize ? { tableLayout: "fixed", width: "max-content", minWidth: "100%" } : undefined}>
           <TableHeader>
-            <TableRow className="bg-gray-50">
+            <TableRow className="bg-gray-50 dark:bg-slate-700/50">
               {/* Checkbox */}
               <TableHead style={allowColumnResize ? { width: columnWidths.checkbox } : undefined} className="w-12">
                 <input
                   type="checkbox"
                   checked={selectedIds.size === sortedDossiers.length && sortedDossiers.length > 0}
                   onChange={handleSelectAll}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-gray-300 dark:border-slate-600"
                 />
               </TableHead>
 
@@ -482,7 +497,7 @@ export function DossiersTable({
                 </div>
                 {allowColumnResize && (
                   <div
-                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 dark:group-hover:bg-slate-500 transition-colors z-10"
                     onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("dossier", e); }}
                   />
                 )}
@@ -497,7 +512,7 @@ export function DossiersTable({
                   Graphiste
                   {allowColumnResize && (
                     <div
-                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                      className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 dark:group-hover:bg-slate-500 transition-colors z-10"
                       onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("graphiste", e); }}
                       onClick={(e) => e.stopPropagation()}
                     />
@@ -519,7 +534,7 @@ export function DossiersTable({
                 </div>
                 {allowColumnResize && (
                   <div
-                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 dark:group-hover:bg-slate-500 transition-colors z-10"
                     onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("date", e); }}
                   />
                 )}
@@ -539,7 +554,7 @@ export function DossiersTable({
                 </div>
                 {allowColumnResize && (
                   <div
-                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 dark:group-hover:bg-slate-500 transition-colors z-10"
                     onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("bat", e); }}
                   />
                 )}
@@ -553,7 +568,7 @@ export function DossiersTable({
                 <span>Relance</span>
                 {allowColumnResize && (
                   <div
-                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 dark:group-hover:bg-slate-500 transition-colors z-10"
                     onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("relance", e); }}
                   />
                 )}
@@ -573,7 +588,7 @@ export function DossiersTable({
                 </div>
                 {allowColumnResize && (
                   <div
-                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 dark:group-hover:bg-slate-500 transition-colors z-10"
                     onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("statut", e); }}
                   />
                 )}
@@ -587,7 +602,7 @@ export function DossiersTable({
                 <span>Commentaires</span>
                 {allowColumnResize && (
                   <div
-                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 transition-colors z-10"
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 bg-transparent group-hover:bg-gray-300 dark:group-hover:bg-slate-500 transition-colors z-10"
                     onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleMouseDown("commentaires", e); }}
                   />
                 )}
@@ -605,13 +620,13 @@ export function DossiersTable({
                 <TableCell colSpan={showGraphiste ? 9 : 8} className="h-32 text-center">
                   <div className="flex items-center justify-center">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                    <span className="ml-2 text-gray-500">Chargement...</span>
+                    <span className="ml-2 text-gray-500 dark:text-slate-400">Chargement...</span>
                   </div>
                 </TableCell>
               </TableRow>
             ) : sortedDossiers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showGraphiste ? 9 : 8} className="h-32 text-center text-gray-500">
+                <TableCell colSpan={showGraphiste ? 9 : 8} className="h-32 text-center text-gray-500 dark:text-slate-400">
                   {search || statutFilter
                     ? "Aucun dossier ne correspond aux filtres"
                     : "Aucun dossier en cours"}
@@ -621,9 +636,13 @@ export function DossiersTable({
               sortedDossiers.map((dossier) => {
                 // Couleur de fond basée sur le statut avec intensité personnalisable
                 const rowBgClass = statutRowBg[dossier.statut] || "";
-                const rgbValue = tailwindBgToRgb[rowBgClass];
+                // Détecter le mode sombre
+                const isDarkMode = document.documentElement.classList.contains("dark");
+                const rgbMap = isDarkMode ? tailwindBgToRgbDark : tailwindBgToRgbLight;
+                const rgbValue = rgbMap[rowBgClass];
                 // Calculer l'opacité basée sur l'intensité (0-100 -> 0-1)
-                const bgOpacity = highlightIntensity / 100;
+                // En dark mode, on utilise une opacité plus élevée pour que la couleur soit visible
+                const bgOpacity = isDarkMode ? (highlightIntensity / 100) * 0.5 : highlightIntensity / 100;
                 // Style inline avec RGBA pour contrôler l'opacité dynamiquement
                 const rowStyle = rgbValue && bgOpacity > 0
                   ? { backgroundColor: `rgba(${rgbValue}, ${bgOpacity})` }
@@ -639,7 +658,7 @@ export function DossiersTable({
                         type="checkbox"
                         checked={selectedIds.has(dossier.id)}
                         onChange={() => handleSelect(dossier.id)}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-gray-300 dark:border-slate-600"
                       />
                     </TableCell>
                     <TableCell className="font-medium max-w-[200px]">
@@ -662,7 +681,7 @@ export function DossiersTable({
                         </span>
                       </TableCell>
                     )}
-                    <TableCell className="text-gray-500 whitespace-nowrap">
+                    <TableCell className="text-gray-500 dark:text-slate-400 whitespace-nowrap">
                       {formatDateTime(dossier.date_creation)}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
@@ -702,7 +721,7 @@ export function DossiersTable({
                               }}
                               className={cn(
                                 "flex items-center gap-2",
-                                s.value === dossier.statut && "bg-gray-100 font-medium"
+                                s.value === dossier.statut && "bg-gray-100 dark:bg-slate-700 font-medium"
                               )}
                             >
                               <span className={cn("h-2 w-2 rounded-full", s.color.split(" ")[0])} />
@@ -723,7 +742,7 @@ export function DossiersTable({
                           }
                         })}
                         type="textarea"
-                        className="text-sm text-gray-600 block w-full"
+                        className="text-sm text-gray-600 dark:text-slate-300 block w-full"
                         placeholder="Ajouter un commentaire"
                       />
                     </TableCell>
@@ -733,7 +752,7 @@ export function DossiersTable({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                            className="h-8 w-8 text-orange-500 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/30"
                             onClick={() => setArchiveConfirm(dossier)}
                           >
                             <Archive className="h-4 w-4" />
@@ -782,7 +801,7 @@ export function DossiersTable({
       </div>
 
       {/* Résumé */}
-      <div className="text-sm text-gray-500">
+      <div className="text-sm text-gray-500 dark:text-slate-400">
         {sortedDossiers.length} dossier(s)
         {(search || statutFilter) && ` (filtré sur ${dossiers.length})`}
       </div>
@@ -860,7 +879,7 @@ export function DossiersTable({
               <DialogTitle>Changer le statut</DialogTitle>
             </DialogHeader>
             <div className="py-4">
-              <p className="mb-4 text-sm text-gray-500">
+              <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">
                 Modifier le statut de {selectedIds.size} dossier(s)
               </p>
               <Select

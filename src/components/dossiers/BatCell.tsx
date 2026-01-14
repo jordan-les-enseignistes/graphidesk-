@@ -145,14 +145,14 @@ export function BatCell({
           onClick={() => batCount > 0 && setShowHistory(true)}
           className={`flex items-center gap-1.5 rounded px-2 py-1 text-sm transition-colors ${
             batCount > 0
-              ? "hover:bg-gray-100 cursor-pointer"
+              ? "hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer"
               : "cursor-default"
           }`}
           disabled={batCount === 0}
           title={batCount > 0 ? "Voir l'historique des BATs" : "Aucun BAT envoyé"}
         >
-          <FileCheck className={`h-4 w-4 ${batCount > 0 ? "text-green-600" : "text-gray-300"}`} />
-          <span className={`font-medium ${batCount > 0 ? "text-green-700" : "text-gray-400"}`}>
+          <FileCheck className={`h-4 w-4 ${batCount > 0 ? "text-green-600" : "text-gray-300 dark:text-slate-600"}`} />
+          <span className={`font-medium ${batCount > 0 ? "text-green-700 dark:text-green-500" : "text-gray-400 dark:text-slate-500"}`}>
             {batCount}
           </span>
         </button>
@@ -161,7 +161,7 @@ export function BatCell({
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+          className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/30"
           onClick={handleAddBat}
           disabled={addBat.isPending}
           title="Ajouter un BAT"
@@ -186,20 +186,20 @@ export function BatCell({
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-600 border-t-transparent" />
               </div>
             ) : bats?.length === 0 ? (
-              <p className="text-center text-gray-500 py-4">Aucun BAT enregistré</p>
+              <p className="text-center text-gray-500 dark:text-slate-400 py-4">Aucun BAT enregistré</p>
             ) : (
               bats?.map((bat, index) => (
                 <div
                   key={bat.id}
-                  className="flex items-center justify-between rounded-lg border p-3 hover:bg-gray-50"
+                  className="flex items-center justify-between rounded-lg border dark:border-slate-700 p-3 hover:bg-gray-50 dark:hover:bg-slate-700/50"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-sm font-medium text-green-700">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50 text-sm font-medium text-green-700 dark:text-green-400">
                       {batCount - index}
                     </span>
                     <div>
                       <p className="font-medium">{formatDateTime(bat.date_envoi)}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
                         BAT n°{batCount - index}
                       </p>
                     </div>
@@ -207,7 +207,7 @@ export function BatCell({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                    className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
                     onClick={() => setDeleteConfirm(bat.id)}
                     title="Supprimer ce BAT"
                   >
@@ -218,7 +218,7 @@ export function BatCell({
             )}
           </div>
 
-          <div className="flex justify-end gap-2 pt-4 border-t">
+          <div className="flex justify-end gap-2 pt-4 border-t dark:border-slate-700">
             <Button
               onClick={async () => {
                 setShowHistory(false);
@@ -266,18 +266,18 @@ export function BatCell({
           </DialogHeader>
 
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-slate-300">
               Le BAT a été ajouté{dossierNom ? ` pour "${dossierNom}"` : ""}.
               Souhaitez-vous mettre à jour le dossier ?
             </p>
 
             {/* Option changer le statut */}
-            <label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-gray-50">
+            <label className="flex items-center gap-3 rounded-lg border dark:border-slate-700 p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50">
               <input
                 type="checkbox"
                 checked={changeStatut}
                 onChange={(e) => setChangeStatut(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
               />
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-yellow-500" />
@@ -286,13 +286,13 @@ export function BatCell({
                 </span>
               </div>
               {currentStatut === "Attente R." && (
-                <span className="text-xs text-gray-400 ml-auto">(déjà en attente)</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">(déjà en attente)</span>
               )}
             </label>
 
             {/* Ajouter un commentaire */}
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-200">
                 <MessageSquare className="h-4 w-4" />
                 Ajouter une note (optionnel)
               </label>
@@ -303,7 +303,7 @@ export function BatCell({
                 rows={2}
                 className="resize-none"
               />
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 dark:text-slate-500">
                 Cette note sera ajoutée aux commentaires existants
               </p>
             </div>

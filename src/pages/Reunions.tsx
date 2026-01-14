@@ -138,22 +138,22 @@ function SujetModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
             {sujet ? "Modifier le sujet" : "Nouveau sujet"}
           </h3>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-gray-500 dark:text-slate-400" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Titre <span className="text-red-500">*</span>
             </label>
             <input
@@ -162,14 +162,14 @@ function SujetModal({
               onChange={(e) =>
                 setFormData({ ...formData, titre: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-800 dark:focus:border-blue-600"
               placeholder="Sujet à aborder..."
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Description
             </label>
             <textarea
@@ -177,14 +177,14 @@ function SujetModal({
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-800 dark:focus:border-blue-600 resize-none"
               rows={3}
               placeholder="Détails supplémentaires..."
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Priorité</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Priorité</label>
             <div className="grid grid-cols-4 gap-2">
               {PRIORITES.map((p) => {
                 const Icon = p.icon;
@@ -199,7 +199,7 @@ function SujetModal({
                       "flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-colors",
                       formData.priorite === p.value
                         ? `${p.bgColor} ${p.borderColor} ${p.color}`
-                        : "border-gray-200 hover:border-gray-300 text-gray-600"
+                        : "border-gray-200 hover:border-gray-300 text-gray-600 dark:border-slate-600 dark:hover:border-slate-500 dark:text-slate-400"
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -214,7 +214,7 @@ function SujetModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
               Annuler
             </button>
@@ -259,23 +259,23 @@ function SettingsModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Settings className="h-5 w-5 text-gray-600" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+            <Settings className="h-5 w-5 text-gray-600 dark:text-slate-400" />
             Paramètres de réunion
           </h3>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-gray-500 dark:text-slate-400" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Jour de la réunion
             </label>
             <select
@@ -283,7 +283,7 @@ function SettingsModal({
               onChange={(e) =>
                 setFormData({ ...formData, jour: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-800 dark:focus:border-blue-600"
             >
               {JOURS_SEMAINE.map((j) => (
                 <option key={j.value} value={j.value}>
@@ -294,7 +294,7 @@ function SettingsModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Heure de la réunion
             </label>
             <input
@@ -303,12 +303,12 @@ function SettingsModal({
               onChange={(e) =>
                 setFormData({ ...formData, heure: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-800 dark:focus:border-blue-600"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Message de notification
             </label>
             <textarea
@@ -316,13 +316,13 @@ function SettingsModal({
               onChange={(e) =>
                 setFormData({ ...formData, message: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-800 dark:focus:border-blue-600 resize-none"
               rows={2}
               placeholder="La réunion hebdomadaire commence maintenant !"
             />
           </div>
 
-          <div className="pt-2 border-t border-gray-200">
+          <div className="pt-2 border-t border-gray-200 dark:border-slate-700">
             <button
               type="button"
               onClick={() => onTestNotif(formData.message)}
@@ -337,7 +337,7 @@ function SettingsModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
               Annuler
             </button>
@@ -379,18 +379,18 @@ function SujetCard({
   return (
     <div
       className={cn(
-        "bg-white rounded-xl p-4 border-l-4 shadow-sm transition-colors",
-        isArchive ? "border-gray-300 opacity-75" : prioriteConfig.borderColor
+        "bg-white dark:bg-slate-800 rounded-xl p-4 border-l-4 shadow-sm transition-colors",
+        isArchive ? "border-gray-300 dark:border-slate-600 opacity-75" : prioriteConfig.borderColor
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <PrioriteIcon className={cn("h-4 w-4 flex-shrink-0", prioriteConfig.color)} />
-            <h3 className="font-medium text-gray-900">{sujet.titre}</h3>
+            <h3 className="font-medium text-gray-900 dark:text-slate-100">{sujet.titre}</h3>
           </div>
           {sujet.description && (
-            <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">
+            <p className="text-sm text-gray-600 dark:text-slate-400 mt-1 whitespace-pre-wrap">
               {sujet.description}
             </p>
           )}
@@ -399,13 +399,13 @@ function SujetCard({
               {prioriteConfig.label}
             </span>
             {sujet.author && (
-              <span className="text-gray-500">Par {getFirstName(sujet.author.full_name)}</span>
+              <span className="text-gray-500 dark:text-slate-400">Par {getFirstName(sujet.author.full_name)}</span>
             )}
-            <span className="text-gray-400">
+            <span className="text-gray-400 dark:text-slate-500">
               {format(new Date(sujet.created_at), "d MMM yyyy", { locale: fr })}
             </span>
             {isArchive && sujet.date_traite && (
-              <span className="flex items-center gap-1 text-green-600">
+              <span className="flex items-center gap-1 text-green-600 dark:text-green-500">
                 <Check className="h-3 w-3" />
                 Traité le {format(new Date(sujet.date_traite), "d MMM yyyy", { locale: fr })}
               </span>
@@ -418,14 +418,14 @@ function SujetCard({
             <>
               <button
                 onClick={onEdit}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                 title="Modifier"
               >
-                <Pencil className="h-4 w-4 text-gray-500" />
+                <Pencil className="h-4 w-4 text-gray-500 dark:text-slate-400" />
               </button>
               <button
                 onClick={onMarkTraite}
-                className="p-1.5 hover:bg-green-50 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
                 title="Marquer comme traité"
               >
                 <Check className="h-4 w-4 text-green-600" />
@@ -435,7 +435,7 @@ function SujetCard({
           {isArchive && (
             <button
               onClick={onRestore}
-              className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
               title="Restaurer"
             >
               <RotateCcw className="h-4 w-4 text-blue-600" />
@@ -444,7 +444,7 @@ function SujetCard({
           {isAdmin && (
             <button
               onClick={onDelete}
-              className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
               title="Supprimer"
             >
               <Trash2 className="h-4 w-4 text-red-500" />
@@ -555,8 +555,8 @@ export default function Reunions() {
             <UsersRound className="h-5 w-5 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Réunions</h1>
-            <p className="text-sm text-gray-500 flex items-center gap-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Réunions</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
               {jourLabel} à {settings?.heure || "10:30"}
             </p>
@@ -566,7 +566,7 @@ export default function Reunions() {
           {isAdmin && (
             <button
               onClick={() => setShowSettingsModal(true)}
-              className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Paramètres</span>
@@ -587,33 +587,33 @@ export default function Reunions() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <div className="text-2xl font-bold text-gray-900">{sortedSujetsActifs.length}</div>
-          <div className="text-sm text-gray-500">Sujets à traiter</div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border dark:border-slate-700 shadow-sm">
+          <div className="text-2xl font-bold text-gray-900 dark:text-slate-100">{sortedSujetsActifs.length}</div>
+          <div className="text-sm text-gray-500 dark:text-slate-400">Sujets à traiter</div>
         </div>
-        <div className="bg-white rounded-xl p-4 border shadow-sm">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border dark:border-slate-700 shadow-sm">
           <div className="text-2xl font-bold text-red-600">
             {sortedSujetsActifs.filter((s) => s.priorite === "urgente").length}
           </div>
-          <div className="text-sm text-gray-500">Urgents</div>
+          <div className="text-sm text-gray-500 dark:text-slate-400">Urgents</div>
         </div>
-        <div className="bg-white rounded-xl p-4 border shadow-sm">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border dark:border-slate-700 shadow-sm">
           <div className="text-2xl font-bold text-orange-600">
             {sortedSujetsActifs.filter((s) => s.priorite === "haute").length}
           </div>
-          <div className="text-sm text-gray-500">Priorité haute</div>
+          <div className="text-sm text-gray-500 dark:text-slate-400">Priorité haute</div>
         </div>
-        <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <div className="text-2xl font-bold text-gray-500">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border dark:border-slate-700 shadow-sm">
+          <div className="text-2xl font-bold text-gray-500 dark:text-slate-400">
             {sujetsArchives?.length || 0}
           </div>
-          <div className="text-sm text-gray-500">Archivés</div>
+          <div className="text-sm text-gray-500 dark:text-slate-400">Archivés</div>
         </div>
       </div>
 
       {/* Liste des sujets actifs */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
           <AlertCircle className="h-5 w-5 text-blue-600" />
           Sujets à aborder
         </h2>
@@ -622,10 +622,10 @@ export default function Reunions() {
             <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full" />
           </div>
         ) : sortedSujetsActifs.length === 0 ? (
-          <div className="bg-white rounded-xl border p-8 text-center">
-            <UsersRound className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-500">Aucun sujet à aborder pour le moment</p>
-            <p className="text-sm text-gray-400 mt-1">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-8 text-center">
+            <UsersRound className="h-12 w-12 mx-auto text-gray-300 dark:text-slate-600 mb-3" />
+            <p className="text-gray-500 dark:text-slate-400">Aucun sujet à aborder pour le moment</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500 mt-1">
               Cliquez sur "Nouveau sujet" pour en ajouter un
             </p>
           </div>
@@ -664,9 +664,9 @@ export default function Reunions() {
       <div>
         <button
           onClick={() => setShowArchives(!showArchives)}
-          className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-3 hover:text-gray-700 transition-colors"
+          className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-slate-100 mb-3 hover:text-gray-700 dark:hover:text-slate-300 transition-colors"
         >
-          <Archive className="h-5 w-5 text-gray-500" />
+          <Archive className="h-5 w-5 text-gray-500 dark:text-slate-400" />
           Archives ({sujetsArchives?.length || 0})
           <ChevronDown
             className={cn(
@@ -683,9 +683,9 @@ export default function Reunions() {
                 <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full" />
               </div>
             ) : !sujetsArchives || sujetsArchives.length === 0 ? (
-              <div className="bg-gray-50 rounded-xl border border-dashed p-6 text-center">
-                <Archive className="h-10 w-10 mx-auto text-gray-300 mb-2" />
-                <p className="text-gray-500">Aucun sujet archivé</p>
+              <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-dashed dark:border-slate-600 p-6 text-center">
+                <Archive className="h-10 w-10 mx-auto text-gray-300 dark:text-slate-600 mb-2" />
+                <p className="text-gray-500 dark:text-slate-400">Aucun sujet archivé</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -740,15 +740,15 @@ export default function Reunions() {
       {/* Confirmation de suppression */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirmer la suppression</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2">Confirmer la suppression</h3>
+            <p className="text-gray-600 dark:text-slate-400 mb-4">
               Êtes-vous sûr de vouloir supprimer ce sujet ? Cette action est irréversible.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
               >
                 Annuler
               </button>

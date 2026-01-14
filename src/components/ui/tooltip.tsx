@@ -47,7 +47,7 @@ function Tooltip({
       {isVisible && (
         <div
           className={cn(
-            "absolute z-50 overflow-hidden rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-950 shadow-md animate-fade-in whitespace-nowrap",
+            "absolute z-50 overflow-hidden rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-gray-950 dark:text-slate-100 shadow-md animate-fade-in whitespace-nowrap",
             positionClasses[side]
           )}
         >

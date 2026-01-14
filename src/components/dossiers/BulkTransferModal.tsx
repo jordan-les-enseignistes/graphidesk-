@@ -75,8 +75,8 @@ export function BulkTransferModal({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="rounded-lg bg-gray-50 p-3">
-            <p className="text-sm font-medium text-gray-900">
+          <div className="rounded-lg bg-gray-50 dark:bg-slate-700/50 p-3">
+            <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
               {selectedIds.length} dossier(s) sélectionné(s)
             </p>
           </div>

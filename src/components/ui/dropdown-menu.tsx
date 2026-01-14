@@ -149,7 +149,7 @@ function DropdownMenuContent({
     <div
       ref={ref}
       className={cn(
-        "fixed z-[9999] min-w-[8rem] overflow-hidden rounded-md border border-gray-200 bg-white p-1 text-gray-950 shadow-lg animate-fade-in",
+        "fixed z-[9999] min-w-[8rem] overflow-hidden rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1 text-gray-950 dark:text-slate-100 shadow-lg animate-fade-in",
         className
       )}
       style={{
@@ -181,7 +181,7 @@ const DropdownMenuItem = React.forwardRef<HTMLButtonElement, DropdownMenuItemPro
       <button
         ref={ref}
         className={cn(
-          "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-gray-100 focus:bg-gray-100 disabled:pointer-events-none disabled:opacity-50",
+          "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-gray-100 dark:hover:bg-slate-700 focus:bg-gray-100 dark:focus:bg-slate-700 disabled:pointer-events-none disabled:opacity-50",
           inset && "pl-8",
           className
         )}
@@ -196,7 +196,7 @@ DropdownMenuItem.displayName = "DropdownMenuItem";
 function DropdownMenuSeparator({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("-mx-1 my-1 h-px bg-gray-100", className)}
+      className={cn("-mx-1 my-1 h-px bg-gray-100 dark:bg-slate-700", className)}
       {...props}
     />
   );
@@ -210,7 +210,7 @@ function DropdownMenuLabel({
   return (
     <div
       className={cn(
-        "px-2 py-1.5 text-sm font-semibold",
+        "px-2 py-1.5 text-sm font-semibold dark:text-slate-200",
         inset && "pl-8",
         className
       )}

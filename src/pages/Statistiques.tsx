@@ -159,12 +159,12 @@ export default function Statistiques() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100">
-            <BarChart3 className="h-5 w-5 text-indigo-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-500/30">
+            <BarChart3 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Statistiques</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Statistiques</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Vue d'ensemble des performances
             </p>
           </div>
@@ -172,7 +172,7 @@ export default function Statistiques() {
 
         {/* Filtre par année */}
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-gray-500" />
+          <Calendar className="h-4 w-4 text-gray-500 dark:text-slate-400" />
           <Select
             options={yearOptions}
             value={selectedYear}
@@ -236,13 +236,13 @@ export default function Statistiques() {
                     <Users className="h-5 w-5" />
                     Répartition par graphiste
                   </CardTitle>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                     Charge de travail actuelle (dossiers actifs uniquement)
                   </p>
                 </div>
                 <button
                   onClick={() => setChartModeGraphiste(chartModeGraphiste === "bar" ? "pie" : "bar")}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
                   title={chartModeGraphiste === "bar" ? "Afficher en camembert" : "Afficher en barres"}
                 >
                   {chartModeGraphiste === "bar" ? (
@@ -287,16 +287,16 @@ export default function Statistiques() {
                             <span className="font-medium">{getFirstName(graphiste.full_name)}</span>
                           </div>
                           <div className="flex items-center gap-4 text-sm">
-                            <span className="text-blue-600 font-medium">
+                            <span className="text-blue-600 dark:text-blue-400 font-medium">
                               {graphiste.total} dossiers actifs
                             </span>
-                            <span className="text-gray-500">
+                            <span className="text-gray-500 dark:text-slate-400">
                               {graphiste.archives} archivés
                             </span>
                           </div>
                         </div>
                         {/* Barre de charge colorée - dynamique par statut */}
-                        <div className="flex h-3 w-full overflow-hidden rounded-full bg-gray-100">
+                        <div className="flex h-3 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
                           {graphiste.parStatut.map((s) => (
                             s.count > 0 && (
                               <div
@@ -313,16 +313,16 @@ export default function Statistiques() {
 
                     {/* Anciens graphistes - affiché seulement s'il y a des archives */}
                     {anciensGraphistesStats.archives > 0 && (
-                      <div className="space-y-2 pt-4 border-t border-gray-200">
+                      <div className="space-y-2 pt-4 border-t border-gray-200 dark:border-slate-600">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-500">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 dark:bg-slate-600 text-sm font-medium text-gray-500 dark:text-slate-400">
                               ?
                             </span>
-                            <span className="font-medium text-gray-500">Anciens graphistes</span>
+                            <span className="font-medium text-gray-500 dark:text-slate-400">Anciens graphistes</span>
                           </div>
                           <div className="text-sm">
-                            <span className="text-gray-400">
+                            <span className="text-gray-400 dark:text-slate-500">
                               {anciensGraphistesStats.archives} archivés
                             </span>
                           </div>
@@ -395,10 +395,10 @@ export default function Statistiques() {
                     {/* Total au centre */}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="text-center">
-                        <div className="text-3xl font-bold text-gray-900">
+                        <div className="text-3xl font-bold text-gray-900 dark:text-slate-100">
                           {parGraphiste.reduce((sum, g) => sum + g.total, 0)}
                         </div>
-                        <div className="text-sm text-gray-500">dossiers</div>
+                        <div className="text-sm text-gray-500 dark:text-slate-400">dossiers</div>
                       </div>
                     </div>
                   </div>
@@ -425,7 +425,7 @@ export default function Statistiques() {
                             <div className={`w-3 h-3 rounded-full ${graphisteColors[index % graphisteColors.length]}`} />
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium truncate">{getFirstName(graphiste.full_name)}</div>
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-500 dark:text-slate-400">
                                 {graphiste.total} dossiers ({percent}%)
                               </div>
                             </div>
@@ -446,7 +446,7 @@ export default function Statistiques() {
                 <CardTitle>Répartition par statut</CardTitle>
                 <button
                   onClick={() => setChartModeStatut(chartModeStatut === "bar" ? "pie" : "bar")}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
                   title={chartModeStatut === "bar" ? "Afficher en camembert" : "Afficher en barres"}
                 >
                   {chartModeStatut === "bar" ? (
@@ -471,9 +471,9 @@ export default function Statistiques() {
                     <div key={statut.value} className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="font-medium">{statut.label}</span>
-                        <span className="text-gray-500">{statut.count}</span>
+                        <span className="text-gray-500 dark:text-slate-400">{statut.count}</span>
                       </div>
-                      <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
+                      <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
                         <div
                           className={`h-full rounded-full transition-all ${statut.bar_color}`}
                           style={{ width: `${(statut.count / maxCount) * 100}%` }}
@@ -547,10 +547,10 @@ export default function Statistiques() {
                     {/* Total au centre */}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="text-center">
-                        <div className="text-3xl font-bold text-gray-900">
+                        <div className="text-3xl font-bold text-gray-900 dark:text-slate-100">
                           {parStatut.reduce((sum, s) => sum + s.count, 0)}
                         </div>
-                        <div className="text-sm text-gray-500">dossiers</div>
+                        <div className="text-sm text-gray-500 dark:text-slate-400">dossiers</div>
                       </div>
                     </div>
                   </div>
@@ -565,7 +565,7 @@ export default function Statistiques() {
                           <div className={`w-3 h-3 rounded-full ${statut.bar_color}`} />
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{statut.label}</div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-slate-400">
                               {statut.count} ({percent}%)
                             </div>
                           </div>

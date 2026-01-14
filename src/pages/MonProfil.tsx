@@ -79,12 +79,12 @@ function TimeInput({
         disabled={disabled}
         placeholder="--"
         className={cn(
-          "w-10 text-center text-sm font-mono border border-gray-200 rounded px-1 py-1.5",
-          "hover:border-blue-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none transition-all",
-          disabled && "bg-gray-100 cursor-not-allowed opacity-50"
+          "w-10 text-center text-sm font-mono border border-gray-200 dark:border-slate-600 rounded px-1 py-1.5 dark:bg-slate-800 dark:text-slate-200",
+          "hover:border-blue-300 dark:hover:border-blue-500 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:ring-blue-800 focus:outline-none transition-all",
+          disabled && "bg-gray-100 dark:bg-slate-700 cursor-not-allowed opacity-50"
         )}
       />
-      <span className="text-gray-400 text-sm">:</span>
+      <span className="text-gray-400 dark:text-slate-500 text-sm">:</span>
       <input
         type="text"
         value={minutes}
@@ -93,9 +93,9 @@ function TimeInput({
         disabled={disabled}
         placeholder="--"
         className={cn(
-          "w-10 text-center text-sm font-mono border border-gray-200 rounded px-1 py-1.5",
-          "hover:border-blue-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 focus:outline-none transition-all",
-          disabled && "bg-gray-100 cursor-not-allowed opacity-50"
+          "w-10 text-center text-sm font-mono border border-gray-200 dark:border-slate-600 rounded px-1 py-1.5 dark:bg-slate-800 dark:text-slate-200",
+          "hover:border-blue-300 dark:hover:border-blue-500 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:focus:ring-blue-800 focus:outline-none transition-all",
+          disabled && "bg-gray-100 dark:bg-slate-700 cursor-not-allowed opacity-50"
         )}
       />
     </div>
@@ -339,7 +339,7 @@ export default function MonProfil() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-12 text-gray-500 dark:text-slate-400">
         <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full" />
       </div>
     );
@@ -349,63 +349,63 @@ export default function MonProfil() {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-          <User className="h-5 w-5 text-blue-600" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-500/30">
+          <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mon Profil</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Mon Profil</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             Gérez vos informations et vos horaires de travail
           </p>
         </div>
       </div>
 
       {/* Infos utilisateur */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Informations</h2>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Informations</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-sm font-medium text-gray-500">Nom complet</label>
-            <p className="mt-1 text-gray-900">{profile?.full_name}</p>
+            <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Nom complet</label>
+            <p className="mt-1 text-gray-900 dark:text-slate-200">{profile?.full_name}</p>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-500">Email</label>
-            <p className="mt-1 text-gray-900">{profile?.email}</p>
+            <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Email</label>
+            <p className="mt-1 text-gray-900 dark:text-slate-200">{profile?.email}</p>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-500">Initiales</label>
-            <p className="mt-1 text-gray-900">{profile?.initials}</p>
+            <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Initiales</label>
+            <p className="mt-1 text-gray-900 dark:text-slate-200">{profile?.initials}</p>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-500">Rôle</label>
-            <p className="mt-1 text-gray-900 capitalize">{profile?.role}</p>
+            <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Rôle</label>
+            <p className="mt-1 text-gray-900 dark:text-slate-200 capitalize">{profile?.role}</p>
           </div>
         </div>
       </div>
 
       {/* Changement de mot de passe */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Lock className="h-5 w-5 text-gray-400" />
-          <h2 className="text-lg font-semibold text-gray-900">Changer mon mot de passe</h2>
+          <Lock className="h-5 w-5 text-gray-400 dark:text-slate-500" />
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Changer mon mot de passe</h2>
         </div>
 
         <div className="space-y-4 max-w-md">
           {/* Mot de passe actuel */}
           <div>
-            <label className="text-sm font-medium text-gray-700">Mot de passe actuel</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Mot de passe actuel</label>
             <div className="relative mt-1">
               <input
                 type={showCurrentPassword ? "text" : "password"}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-200"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300"
               >
                 {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -414,41 +414,41 @@ export default function MonProfil() {
 
           {/* Nouveau mot de passe */}
           <div>
-            <label className="text-sm font-medium text-gray-700">Nouveau mot de passe</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Nouveau mot de passe</label>
             <div className="relative mt-1">
               <input
                 type={showNewPassword ? "text" : "password"}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-200"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300"
               >
                 {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Minimum 6 caractères</p>
           </div>
 
           {/* Confirmer nouveau mot de passe */}
           <div>
-            <label className="text-sm font-medium text-gray-700">Confirmer le nouveau mot de passe</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Confirmer le nouveau mot de passe</label>
             <div className="relative mt-1">
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-200"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300"
               >
                 {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -462,7 +462,7 @@ export default function MonProfil() {
             className={cn(
               "w-full py-2 px-4 rounded-lg font-medium transition-colors",
               "bg-blue-600 text-white hover:bg-blue-700",
-              "disabled:bg-gray-300 disabled:cursor-not-allowed"
+              "disabled:bg-gray-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed"
             )}
           >
             {changingPassword ? "Modification en cours..." : "Modifier le mot de passe"}
@@ -471,26 +471,26 @@ export default function MonProfil() {
       </div>
 
       {/* Couleur du badge */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Palette className="h-5 w-5 text-gray-400" />
-          <h2 className="text-lg font-semibold text-gray-900">Couleur de mon badge</h2>
+          <Palette className="h-5 w-5 text-gray-400 dark:text-slate-500" />
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Couleur de mon badge</h2>
         </div>
 
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
           Choisissez la couleur qui sera affichée sur votre badge d'initiales dans toute l'application.
         </p>
 
         <div className="flex items-center gap-4">
           {/* Aperçu du badge actuel */}
-          <div className="flex items-center gap-3 pr-4 border-r border-gray-200">
+          <div className="flex items-center gap-3 pr-4 border-r border-gray-200 dark:border-slate-600">
             <span className={cn(
               "flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold",
               getBadgeClassName(profile?.badge_color)
             )}>
               {profile?.initials}
             </span>
-            <span className="text-sm text-gray-500">Aperçu</span>
+            <span className="text-sm text-gray-500 dark:text-slate-400">Aperçu</span>
           </div>
 
           {/* Sélecteur de couleurs */}
@@ -521,10 +521,10 @@ export default function MonProfil() {
       </div>
 
       {/* Préférences application */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Settings className="h-5 w-5 text-gray-400" />
-          <h2 className="text-lg font-semibold text-gray-900">Préférences</h2>
+          <Settings className="h-5 w-5 text-gray-400 dark:text-slate-500" />
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Préférences</h2>
         </div>
 
         <div className="space-y-6">
@@ -533,9 +533,9 @@ export default function MonProfil() {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Sun className="h-4 w-4 text-yellow-500" />
-                <p className="font-medium text-gray-900">Intensité du surlignage</p>
+                <p className="font-medium text-gray-900 dark:text-slate-100">Intensité du surlignage</p>
               </div>
-              <span className="text-sm font-medium text-gray-600">
+              <span className="text-sm font-medium text-gray-600 dark:text-slate-400">
                 {highlightIntensity}%
               </span>
             </div>
@@ -546,13 +546,13 @@ export default function MonProfil() {
               step="10"
               value={highlightIntensity}
               onChange={(e) => setHighlightIntensity(Number(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
             />
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
+            <div className="flex justify-between text-xs text-gray-400 dark:text-slate-500 mt-1">
               <span>Aucun</span>
               <span>Fort</span>
             </div>
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
               Ajustez l'intensité des couleurs de fond dans "Mes Dossiers" selon votre écran.
             </p>
             {/* Aperçu */}
@@ -574,10 +574,10 @@ export default function MonProfil() {
           </div>
 
           {/* Option minimize on close */}
-          <div className="flex items-center justify-between py-2 border-t pt-4">
+          <div className="flex items-center justify-between py-2 border-t dark:border-slate-600 pt-4">
             <div>
-              <p className="font-medium text-gray-900">Minimiser au lieu de fermer</p>
-              <p className="text-sm text-gray-500">
+              <p className="font-medium text-gray-900 dark:text-slate-100">Minimiser au lieu de fermer</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 Quand vous cliquez sur la croix, l'application sera réduite dans la barre des tâches au lieu de se fermer
               </p>
             </div>
@@ -586,7 +586,7 @@ export default function MonProfil() {
               disabled={savingPreferences}
               className={cn(
                 "w-12 h-7 rounded-full transition-colors relative flex-shrink-0",
-                preferences.minimize_on_close ? "bg-blue-600" : "bg-gray-200",
+                preferences.minimize_on_close ? "bg-blue-600" : "bg-gray-200 dark:bg-slate-600",
                 savingPreferences && "opacity-50 cursor-not-allowed"
               )}
             >
@@ -602,17 +602,17 @@ export default function MonProfil() {
       </div>
 
       {/* Horaires de travail */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-gray-400" />
-            <h2 className="text-lg font-semibold text-gray-900">Horaires de travail par défaut</h2>
+            <Clock className="h-5 w-5 text-gray-400 dark:text-slate-500" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Horaires de travail par défaut</h2>
           </div>
           {hasChanges && (
             <div className="flex items-center gap-2">
               <button
                 onClick={handleReset}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
               >
                 <RotateCcw className="h-4 w-4" />
                 Annuler
@@ -629,7 +629,7 @@ export default function MonProfil() {
           )}
         </div>
 
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
           Ces horaires servent de base pour le calcul des heures supplémentaires.
           Ils sont utilisés pour pré-remplir les feuilles de temps mensuelles.
         </p>
@@ -637,13 +637,13 @@ export default function MonProfil() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-32">Jour</th>
-                <th className="text-center py-3 px-2 text-sm font-medium text-gray-500" colSpan={2}>Matin</th>
-                <th className="text-center py-3 px-2 text-sm font-medium text-gray-500" colSpan={2}>Après-midi</th>
-                <th className="text-center py-3 px-2 text-sm font-medium text-gray-500 w-24">Travaillé</th>
+              <tr className="border-b border-gray-200 dark:border-slate-600">
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 dark:text-slate-400 w-32">Jour</th>
+                <th className="text-center py-3 px-2 text-sm font-medium text-gray-500 dark:text-slate-400" colSpan={2}>Matin</th>
+                <th className="text-center py-3 px-2 text-sm font-medium text-gray-500 dark:text-slate-400" colSpan={2}>Après-midi</th>
+                <th className="text-center py-3 px-2 text-sm font-medium text-gray-500 dark:text-slate-400 w-24">Travaillé</th>
               </tr>
-              <tr className="border-b border-gray-100 text-xs text-gray-400">
+              <tr className="border-b border-gray-100 dark:border-slate-700 text-xs text-gray-400 dark:text-slate-500">
                 <th></th>
                 <th className="py-1 px-2">Début</th>
                 <th className="py-1 px-2">Fin</th>
@@ -660,14 +660,14 @@ export default function MonProfil() {
                   <tr
                     key={key}
                     className={cn(
-                      "border-b border-gray-100",
-                      isWeekend && "bg-gray-50"
+                      "border-b border-gray-100 dark:border-slate-700",
+                      isWeekend && "bg-gray-50 dark:bg-slate-700/50"
                     )}
                   >
                     <td className="py-3 px-2">
                       <span className={cn(
                         "font-medium",
-                        travaille ? "text-gray-900" : "text-gray-400"
+                        travaille ? "text-gray-900 dark:text-slate-200" : "text-gray-400 dark:text-slate-500"
                       )}>
                         {label}
                       </span>
@@ -705,7 +705,7 @@ export default function MonProfil() {
                         onClick={() => toggleJourTravaille(key)}
                         className={cn(
                           "w-10 h-6 rounded-full transition-colors relative",
-                          travaille ? "bg-blue-600" : "bg-gray-200"
+                          travaille ? "bg-blue-600" : "bg-gray-200 dark:bg-slate-600"
                         )}
                       >
                         <span

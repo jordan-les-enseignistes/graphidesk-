@@ -232,8 +232,8 @@ export default function Utilisateurs() {
             <Users className="h-5 w-5 text-violet-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Utilisateurs</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Utilisateurs</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Gestion des comptes utilisateurs
             </p>
           </div>
@@ -246,10 +246,10 @@ export default function Utilisateurs() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
         <Table>
           <TableHeader>
-            <TableRow className="bg-gray-50">
+            <TableRow className="bg-gray-50 dark:bg-slate-700">
               <TableHead>Nom</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Initiales</TableHead>
@@ -264,13 +264,13 @@ export default function Utilisateurs() {
                 <TableCell colSpan={6} className="h-32 text-center">
                   <div className="flex items-center justify-center">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                    <span className="ml-2 text-gray-500">Chargement...</span>
+                    <span className="ml-2 text-gray-500 dark:text-slate-400">Chargement...</span>
                   </div>
                 </TableCell>
               </TableRow>
             ) : !users?.length ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-gray-500">
+                <TableCell colSpan={6} className="h-32 text-center text-gray-500 dark:text-slate-400">
                   Aucun utilisateur
                 </TableCell>
               </TableRow>
@@ -278,10 +278,10 @@ export default function Utilisateurs() {
               users.map((user) => (
                 <TableRow
                   key={user.id}
-                  className={!user.is_active ? "bg-gray-50 opacity-60" : ""}
+                  className={!user.is_active ? "bg-gray-50 dark:bg-slate-700 opacity-60" : ""}
                 >
                   <TableCell className="font-medium">{user.full_name}</TableCell>
-                  <TableCell className="text-gray-500">{user.email}</TableCell>
+                  <TableCell className="text-gray-500 dark:text-slate-400">{user.email}</TableCell>
                   <TableCell>
                     <span className={cn(
                       "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium",

@@ -275,11 +275,11 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
             Bonjour, {getFirstName(profile?.full_name)} !
           </h1>
           <p
-            className="text-gray-500 cursor-default select-none"
+            className="text-gray-500 dark:text-slate-400 cursor-default select-none"
             onClick={handleSecretClick}
           >
             Vue d'ensemble de vos dossiers
@@ -313,10 +313,10 @@ export default function Dashboard() {
             <CheckCircle className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold dark:text-slate-100">
               {isLoading ? "..." : stats.aFaire}
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-slate-400">
               Dossiers à traiter
             </p>
           </CardContent>
@@ -330,28 +330,28 @@ export default function Dashboard() {
             <Clock className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold dark:text-slate-100">
               {isLoading ? "..." : stats.enAttente}
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-slate-400">
               Mairie + Attente R.
             </p>
           </CardContent>
         </Card>
 
         {!hideRelanceCards && (
-          <Card className="border-orange-200 bg-orange-50">
+          <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/30">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-orange-800">
+              <CardTitle className="text-sm font-medium text-orange-800 dark:text-orange-300">
                 À relancer
               </CardTitle>
               <PhoneCall className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-800">
+              <div className="text-2xl font-bold text-orange-800 dark:text-orange-300">
                 {isLoading ? "..." : stats.aRelancer}
               </div>
-              <p className="text-xs text-orange-600">
+              <p className="text-xs text-orange-600 dark:text-orange-400">
                 Sans réponse depuis 7j+
               </p>
             </CardContent>
@@ -363,13 +363,13 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium">
               Total dossiers
             </CardTitle>
-            <FolderOpen className="h-4 w-4 text-gray-500" />
+            <FolderOpen className="h-4 w-4 text-gray-500 dark:text-slate-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold dark:text-slate-100">
               {isLoading ? "..." : stats.total}
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-slate-400">
               Dossiers en cours
             </p>
           </CardContent>
@@ -391,10 +391,10 @@ export default function Dashboard() {
                 <Link
                   key={statut.value}
                   to={`/mes-dossiers?statut=${encodeURIComponent(statut.value)}`}
-                  className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 transition-colors hover:bg-gray-50"
+                  className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-slate-700 px-4 py-2 transition-colors hover:bg-gray-50 dark:hover:bg-slate-700"
                 >
                   <StatusBadge statut={statut.value} />
-                  <span className="font-semibold">{parStatut[statut.value] || 0}</span>
+                  <span className="font-semibold dark:text-slate-100">{parStatut[statut.value] || 0}</span>
                 </Link>
               ))}
             </div>
@@ -406,19 +406,19 @@ export default function Dashboard() {
           <Card
             className={
               heuresSupMois.heuresSup > 0
-                ? "border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors cursor-pointer h-full"
+                ? "border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer h-full"
                 : heuresSupMois.heuresSup < 0
-                ? "border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer h-full"
-                : "hover:bg-gray-50 transition-colors cursor-pointer h-full"
+                ? "border-red-200 bg-red-50 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/30 dark:hover:bg-red-900/50 transition-colors cursor-pointer h-full"
+                : "hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors cursor-pointer h-full"
             }
           >
             <CardHeader>
               <CardTitle
                 className={`flex items-center gap-2 ${
                   heuresSupMois.heuresSup > 0
-                    ? "text-emerald-800"
+                    ? "text-emerald-800 dark:text-emerald-300"
                     : heuresSupMois.heuresSup < 0
-                    ? "text-red-800"
+                    ? "text-red-800 dark:text-red-300"
                     : ""
                 }`}
               >
@@ -428,7 +428,7 @@ export default function Dashboard() {
                       ? "text-emerald-500"
                       : heuresSupMois.heuresSup < 0
                       ? "text-red-500"
-                      : "text-gray-500"
+                      : "text-gray-500 dark:text-slate-400"
                   }`}
                 />
                 Heures supplémentaires
@@ -436,10 +436,10 @@ export default function Dashboard() {
               <p
                 className={`text-xs mt-1 ${
                   heuresSupMois.heuresSup > 0
-                    ? "text-emerald-600"
+                    ? "text-emerald-600 dark:text-emerald-400"
                     : heuresSupMois.heuresSup < 0
-                    ? "text-red-600"
-                    : "text-gray-500"
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-gray-500 dark:text-slate-400"
                 }`}
               >
                 {MOIS_LABELS[currentMonth - 1]} {currentYear}
@@ -449,10 +449,10 @@ export default function Dashboard() {
               <div
                 className={`text-4xl font-bold ${
                   heuresSupMois.heuresSup > 0
-                    ? "text-emerald-800"
+                    ? "text-emerald-800 dark:text-emerald-300"
                     : heuresSupMois.heuresSup < 0
-                    ? "text-red-800"
-                    : ""
+                    ? "text-red-800 dark:text-red-300"
+                    : "dark:text-slate-100"
                 }`}
               >
                 {isLoadingHeures
@@ -462,7 +462,7 @@ export default function Dashboard() {
                   : (heuresSupMois.heuresSup > 0 ? "+" : "") +
                     formatMinutesToHuman(heuresSupMois.heuresSup)}
               </div>
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
                 Cliquez pour voir le détail
               </p>
             </CardContent>
@@ -474,19 +474,19 @@ export default function Dashboard() {
       <div className={`grid gap-6 ${hideRelanceCards ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
         {/* Dossiers à relancer */}
         {!hideRelanceCards && (
-          <Card className="border-orange-200">
+          <Card className="border-orange-200 dark:border-orange-800">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-800">
+              <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-300">
                 <PhoneCall className="h-5 w-5" />
                 À relancer
               </CardTitle>
-              <p className="text-xs text-orange-600 mt-1">
+              <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
                 En attente de réponse depuis plus de 7 jours
               </p>
             </CardHeader>
             <CardContent>
               {dossiersARelancer.length === 0 ? (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   Aucun dossier à relancer
                 </p>
               ) : (
@@ -498,11 +498,11 @@ export default function Dashboard() {
                     return (
                       <li
                         key={dossier.id}
-                        className="flex items-center justify-between rounded-lg border border-orange-100 bg-orange-50 p-3"
+                        className="flex items-center justify-between rounded-lg border border-orange-100 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/30 p-3"
                       >
                         <div>
-                          <p className="font-medium text-gray-900">{dossier.nom}</p>
-                          <p className="text-sm text-orange-600">
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{dossier.nom}</p>
+                          <p className="text-sm text-orange-600 dark:text-orange-400">
                             Sans nouvelle depuis {daysSinceUpdate} jour{daysSinceUpdate > 1 ? "s" : ""}
                           </p>
                         </div>
@@ -523,13 +523,13 @@ export default function Dashboard() {
               <Calendar className="h-5 w-5" />
               À traiter en priorité
             </CardTitle>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               Urgents et plus anciens en premier
             </p>
           </CardHeader>
           <CardContent>
             {dossiersRecents.length === 0 ? (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 Aucun dossier à traiter
               </p>
             ) : (
@@ -537,11 +537,11 @@ export default function Dashboard() {
                 {dossiersRecents.map((dossier) => (
                   <li
                     key={dossier.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
+                    className="flex items-center justify-between rounded-lg border dark:border-slate-700 p-3"
                   >
                     <div>
-                      <p className="font-medium text-gray-900">{dossier.nom}</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="font-medium text-gray-900 dark:text-slate-100">{dossier.nom}</p>
+                      <p className="text-sm text-gray-500 dark:text-slate-400">
                         Créé le {formatDate(dossier.date_creation)}
                       </p>
                     </div>
@@ -554,19 +554,19 @@ export default function Dashboard() {
         </Card>
 
         {/* Prochains congés */}
-        <Card className="border-cyan-200">
+        <Card className="border-cyan-200 dark:border-cyan-800">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-cyan-800">
+            <CardTitle className="flex items-center gap-2 text-cyan-800 dark:text-cyan-300">
               <Palmtree className="h-5 w-5" />
               Prochains congés
             </CardTitle>
-            <p className="text-xs text-cyan-600 mt-1">
+            <p className="text-xs text-cyan-600 dark:text-cyan-400 mt-1">
               Absences à venir de l'équipe
             </p>
           </CardHeader>
           <CardContent>
             {prochainsCongés.length === 0 ? (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 Aucun congé prévu
               </p>
             ) : (
@@ -579,11 +579,11 @@ export default function Dashboard() {
                   return (
                     <li
                       key={`${periode.dateDebut}-${periode.prenom}-${index}`}
-                      className="flex items-center justify-between rounded-lg border border-cyan-100 bg-cyan-50 p-3"
+                      className="flex items-center justify-between rounded-lg border border-cyan-100 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/30 p-3"
                     >
                       <div>
-                        <p className="font-medium text-gray-900">{periode.prenom}</p>
-                        <p className="text-sm text-cyan-600">
+                        <p className="font-medium text-gray-900 dark:text-slate-100">{periode.prenom}</p>
+                        <p className="text-sm text-cyan-600 dark:text-cyan-400">
                           {dateLabel}
                         </p>
                       </div>
@@ -594,7 +594,7 @@ export default function Dashboard() {
             )}
             <Link
               to={ROUTES.PLANNING_VACANCES}
-              className="mt-4 inline-flex items-center gap-1 text-sm text-cyan-600 hover:text-cyan-800 transition-colors"
+              className="mt-4 inline-flex items-center gap-1 text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-800 dark:hover:text-cyan-300 transition-colors"
             >
               Voir le planning complet →
             </Link>
