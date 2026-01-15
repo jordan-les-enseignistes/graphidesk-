@@ -17,6 +17,9 @@
  * - destinationPath : Chemin du dossier de destination
  * - dossierName : Nom du dossier client
  * - batNumber : Numéro du BAT
+ * - trancheEpaisseur : (optionnel) Épaisseur des tranches en mm (ex: "100")
+ * - trancheRal : (optionnel) Code RAL (ex: "8019")
+ * - trancheFinition : (optionnel) Finition "MAT" ou "BRILLANT" (uniquement si RAL renseigné)
  */
 
 (function (params) {
@@ -58,7 +61,20 @@
         }
 
         // ===== GÉNÉRATION DES NOMS DE FICHIERS =====
-        var baseNameTranches = "LETTRES_BOITIERS_TRANCHES_" + params.dossierName + "_N" + params.batNumber;
+        // Construction du nom TRANCHES avec options optionnelles
+        var baseNameTranches = "LETTRES_BOITIERS_TRANCHES";
+        if (params.trancheEpaisseur) {
+            baseNameTranches += "_" + params.trancheEpaisseur + "MM";
+        }
+        if (params.trancheRal) {
+            baseNameTranches += "_RAL_" + params.trancheRal;
+            if (params.trancheFinition) {
+                baseNameTranches += "_" + params.trancheFinition;
+            }
+        }
+        baseNameTranches += "_" + params.dossierName + "_N" + params.batNumber;
+
+        // SEMELLES et PLEXI restent inchangés
         var baseNameSemelles = "LETTRES_BOITIERS_SEMELLES_-1.5mm_" + params.dossierName + "_N" + params.batNumber;
         var baseNamePlexi = "LETTRES_BOITIERS_PLEXI_+3.2-0.8mm_" + params.dossierName + "_N" + params.batNumber;
 

@@ -45,10 +45,16 @@ export interface CaissonDoubleParams {
   entraxePotences: number | null;
 }
 
+export type TrancheFinition = "MAT" | "BRILLANT" | "";
+
 export interface LettresBoitiersParams {
   destinationPath: string;
   dossierName: string;
   batNumber: string;
+  // Options spécifiques aux tranches
+  trancheEpaisseur?: string; // Ex: "100" pour 100MM
+  trancheRal?: string; // Ex: "8019" pour RAL_8019
+  trancheFinition?: TrancheFinition; // MAT ou BRILLANT (uniquement si RAL renseigné)
 }
 
 export interface FabrikSettings {

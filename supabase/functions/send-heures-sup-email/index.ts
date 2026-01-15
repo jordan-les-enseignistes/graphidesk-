@@ -339,56 +339,211 @@ serve(async (req) => {
 
     if (feuillesError) throw new Error(`Erreur feuilles: ${feuillesError.message}`);
 
-    const HEURES_BASE = 7 * 60;
+    const HEURES_BASE_SEMAINE = 35 * 60; // 35h par semaine (2100 minutes)
     const moisLabels = ["Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin", "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre"];
     const moisLabel = moisLabels[mois - 1];
 
-    let semainesIncluses = semaines || [];
-    if (!semainesIncluses.length && feuilles?.length) {
-      const weeks = new Set<number>();
-      feuilles.forEach(f => f.heures?.forEach((h: HeureJournaliere) => {
-        const d = new Date(h.date);
-        weeks.add(Math.ceil((((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000) + new Date(d.getFullYear(), 0, 1).getDay() + 1) / 7));
-      }));
-      semainesIncluses = [...weeks].sort((a, b) => a - b);
+    // Parser une date string "YYYY-MM-DD" sans problème de timezone
+    function parseDateString(dateStr: string): Date {
+      const [year, month, day] = dateStr.split("-").map(Number);
+      return new Date(year, month - 1, day);
     }
 
-    // Préparer données
+    // Fonction pour calculer le numéro de semaine ISO (même logique que le frontend)
+    function getNumeroSemaine(date: Date): number {
+      const d = new Date(date.getTime());
+      const dayNum = d.getDay() || 7;
+      d.setDate(d.getDate() + 4 - dayNum);
+      const yearStart = new Date(d.getFullYear(), 0, 1);
+      return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    }
+
+    // Calculer les semaines ISO du mois comptable (même logique que le frontend)
+    function getSemainesOfMonthISO(annee: number, mois: number): number[] {
+      const semaines = new Set<number>();
+
+      // Trouver le 1er du mois
+      const firstOfMonth = new Date(annee, mois - 1, 1);
+      const firstDayOfWeek = firstOfMonth.getDay();
+
+      // Calculer le LUNDI de la semaine qui contient le 1er du mois
+      let startDate: Date;
+      if (firstDayOfWeek === 0) {
+        startDate = new Date(annee, mois - 1, 1 - 6);
+      } else if (firstDayOfWeek === 1) {
+        startDate = new Date(firstOfMonth);
+      } else {
+        startDate = new Date(annee, mois - 1, 1 - (firstDayOfWeek - 1));
+      }
+
+      // Trouver le 1er du mois suivant
+      const firstOfNextMonth = new Date(annee, mois, 1);
+      const nextMonthDayOfWeek = firstOfNextMonth.getDay();
+
+      // Calculer le LUNDI de la semaine qui contient le 1er du mois suivant
+      let endDate: Date;
+      if (nextMonthDayOfWeek === 0) {
+        endDate = new Date(annee, mois, 1 - 6);
+      } else if (nextMonthDayOfWeek === 1) {
+        endDate = new Date(firstOfNextMonth);
+      } else {
+        endDate = new Date(annee, mois, 1 - (nextMonthDayOfWeek - 1));
+      }
+
+      // Collecter toutes les semaines entre startDate et endDate (non inclus)
+      const current = new Date(startDate);
+      while (current < endDate) {
+        semaines.add(getNumeroSemaine(current));
+        current.setDate(current.getDate() + 7);
+      }
+
+      return Array.from(semaines).sort((a, b) => a - b);
+    }
+
+    // Calculer les semaines du mois ISO
+    const validWeekNumbers = getSemainesOfMonthISO(annee, mois);
+    let semainesIncluses = semaines || validWeekNumbers;
+
+    // Récupérer les jours fériés (avec une plage plus large pour couvrir les semaines ISO)
+    const { data: joursFeries } = await supabase
+      .from("jours_feries")
+      .select("date")
+      .gte("date", `${annee}-${String(Math.max(1, mois - 1)).padStart(2, '0')}-01`)
+      .lt("date", `${annee}-${String(Math.min(12, mois + 2)).padStart(2, '0')}-01`);
+
+    const joursFeriesDates = new Set((joursFeries || []).map(jf => jf.date.split('T')[0]));
+
+    // Récupérer les horaires de base des utilisateurs
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name, horaires_base");
+
+    // Type correct des horaires base (même format que le frontend)
+    interface HorairesJour {
+      matin: { debut: string; fin: string } | null;
+      aprem: { debut: string; fin: string } | null;
+    }
+    type HorairesBase = Record<string, HorairesJour>;
+
+    const horairesBaseMap = new Map<string, HorairesBase>();
+    (profiles || []).forEach(p => {
+      if (p.horaires_base) {
+        horairesBaseMap.set(p.id, p.horaires_base as HorairesBase);
+      }
+    });
+
+    // Fonction pour calculer les heures prévues d'un jour selon les horaires de base
+    // (même logique que getHeuresPrevuesJour dans le frontend)
+    function getHeuresPrevuesJour(userId: string, jourSemaine: string): { total: number; matin: number; aprem: number } {
+      const horaires = horairesBaseMap.get(userId);
+      // Fallback: 7h par jour ouvré (3.5h + 3.5h) comme le frontend
+      if (!horaires) {
+        if (["samedi", "dimanche"].includes(jourSemaine)) {
+          return { total: 0, matin: 0, aprem: 0 };
+        }
+        return { total: 420, matin: 210, aprem: 210 }; // 7h = 3h30 + 3h30
+      }
+
+      const jourHoraires = horaires[jourSemaine];
+      if (!jourHoraires) return { total: 0, matin: 0, aprem: 0 };
+
+      let matin = 0, aprem = 0;
+      if (jourHoraires.matin?.debut && jourHoraires.matin?.fin) {
+        const [mh, mm] = jourHoraires.matin.debut.split(":").map(Number);
+        const [fh, fm] = jourHoraires.matin.fin.split(":").map(Number);
+        matin = Math.max(0, (fh * 60 + fm) - (mh * 60 + mm));
+      }
+      if (jourHoraires.aprem?.debut && jourHoraires.aprem?.fin) {
+        const [mh, mm] = jourHoraires.aprem.debut.split(":").map(Number);
+        const [fh, fm] = jourHoraires.aprem.fin.split(":").map(Number);
+        aprem = Math.max(0, (fh * 60 + fm) - (mh * 60 + mm));
+      }
+      return { total: matin + aprem, matin, aprem };
+    }
+
+    // Préparer données avec calcul par semaine (35h/semaine fixe) - MÊME LOGIQUE QUE LE FRONTEND
     const feuillesData: FeuilleData[] = (feuilles || []).map(f => {
       const heures = ((f.heures || []) as HeureJournaliere[]).sort((a, b) => a.date.localeCompare(b.date));
-      let totalMinutes = 0, joursOuvres = 0;
+      const userId = f.user?.id;
       const conges: CongeInfo = { jours: 0, demiJours: 0, dates: [] };
 
-      heures.forEach(h => {
-        const isWeekend = ["samedi", "dimanche"].includes(h.jour_semaine);
+      // Grouper par semaine
+      const parSemaine: Record<number, { travaille: number; base: number }> = {};
 
-        // Comptabiliser les congés
+      heures.forEach(h => {
+        const dateStr = h.date.split('T')[0];
+        const dateObj = parseDateString(dateStr);
+        const semaine = getNumeroSemaine(dateObj);
+
+        // IMPORTANT: Filtrer par les semaines du mois ISO (comme le frontend)
+        if (!validWeekNumbers.includes(semaine)) {
+          return;
+        }
+
+        const isWeekend = ["samedi", "dimanche"].includes(h.jour_semaine);
+        const isFerie = joursFeriesDates.has(dateStr) || h.type_absence === "ferie";
+
+        // Initialiser la semaine avec base 35h
+        if (!parSemaine[semaine]) {
+          parSemaine[semaine] = { travaille: 0, base: HEURES_BASE_SEMAINE };
+        }
+
+        const heuresPrevues = userId ? getHeuresPrevuesJour(userId, h.jour_semaine) : { total: 7 * 60, matin: 4 * 60, aprem: 3 * 60 };
+
+        // Jour férié = heures prévues comptées
+        if (isFerie) {
+          if (!isWeekend) {
+            parSemaine[semaine].travaille += heuresPrevues.total;
+          }
+          return;
+        }
+
+        // Congé journée complète = heures prévues comptées
         if (h.type_absence === "conge") {
           conges.jours++;
           conges.dates.push(h.date);
-          return; // Pas de travail ce jour
+          if (!isWeekend) {
+            parSemaine[semaine].travaille += heuresPrevues.total;
+          }
+          return;
         }
-        if (h.type_absence === "conge_matin" || h.type_absence === "conge_aprem") {
+
+        // Congé matin = heures matin prévues + heures travaillées après-midi
+        if (h.type_absence === "conge_matin") {
           conges.demiJours++;
           if (!conges.dates.includes(h.date)) conges.dates.push(h.date);
-          // Le travail de la demi-journée est comptabilisé ci-dessous
+          const travailleAprem = calculateDayTotal({ ...h, matin_debut: null, matin_fin: null });
+          parSemaine[semaine].travaille += heuresPrevues.matin + travailleAprem;
+          return;
         }
-        if (h.type_absence === "ferie") return;
 
-        totalMinutes += calculateDayTotal(h);
-        if (!isWeekend && h.type_absence !== "conge_matin" && h.type_absence !== "conge_aprem") {
-          joursOuvres++;
-        } else if (!isWeekend && (h.type_absence === "conge_matin" || h.type_absence === "conge_aprem")) {
-          // Demi-journée travaillée = 0.5 jour ouvré
-          joursOuvres += 0.5;
+        // Congé après-midi = heures travaillées matin + heures après-midi prévues
+        if (h.type_absence === "conge_aprem") {
+          conges.demiJours++;
+          if (!conges.dates.includes(h.date)) conges.dates.push(h.date);
+          const travailleMatin = calculateDayTotal({ ...h, aprem_debut: null, aprem_fin: null });
+          parSemaine[semaine].travaille += travailleMatin + heuresPrevues.aprem;
+          return;
         }
+
+        // Heures travaillées normales
+        parSemaine[semaine].travaille += calculateDayTotal(h);
+      });
+
+      // Calculer totaux
+      let totalMinutes = 0;
+      let heuresSupMinutes = 0;
+
+      Object.values(parSemaine).forEach(s => {
+        totalMinutes += s.travaille;
+        heuresSupMinutes += s.travaille - s.base;
       });
 
       return {
         user_name: f.user?.full_name || "Inconnu",
         heures,
         total_minutes: totalMinutes,
-        heures_sup_minutes: totalMinutes - (joursOuvres * HEURES_BASE),
+        heures_sup_minutes: heuresSupMinutes,
         conges,
       };
     }).sort((a, b) => a.user_name.localeCompare(b.user_name));
