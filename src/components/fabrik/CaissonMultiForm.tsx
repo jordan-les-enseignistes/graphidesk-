@@ -395,6 +395,76 @@ export function CaissonMultiForm({ onGenerate, isProcessing }: CaissonMultiFormP
         </div>
       </Card>
 
+      {/* Résumé dimensions totales */}
+      {(() => {
+        // Calculer les dimensions totales du caisson assemblé
+        let totalLargeurFinie = 0;
+        let maxHauteurFinie = 0;
+        let allPartsValid = true;
+
+        parts.forEach((part) => {
+          if (part.largeur <= 0 || part.hauteur <= 0) {
+            allPartsValid = false;
+            return;
+          }
+
+          let eH = part.profondeur;
+          let eB = part.profondeur;
+          let eG = part.type === "left" ? part.profondeur : 0;
+          let eD = part.type === "right" ? part.profondeur : 0;
+
+          if (part.isMultiThickness && part.thickness) {
+            eH = part.thickness.haut || 0;
+            eB = part.thickness.bas || 0;
+            eG = part.thickness.gauche || 0;
+            eD = part.thickness.droite || 0;
+          }
+
+          const largeurFinale = part.largeur + eG + eD;
+          const hauteurFinale = part.hauteur + eH + eB;
+
+          totalLargeurFinie += largeurFinale;
+          if (hauteurFinale > maxHauteurFinie) {
+            maxHauteurFinie = hauteurFinale;
+          }
+        });
+
+        // Calculer la largeur face visible (sans épaisseurs latérales)
+        let totalLargeurVisible = 0;
+        parts.forEach((part) => {
+          if (part.largeur > 0) {
+            totalLargeurVisible += part.largeur;
+          }
+        });
+
+        // Calculer la hauteur face visible (sans épaisseurs haut/bas)
+        const hauteurVisible = parts.find(p => p.hauteur > 0)?.hauteur || 0;
+
+        if (!allPartsValid) return null;
+
+        return (
+          <Card className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-700">
+            <h4 className="font-medium mb-2 flex items-center gap-2 text-purple-700 dark:text-purple-300">
+              <span>📐</span> Dimensions totales du caisson assemblé
+            </h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-slate-600 dark:text-slate-400">Face visible :</span>
+                <div className="font-bold text-lg text-purple-700 dark:text-purple-300">
+                  {totalLargeurVisible} × {hauteurVisible} mm
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-600 dark:text-slate-400">Format fini (avec épaisseurs) :</span>
+                <div className="font-bold text-lg text-pink-700 dark:text-pink-300">
+                  {totalLargeurFinie} × {maxHauteurFinie} mm
+                </div>
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
+
       {/* Aperçu global */}
       <div>
         <h4 className="font-medium mb-3 flex items-center gap-2 dark:text-slate-200">

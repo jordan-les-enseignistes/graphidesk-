@@ -11,6 +11,7 @@ import {
   useHorairesBase,
   getJourSemaine,
   getNumeroSemaine,
+  getMoisComptableISO,
   calculateDayTotal,
   calculateMonthlyHoursSup,
   formatMinutesToHuman,
@@ -592,8 +593,10 @@ export default function HeuresSupplementaires() {
 
   const now = new Date();
   const todayStr = formatDateStr(now);
-  const [annee, setAnnee] = useState(now.getFullYear());
-  const [mois, setMois] = useState(now.getMonth() + 1);
+  // Utiliser le mois comptable ISO (basé sur les semaines ISO) au lieu du mois calendaire
+  const moisComptableISO = getMoisComptableISO(now);
+  const [annee, setAnnee] = useState(moisComptableISO.annee);
+  const [mois, setMois] = useState(moisComptableISO.mois);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
 
