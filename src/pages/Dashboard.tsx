@@ -4,14 +4,17 @@ import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useUserPreferencesStore } from "@/stores/userPreferencesStore";
 import { useMyDossiers, useAllDossiers } from "@/hooks/useDossiers";
 import { toast } from "sonner";
-import {
-  useFeuilleTemps,
-  calculateMonthlyHoursSup,
-  formatMinutesToHuman,
-  MOIS_LABELS,
-  getDaysInMonthISO,
-  getNumeroSemaine,
-} from "@/hooks/useHeuresSupplementaires";
+// --- HEURES SUPPLÉMENTAIRES : IMPORTS CONSERVÉS MAIS PLUS UTILISÉS DEPUIS v1.1.12 ---
+// Le suivi des heures est désormais géré via Tiimizy. Pour restaurer la carte HS
+// sur le Dashboard, décommenter ces imports et le bloc de calcul plus bas.
+// import {
+//   useFeuilleTemps,
+//   calculateMonthlyHoursSup,
+//   formatMinutesToHuman,
+//   MOIS_LABELS,
+//   getDaysInMonthISO,
+//   getNumeroSemaine,
+// } from "@/hooks/useHeuresSupplementaires";
 import { useCongesMois, formatDateToString, useJoursFeriesMois } from "@/hooks/usePlanningVacances";
 import { useStatuts } from "@/hooks/useStatuts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,43 +76,32 @@ export default function Dashboard() {
 
   const dossiers = myDossiers;
 
-  // Heures supplémentaires du mois en cours
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
-  const { data: feuilleTemps, isLoading: isLoadingHeures } = useFeuilleTemps(
-    currentYear,
-    currentMonth
-  );
 
-  // Calcul des semaines ISO du mois (pour filtrer les heures correctement)
-  const weekNumbers = useMemo(() => {
-    const days = getDaysInMonthISO(currentYear, currentMonth);
-    const weekNums = new Set<number>();
-    days.forEach(d => weekNums.add(getNumeroSemaine(d)));
-    return Array.from(weekNums);
-  }, [currentYear, currentMonth]);
-
-  // Jours fériés du mois
-  const { data: joursFeriesMap } = useJoursFeriesMois(currentYear, currentMonth);
-  const joursFeriesDates = useMemo(() => {
-    const set = new Set<string>();
-    joursFeriesMap?.forEach((_, date) => set.add(date));
-    return set;
-  }, [joursFeriesMap]);
-
-  // Calcul des heures sup du mois
-  const heuresSupMois = useMemo(() => {
-    if (!feuilleTemps?.heures || feuilleTemps.heures.length === 0) {
-      return { heuresSup: 0, totalTravaille: 0 };
-    }
-    return calculateMonthlyHoursSup(
-      feuilleTemps.heures,
-      profile?.horaires_base,
-      weekNumbers,
-      joursFeriesDates
-    );
-  }, [feuilleTemps, profile?.horaires_base, weekNumbers, joursFeriesDates]);
+  // --- HEURES SUPPLÉMENTAIRES : LOGIQUE CONSERVÉE MAIS DÉSACTIVÉE DEPUIS v1.1.12 ---
+  // Le suivi des heures est désormais géré via Tiimizy. Pour restaurer, décommenter ce bloc
+  // ainsi que les imports en haut du fichier.
+  // const { data: feuilleTemps, isLoading: isLoadingHeures } = useFeuilleTemps(currentYear, currentMonth);
+  // const weekNumbers = useMemo(() => {
+  //   const days = getDaysInMonthISO(currentYear, currentMonth);
+  //   const weekNums = new Set<number>();
+  //   days.forEach(d => weekNums.add(getNumeroSemaine(d)));
+  //   return Array.from(weekNums);
+  // }, [currentYear, currentMonth]);
+  // const { data: joursFeriesMap } = useJoursFeriesMois(currentYear, currentMonth);
+  // const joursFeriesDates = useMemo(() => {
+  //   const set = new Set<string>();
+  //   joursFeriesMap?.forEach((_, date) => set.add(date));
+  //   return set;
+  // }, [joursFeriesMap]);
+  // const heuresSupMois = useMemo(() => {
+  //   if (!feuilleTemps?.heures || feuilleTemps.heures.length === 0) {
+  //     return { heuresSup: 0, totalTravaille: 0 };
+  //   }
+  //   return calculateMonthlyHoursSup(feuilleTemps.heures, profile?.horaires_base, weekNumbers, joursFeriesDates);
+  // }, [feuilleTemps, profile?.horaires_base, weekNumbers, joursFeriesDates]);
 
   // Congés à venir (prochain mois inclus)
   const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
@@ -401,73 +393,38 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Heures sup du mois */}
-        <Link to={ROUTES.HEURES_SUPPLEMENTAIRES} className="block">
-          <Card
-            className={
-              heuresSupMois.heuresSup > 0
-                ? "border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer h-full"
-                : heuresSupMois.heuresSup < 0
-                ? "border-red-200 bg-red-50 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/30 dark:hover:bg-red-900/50 transition-colors cursor-pointer h-full"
-                : "hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors cursor-pointer h-full"
-            }
-          >
+        {/* --- HEURES SUPPLÉMENTAIRES : CARTE MASQUÉE DEPUIS v1.1.12 ---
+            Le suivi des heures est désormais géré via Tiimizy (https://tiimizy.fr).
+            La carte HS est remplacée par un lien de rappel vers Tiimizy.
+            Tout le code HS (hooks, calculs, imports) est conservé dans ce fichier
+            au cas où il faudrait restaurer la carte. Pour restaurer : remplacer ce bloc
+            par l'ancien bloc <Link to={ROUTES.HEURES_SUPPLEMENTAIRES}> (voir git history). */}
+        <a
+          href="https://tiimizy.fr/dashboard"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block"
+        >
+          <Card className="border-sky-200 bg-sky-50 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/30 dark:hover:bg-sky-900/50 transition-colors cursor-pointer h-full">
             <CardHeader>
-              <CardTitle
-                className={`flex items-center gap-2 ${
-                  heuresSupMois.heuresSup > 0
-                    ? "text-emerald-800 dark:text-emerald-300"
-                    : heuresSupMois.heuresSup < 0
-                    ? "text-red-800 dark:text-red-300"
-                    : ""
-                }`}
-              >
-                <Timer
-                  className={`h-5 w-5 ${
-                    heuresSupMois.heuresSup > 0
-                      ? "text-emerald-500"
-                      : heuresSupMois.heuresSup < 0
-                      ? "text-red-500"
-                      : "text-gray-500 dark:text-slate-400"
-                  }`}
-                />
-                Heures supplémentaires
+              <CardTitle className="flex items-center gap-2 text-sky-800 dark:text-sky-300">
+                <Timer className="h-5 w-5 text-sky-500" />
+                Pointage Tiimizy
               </CardTitle>
-              <p
-                className={`text-xs mt-1 ${
-                  heuresSupMois.heuresSup > 0
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : heuresSupMois.heuresSup < 0
-                    ? "text-red-600 dark:text-red-400"
-                    : "text-gray-500 dark:text-slate-400"
-                }`}
-              >
-                {MOIS_LABELS[currentMonth - 1]} {currentYear}
+              <p className="text-xs mt-1 text-sky-600 dark:text-sky-400">
+                Suivi des heures de travail
               </p>
             </CardHeader>
             <CardContent>
-              <div
-                className={`text-4xl font-bold ${
-                  heuresSupMois.heuresSup > 0
-                    ? "text-emerald-800 dark:text-emerald-300"
-                    : heuresSupMois.heuresSup < 0
-                    ? "text-red-800 dark:text-red-300"
-                    : "dark:text-slate-100"
-                }`}
-              >
-                {isLoadingHeures
-                  ? "..."
-                  : heuresSupMois.heuresSup === 0
-                  ? "0h"
-                  : (heuresSupMois.heuresSup > 0 ? "+" : "") +
-                    formatMinutesToHuman(heuresSupMois.heuresSup)}
-              </div>
-              <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
-                Cliquez pour voir le détail
+              <p className="text-sm text-sky-700 dark:text-sky-300 font-medium">
+                Avez-vous pointé aujourd'hui ?
+              </p>
+              <p className="text-sm text-sky-600 dark:text-sky-400 mt-2">
+                Ouvrir Tiimizy →
               </p>
             </CardContent>
           </Card>
-        </Link>
+        </a>
       </div>
 
       {/* Grille 3 colonnes (ou 2 si mode zen) */}

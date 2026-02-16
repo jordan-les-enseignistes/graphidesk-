@@ -71,14 +71,22 @@ const navGroups: NavGroup[] = [
     defaultOpen: true,
     items: [
       { label: "FabRik", icon: Wrench, path: ROUTES.FABRIK },
-      { label: "Heures supplémentaires", icon: Clock, path: ROUTES.HEURES_SUPPLEMENTAIRES },
-      { label: "Planning vacances", icon: Palmtree, path: ROUTES.PLANNING_VACANCES },
+      // --- HEURES SUPPLÉMENTAIRES : MASQUÉ DEPUIS v1.1.12 ---
+      // Le suivi des heures est désormais géré via Tiimizy (https://tiimizy.fr).
+      // L'onglet est caché côté UI mais tout le code HS est conservé (page, hooks, composants, routes)
+      // au cas où il faudrait le réactiver. Pour restaurer, décommenter la ligne ci-dessous :
+      // { label: "Heures supplémentaires", icon: Clock, path: ROUTES.HEURES_SUPPLEMENTAIRES },
+      // --- PLANNING VACANCES : MASQUÉ DEPUIS v1.1.12 ---
+      // Désormais géré via Tiimizy. Pour restaurer, décommenter la ligne ci-dessous :
+      // { label: "Planning vacances", icon: Palmtree, path: ROUTES.PLANNING_VACANCES },
       { label: "Sites internet", icon: Globe, path: ROUTES.SITES_INTERNET },
       { label: "Process", icon: BookOpen, path: ROUTES.PROCESS },
       { label: "Réunions", icon: UsersRound, path: ROUTES.REUNIONS },
       { label: "Nuancier", icon: Palette, path: ROUTES.RAL_CONVERTER },
       { label: "Calculatrice", icon: Calculator, path: ROUTES.CALCULATRICE },
-      { label: "Annuaire", icon: Contact, path: ROUTES.ANNUAIRE },
+      // --- ANNUAIRE : MASQUÉ DEPUIS v1.1.12 ---
+      // Désormais géré via Tiimizy. Pour restaurer, décommenter la ligne ci-dessous :
+      // { label: "Annuaire", icon: Contact, path: ROUTES.ANNUAIRE },
       { label: "Feedbacks", icon: MessageSquarePlus, path: ROUTES.FEEDBACKS },
     ],
   },
