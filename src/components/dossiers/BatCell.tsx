@@ -103,7 +103,7 @@ export function BatCell({
       updates.statut = "Attente R.";
     }
 
-    // Ajouter une note supplémentaire si l'utilisateur en a saisi une
+    // Ajouter la note à la suite de la ligne BAT (sur la même ligne)
     if (newComment.trim()) {
       // Récupérer les commentaires actuels FRAIS depuis la base (pour ne pas écraser)
       const { data: freshDossier } = await supabase
@@ -114,12 +114,23 @@ export function BatCell({
 
       const existingComments = freshDossier?.commentaires || "";
 
-      // Ajouter la note additionnelle (le commentaire auto BAT est déjà ajouté)
-      const today = new Date().toLocaleDateString("fr-FR");
-      const commentToAdd = `[${today}] Note: ${newComment.trim()}`;
-      updates.commentaires = existingComments
-        ? `${existingComments}\n${commentToAdd}`
-        : commentToAdd;
+      // Trouver la dernière ligne BAT et y concaténer la note
+      const lines = existingComments.split("\n");
+      const batLineIndex = lines.findLastIndex(
+        (line: string) => line.includes("BAT V") && line.includes("envoyé")
+      );
+
+      if (batLineIndex !== -1) {
+        lines[batLineIndex] = `${lines[batLineIndex]} — ${newComment.trim()}`;
+        updates.commentaires = lines.join("\n");
+      } else {
+        // Fallback : ajouter en nouvelle ligne si la ligne BAT n'est pas trouvée
+        const today = new Date().toLocaleDateString("fr-FR");
+        const commentToAdd = `[${today}] Note: ${newComment.trim()}`;
+        updates.commentaires = existingComments
+          ? `${existingComments}\n${commentToAdd}`
+          : commentToAdd;
+      }
     }
 
     if (Object.keys(updates).length > 0) {

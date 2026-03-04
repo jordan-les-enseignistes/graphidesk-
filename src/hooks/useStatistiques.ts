@@ -40,6 +40,11 @@ interface StatsArchivesParGraphiste {
   count: number;
 }
 
+interface StatsBatParGraphiste {
+  graphiste_id: string;
+  total_bats: number;
+}
+
 // Hook pour récupérer les stats globales
 export function useStatsGlobal() {
   return useQuery({
@@ -117,5 +122,20 @@ export function useStatsArchivesParGraphiste(annee?: number) {
       return data as StatsArchivesParGraphiste[];
     },
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+// Hook pour récupérer le nombre de BAT envoyés par graphiste (avec filtre année optionnel)
+export function useStatsBatParGraphiste(annee?: number) {
+  return useQuery({
+    queryKey: ["stats", "bat_par_graphiste", annee],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_stats_bat_par_graphiste", {
+        p_annee: annee ?? null,
+      });
+      if (error) throw error;
+      return data as StatsBatParGraphiste[];
+    },
+    staleTime: 30 * 1000,
   });
 }

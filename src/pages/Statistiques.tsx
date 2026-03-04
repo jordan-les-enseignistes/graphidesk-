@@ -6,14 +6,16 @@ import {
   useStatsGraphisteParStatut,
   useStatsArchivesParAnnee,
   useStatsArchivesParGraphiste,
+  useStatsBatParGraphiste,
 } from "@/hooks/useStatistiques";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useStatuts } from "@/hooks/useStatuts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
-import { BarChart3, TrendingUp, Users, FolderOpen, Archive, Calendar, PieChart } from "lucide-react";
+import { BarChart3, TrendingUp, Users, FolderOpen, Archive, Calendar, PieChart, Send } from "lucide-react";
 import { getFirstName, cn } from "@/lib/utils";
 import { getBadgeClassName } from "@/lib/badgeColors";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 
 type ChartMode = "bar" | "pie";
 
@@ -35,8 +37,12 @@ export default function Statistiques() {
   const selectedAnnee = selectedYear === "all" ? undefined : parseInt(selectedYear);
   const { data: statsArchivesParGraphiste } = useStatsArchivesParGraphiste(selectedAnnee);
 
+  // BAT par graphiste avec filtre année
+  const { data: statsBatParGraphiste } = useStatsBatParGraphiste(selectedAnnee);
+
   const { data: profiles } = useProfiles();
   const { data: statuts } = useStatuts();
+  const { isAdmin } = useEffectiveRole();
 
   const isLoading = loadingGlobal || loadingParStatut || loadingParGraphiste;
 
@@ -148,6 +154,25 @@ export default function Statistiques() {
       archives: archivesAnciens,
     };
   }, [profiles, statsArchivesParGraphiste]);
+
+  // BAT envoyés par graphiste
+  const batParGraphiste = useMemo(() => {
+    const graphistesActifs = profiles?.filter(p => p.is_active) ?? [];
+
+    const result = graphistesActifs.map((p) => {
+      const batStats = statsBatParGraphiste?.find(s => s.graphiste_id === p.id);
+      return {
+        ...p,
+        totalBats: batStats?.total_bats ?? 0,
+      };
+    });
+
+    // Trier par nombre de BAT décroissant
+    return result.sort((a, b) => b.totalBats - a.totalBats);
+  }, [profiles, statsBatParGraphiste]);
+
+  const totalBats = batParGraphiste.reduce((sum, g) => sum + g.totalBats, 0);
+  const maxBats = Math.max(...batParGraphiste.map((g) => g.totalBats), 1);
 
   // Trouver le max pour la barre
   const maxCount = Math.max(...parStatut.map((s) => s.count), 1);
@@ -438,6 +463,52 @@ export default function Statistiques() {
               )}
             </CardContent>
           </Card>
+
+          {/* BAT envoyés par graphiste - Admin uniquement */}
+          {isAdmin && <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Send className="h-5 w-5" />
+                BAT envoyés par graphiste
+              </CardTitle>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                Nombre total de BAT envoyés — {totalBats} BAT au total
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {batParGraphiste.map((graphiste) => (
+                  <div key={graphiste.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium",
+                          getBadgeClassName(graphiste.badge_color)
+                        )}>
+                          {graphiste.initials}
+                        </span>
+                        <span className="font-medium">{getFirstName(graphiste.full_name)}</span>
+                      </div>
+                      <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                        {graphiste.totalBats} BAT
+                      </span>
+                    </div>
+                    <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        style={{ width: `${(graphiste.totalBats / maxBats) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                {batParGraphiste.length === 0 && (
+                  <p className="text-sm text-gray-500 dark:text-slate-400 text-center py-4">
+                    Aucun BAT envoyé
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>}
 
           {/* Répartition par statut */}
           <Card>
