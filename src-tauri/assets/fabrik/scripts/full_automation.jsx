@@ -327,8 +327,8 @@
                 var obj = doc.selection[0];
                 
                 var cutColor = new CMYKColor();
-                cutColor.cyan = 0;
-                cutColor.magenta = 100;
+                cutColor.cyan = 100;
+                cutColor.magenta = 0;
                 cutColor.yellow = 100;
                 cutColor.black = 0;
                 

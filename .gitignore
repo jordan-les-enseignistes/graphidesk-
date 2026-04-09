@@ -33,3 +33,12 @@ npm-debug.log*
 # Windows reserved names
 nul
 NUL
+
+# Claude Code temporary working directory markers
+tmpclaude-*-cwd
+
+# Claude Code local settings (per-machine)
+.claude/settings.local.json
+
+# Local test files
+public/FICHIER_TEST_*

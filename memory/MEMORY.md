@@ -1,0 +1,1 @@
+- [Toujours bumper la version sur GraphiDesk](feedback_version_bump.md) — bump patch dans package.json + Cargo.toml + tauri.conf.json à chaque modif de code applicatif
