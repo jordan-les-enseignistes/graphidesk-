@@ -22,8 +22,20 @@ export function InlineEdit({ value, onSave, type = "text", className, placeholde
       if (type !== "date") {
         inputRef.current.select();
       }
+      // Ajuster la hauteur du textarea au contenu à l'ouverture
+      if (type === "textarea") {
+        const el = inputRef.current as HTMLTextAreaElement;
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+      }
     }
   }, [isEditing, type]);
+
+  const autoResize = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const el = e.currentTarget;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
 
   useEffect(() => {
     setEditValue(value);
@@ -72,10 +84,13 @@ export function InlineEdit({ value, onSave, type = "text", className, placeholde
           <textarea
             ref={inputRef as React.RefObject<HTMLTextAreaElement>}
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(e) => {
+              setEditValue(e.target.value);
+              autoResize(e);
+            }}
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
-            className="w-full min-h-[60px] rounded border border-blue-400 bg-white dark:bg-slate-800 dark:text-slate-100 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full min-h-[60px] resize-none overflow-hidden rounded border border-blue-400 bg-white dark:bg-slate-800 dark:text-slate-100 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder={placeholder}
           />
         </div>

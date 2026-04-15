@@ -21,6 +21,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { InlineEdit } from "@/components/shared/InlineEdit";
 import { BatCell } from "./BatCell";
+import { NoteAddButton } from "./NoteAddButton";
 import { RelanceCell } from "./RelanceCell";
 import { DossierForm } from "./DossierForm";
 import { TransferModal } from "./TransferModal";
@@ -732,19 +733,24 @@ export function DossiersTable({
                       </DropdownMenu>
                     </TableCell>
                     <TableCell className="align-top">
-                      <InlineEdit
-                        value={dossier.commentaires || ""}
-                        onSave={(value) => updateDossier.mutate({
-                          id: dossier.id,
-                          data: {
-                            commentaires: value || null,
-                            has_commentaires: !!value && value.trim() !== ""
-                          }
-                        })}
-                        type="textarea"
-                        className="text-sm text-gray-600 dark:text-slate-300 block w-full"
-                        placeholder="Ajouter un commentaire"
-                      />
+                      <div className="flex items-start gap-1">
+                        <NoteAddButton dossierId={dossier.id} />
+                        <div className="flex-1 min-w-0">
+                          <InlineEdit
+                            value={dossier.commentaires || ""}
+                            onSave={(value) => updateDossier.mutate({
+                              id: dossier.id,
+                              data: {
+                                commentaires: value || null,
+                                has_commentaires: !!value && value.trim() !== ""
+                              }
+                            })}
+                            type="textarea"
+                            className="text-sm text-gray-600 dark:text-slate-300 block w-full"
+                            placeholder="Ajouter un commentaire"
+                          />
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

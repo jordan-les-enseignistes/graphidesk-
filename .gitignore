@@ -39,6 +39,7 @@ tmpclaude-*-cwd
 
 # Claude Code local settings (per-machine)
 .claude/settings.local.json
+.claude/*.lock
 
 # Local test files
 public/FICHIER_TEST_*
