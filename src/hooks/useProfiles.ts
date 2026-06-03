@@ -29,10 +29,12 @@ export function useProfiles() {
 
 // Hook pour récupérer uniquement les graphistes (= profils dont le rôle a is_graphiste = true)
 //
-// On utilise un INNER JOIN sur la table roles pour ne récupérer que les profils
-// dont le rôle associé est un rôle de graphiste. Pour la rétro-compat avec les profils
-// qui n'auraient pas encore de role_id (ne devrait pas arriver après la migration 027,
-// mais on garde un fallback), on inclut aussi ceux dont role = 'graphiste' (champ legacy).
+// Logique :
+// 1. Tous les profils dont le rôle a is_graphiste = true (via JOIN sur roles)
+// 2. Tous les profils legacy sans role_id mais avec role = 'graphiste'
+// 3. ★ HARDCODE : tous les admins (role = 'admin') sont TOUJOURS considérés comme
+//    graphistes, peu importe le flag is_graphiste de leur rôle. L'admin doit pouvoir
+//    apparaître dans les listes/stats de graphistes par défaut.
 export function useGraphistes() {
   return useQuery({
     queryKey: profileKeys.graphistes(),
@@ -58,6 +60,16 @@ export function useGraphistes() {
 
       if (errorLegacy) throw errorLegacy;
 
+      // 3) ★ HARDCODE : tous les admins, toujours, peu importe is_graphiste
+      const { data: admins, error: errorAdmins } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("is_active", true)
+        .eq("role", "admin")
+        .order("full_name");
+
+      if (errorAdmins) throw errorAdmins;
+
       // Fusionner sans doublon
       const allIds = new Set<string>();
       const result: Profile[] = [];
@@ -70,6 +82,12 @@ export function useGraphistes() {
         }
       }
       for (const p of legacy ?? []) {
+        if (!allIds.has(p.id)) {
+          allIds.add(p.id);
+          result.push(p as Profile);
+        }
+      }
+      for (const p of admins ?? []) {
         if (!allIds.has(p.id)) {
           allIds.add(p.id);
           result.push(p as Profile);

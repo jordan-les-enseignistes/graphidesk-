@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { ROUTES } from "@/lib/constants";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useAuthStore } from "@/stores/authStore";
-import { useProfiles } from "@/hooks/useProfiles";
+import { useGraphistes } from "@/hooks/useProfiles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InlineEdit } from "@/components/shared/InlineEdit";
@@ -74,7 +74,7 @@ export default function Franchises() {
   const queryClient = useQueryClient();
   const profile = useAuthStore((state) => state.profile);
 
-  const { data: profiles } = useProfiles();
+  const { data: profiles } = useGraphistes();
 
   const [activeTab, setActiveTab] = useState<TabType>("attribution");
   const [search, setSearch] = useState("");

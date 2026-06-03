@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
-import { useProfiles } from "@/hooks/useProfiles";
+import { useGraphistes } from "@/hooks/useProfiles";
 import {
   Table,
   TableBody,
@@ -61,7 +61,7 @@ export default function ProjetsInternes() {
   const { isAdmin } = useEffectiveRole();
   const queryClient = useQueryClient();
 
-  const { data: profiles } = useProfiles();
+  const { data: profiles } = useGraphistes();
 
   const [search, setSearch] = useState("");
   const [statutFilter, setStatutFilter] = useState<ProjetStatut | "all">("all");

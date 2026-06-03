@@ -52,6 +52,8 @@ export function useAddBat() {
       // Invalider les queries liées
       queryClient.invalidateQueries({ queryKey: batKeys.byDossier(variables.dossierId) });
       queryClient.invalidateQueries({ queryKey: ["dossiers"] });
+      // Invalider toutes les stats (BAT par graphiste, etc.) — sinon le compteur reste stale
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
       toast.success("BAT ajouté");
     },
     onError: () => {
@@ -77,6 +79,7 @@ export function useDeleteBat() {
     onSuccess: (dossierId) => {
       queryClient.invalidateQueries({ queryKey: batKeys.byDossier(dossierId) });
       queryClient.invalidateQueries({ queryKey: ["dossiers"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
       toast.success("BAT supprimé");
     },
     onError: () => {

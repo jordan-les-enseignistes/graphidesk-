@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { useTransferDossier } from "@/hooks/useDossiers";
-import { useProfiles } from "@/hooks/useProfiles";
+import { useGraphistes } from "@/hooks/useProfiles";
 import type { DossierWithGraphiste } from "@/types";
 import { Send } from "lucide-react";
 import { getFirstName } from "@/lib/utils";
@@ -28,7 +28,7 @@ export function TransferModal({
   onOpenChange,
   dossier,
 }: TransferModalProps) {
-  const { data: profiles } = useProfiles();
+  const { data: profiles } = useGraphistes();
   const transferDossier = useTransferDossier();
 
   const [selectedGraphiste, setSelectedGraphiste] = useState("");

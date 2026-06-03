@@ -8,7 +8,7 @@ import {
   useStatsArchivesParGraphiste,
   useStatsBatParGraphiste,
 } from "@/hooks/useStatistiques";
-import { useProfiles } from "@/hooks/useProfiles";
+import { useGraphistes } from "@/hooks/useProfiles";
 import { useStatuts } from "@/hooks/useStatuts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
@@ -40,7 +40,7 @@ export default function Statistiques() {
   // BAT par graphiste avec filtre année
   const { data: statsBatParGraphiste } = useStatsBatParGraphiste(selectedAnnee);
 
-  const { data: profiles } = useProfiles();
+  const { data: profiles } = useGraphistes();
   const { data: statuts } = useStatuts();
   const { isAdmin } = useEffectiveRole();
 

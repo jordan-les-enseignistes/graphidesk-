@@ -1,11 +1,11 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "GraphiDesk",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "identifier": "fr.les-enseignistes.graphidesk",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:1421",
+    "devUrl": "http://localhost:1420",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },

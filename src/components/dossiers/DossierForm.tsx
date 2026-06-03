@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { useStatuts } from "@/hooks/useStatuts";
 import { useCreateDossier, useUpdateDossier } from "@/hooks/useDossiers";
-import { useProfiles } from "@/hooks/useProfiles";
+import { useGraphistes } from "@/hooks/useProfiles";
 import { useAuthStore } from "@/stores/authStore";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import type { Dossier } from "@/types";
@@ -42,7 +42,7 @@ export function DossierForm({
 }: DossierFormProps) {
   const profile = useAuthStore((state) => state.profile);
   const { isAdmin } = useEffectiveRole();
-  const { data: profiles } = useProfiles();
+  const { data: profiles } = useGraphistes();
   const { data: statuts } = useStatuts();
 
   const createDossier = useCreateDossier();

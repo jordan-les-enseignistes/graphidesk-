@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAllDossiersPaginated } from "@/hooks/useDossiers";
 import { useRealtime } from "@/hooks/useRealtime";
-import { useProfiles } from "@/hooks/useProfiles";
+import { useGraphistes } from "@/hooks/useProfiles";
 import { useStatuts } from "@/hooks/useStatuts";
 import { DossiersTable } from "@/components/dossiers/DossiersTable";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ export default function TousLesDossiers() {
   const [statutFilter, setStatutFilter] = useState<string>("");
   const [graphisteFilter, setGraphisteFilter] = useState<string>("");
 
-  const { data: profiles } = useProfiles();
+  const { data: profiles } = useGraphistes();
   const { data: statuts } = useStatuts();
 
   // Graphistes actifs uniquement
