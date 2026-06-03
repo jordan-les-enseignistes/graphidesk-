@@ -24,6 +24,8 @@ import {
   type StatutInsert,
 } from "@/hooks/useStatuts";
 import { useAppVersion } from "@/hooks/useAppUpdate";
+import { RolesManager } from "@/components/parametres/RolesManager";
+import { useHasPermission } from "@/hooks/useHasPermission";
 import type { Profile } from "@/types";
 import {
   Settings,
@@ -104,6 +106,7 @@ export default function Parametres() {
   const { data: profiles } = useProfiles();
   const { highlightIntensity, setHighlightIntensity } = useUserPreferencesStore();
   const appVersion = useAppVersion();
+  const canManageRoles = useHasPermission("manage:roles");
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
@@ -524,6 +527,9 @@ export default function Parametres() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Gestion des rôles (visible si l'user a la perm manage:roles) */}
+      {canManageRoles && <RolesManager />}
 
       {/* Configuration des mises à jour */}
       <Card>

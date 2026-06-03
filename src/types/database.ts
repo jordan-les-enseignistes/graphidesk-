@@ -70,6 +70,7 @@ export interface Database {
           full_name: string;
           initials: string;
           role: "admin" | "graphiste";
+          role_id: string | null;
           is_active: boolean;
           permissions: Json;
           horaires_base: HorairesBase | null;
@@ -84,6 +85,7 @@ export interface Database {
           full_name: string;
           initials: string;
           role?: "admin" | "graphiste";
+          role_id?: string | null;
           is_active?: boolean;
           permissions?: Json;
           horaires_base?: HorairesBase | null;
@@ -98,6 +100,7 @@ export interface Database {
           full_name?: string;
           initials?: string;
           role?: "admin" | "graphiste";
+          role_id?: string | null;
           is_active?: boolean;
           permissions?: Json;
           horaires_base?: HorairesBase | null;
@@ -105,6 +108,58 @@ export interface Database {
           badge_color?: BadgeColorId | null;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      roles: {
+        Row: {
+          id: string;
+          slug: string;
+          label: string;
+          is_system: boolean;
+          is_graphiste: boolean;
+          couleur: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          label: string;
+          is_system?: boolean;
+          is_graphiste?: boolean;
+          couleur?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          label?: string;
+          is_system?: boolean;
+          is_graphiste?: boolean;
+          couleur?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      role_permissions: {
+        Row: {
+          id: string;
+          role_id: string;
+          permission_key: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          role_id: string;
+          permission_key: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          role_id?: string;
+          permission_key?: string;
+          created_at?: string;
         };
       };
       dossiers: {
@@ -701,6 +756,15 @@ export interface Database {
 
 // Types utilitaires
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Role = Database["public"]["Tables"]["roles"]["Row"];
+export type RoleInsert = Database["public"]["Tables"]["roles"]["Insert"];
+export type RoleUpdate = Database["public"]["Tables"]["roles"]["Update"];
+export type RolePermission = Database["public"]["Tables"]["role_permissions"]["Row"];
+
+// Profil étendu avec son rôle joint (utilisé pour l'affichage de badges, filtrage is_graphiste, etc.)
+export type ProfileWithRole = Profile & {
+  role_data?: Role | null;
+};
 export type Dossier = Database["public"]["Tables"]["dossiers"]["Row"];
 export type DossierBat = Database["public"]["Tables"]["dossier_bats"]["Row"];
 export type Franchise = Database["public"]["Tables"]["franchises"]["Row"];

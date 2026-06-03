@@ -1,8 +1,10 @@
 import { useState, useMemo, useRef } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
+import { useHasAnyPermission } from "@/hooks/useHasPermission";
 import { useUserPreferencesStore } from "@/stores/userPreferencesStore";
 import { useMyDossiers, useAllDossiers } from "@/hooks/useDossiers";
+import { DashboardLauncher } from "@/components/dashboard/DashboardLauncher";
 import { toast } from "sonner";
 // --- HEURES SUPPLÉMENTAIRES : IMPORTS CONSERVÉS MAIS PLUS UTILISÉS DEPUIS v1.1.12 ---
 // Le suivi des heures est désormais géré via Tiimizy. Pour restaurer la carte HS
@@ -40,6 +42,14 @@ export default function Dashboard() {
   const [showImport, setShowImport] = useState(false);
   const profile = useAuthStore((state) => state.profile);
   const { isAdmin } = useEffectiveRole();
+
+  // Si l'user n'a pas accès aux modules de dossiers (Mes Dossiers ou Tous les Dossiers),
+  // on lui affiche un dashboard "launcher" qui liste les outils auxquels il a accès.
+  // Le dashboard classique (stats dossiers) n'a aucun intérêt pour un user "outil seul".
+  const hasDossierAccess = useHasAnyPermission(["access:mes_dossiers", "access:dossiers_all"]);
+  if (!hasDossierAccess) {
+    return <DashboardLauncher />;
+  }
 
   // Préférence secrète pour masquer les encarts "À relancer"
   const { hideRelanceCards, setHideRelanceCards } = useUserPreferencesStore();

@@ -3,8 +3,9 @@ import { useAuthStore } from "@/stores/authStore";
 import { useViewAsStore } from "@/stores/viewAsStore";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useProfiles } from "@/hooks/useProfiles";
+import { useRoles } from "@/hooks/useRoles";
 import { ROUTES } from "@/lib/constants";
-import { getFirstName, cn } from "@/lib/utils";
+import { getFirstName, cn, getContrastTextColor } from "@/lib/utils";
 import { getBadgeClassName } from "@/lib/badgeColors";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -26,6 +27,11 @@ export function Header() {
   const { profile, signOut } = useAuthStore();
   const { viewAsUser, isViewingAs, setViewAsUser, clearViewAs } = useViewAsStore();
   const { data: allProfiles } = useProfiles();
+  const { data: allRoles } = useRoles();
+  // Trouver le rôle granulaire du user courant pour l'afficher dans le badge
+  const currentRole = profile?.role_id
+    ? allRoles?.find((r) => r.id === profile.role_id)
+    : null;
   // Pour le Header, on utilise realIsAdmin car on veut toujours montrer le sélecteur "Voir comme"
   // même quand l'admin est en mode simulation
   const { realIsAdmin } = useEffectiveRole();
@@ -110,12 +116,24 @@ export function Header() {
                   {getFirstName(profile?.full_name) || "Utilisateur"}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge
-                    variant={profile?.role === "admin" ? "default" : "secondary"}
-                    className="text-xs"
-                  >
-                    {profile?.role === "admin" ? "Admin" : "Graphiste"}
-                  </Badge>
+                  {currentRole ? (
+                    <Badge
+                      className="text-xs border-0"
+                      style={{
+                        backgroundColor: currentRole.couleur,
+                        color: getContrastTextColor(currentRole.couleur),
+                      }}
+                    >
+                      {currentRole.label}
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant={profile?.role === "admin" ? "default" : "secondary"}
+                      className="text-xs"
+                    >
+                      {profile?.role === "admin" ? "Admin" : "Graphiste"}
+                    </Badge>
+                  )}
                 </div>
               </div>
               <ChevronDown className="h-4 w-4 text-gray-400 dark:text-slate-500" />

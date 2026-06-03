@@ -1,112 +1,158 @@
-# Plan — Ajout bouton "+" pour notes libres datées
+# Plan — Système de rôles granulaires (RBAC type Discord)
 
-**Demandeur** : Quentin (ticket du 14/04/2026 10:37)
-**Version cible** : 1.1.15
-**Estimation** : ~30-45 min
+**Demandeur** : Jordan (ticket "Avoir plus de rôle possible" du 27/05/2026)
+**Précision admin** : si rôle ≠ "Graphiste", l'utilisateur ne doit PAS apparaître dans la partie "Gestion de projet" (stats, switch de dossier, Franchises, etc.)
+**Version cible (full)** : 1.2.0 (changement majeur — breaking au niveau du modèle de rôle)
 
-## Contexte du besoin
+## ⚠️ Réalité du chantier (issue de l'audit)
 
-Actuellement, dans le tableau des dossiers, colonne **Commentaires** :
-- L'utilisateur peut cliquer sur le champ pour éditer le commentaire complet en textarea
-- Un bouton `+` vert dans la colonne BAT ajoute automatiquement une ligne `[JJ/MM/AAAA] BAT VX envoyé`
+| Élément | Volume |
+|---------|--------|
+| Checks `isAdmin` dans le code | ~70 occurrences, 12+ pages |
+| Policies RLS dépendantes du rôle | ~35-40 |
+| Pages impactées | 12+ |
+| Hooks à refactorer | 3+ (useProfiles, useGraphistes, useStatistiques) |
+| RPC à adapter | 4+ (stats par graphiste) |
 
-**Demande :** ajouter un petit `+` **directement dans la colonne Commentaires**, placé **juste avant le texte "Ajouter un commentaire"** (ou avant les commentaires existants), qui ouvre une modale pour saisir une note libre. Au submit, la note est ajoutée sous la forme `[JJ/MM/AAAA] Note: {texte utilisateur}` à la suite des commentaires existants (append avec `\n`).
+**Estimation brute :** 11-16 jours dev. Donc **on découpe en phases livrables indépendamment**.
 
-## Décisions prises (cadrées avec le user)
+## 🎯 Découpage en 4 phases
 
-| Question | Décision |
-|----------|----------|
-| Stockage | Même champ `dossiers.commentaires` (flux unique) |
-| Position du "+" | Dans la colonne **Commentaires**, AVANT le placeholder/contenu (pas dans la colonne BAT) |
-| Édition ultérieure | Oui, le clic sur le bloc commentaire ouvre le textarea d'édition inline comme aujourd'hui (pas de logique spécifique aux notes) |
-| Format | Texte libre multi-lignes, préfixé `[JJ/MM/AAAA] Note: ` |
-| Couleur du "+" | Bleu (vert déjà pris par BAT, orange par Relance) — à confirmer avec user |
+### **Phase 1 — Foundation + fix du besoin immédiat de Quentin** ⭐ (ciblée pour cette session)
+**Valeur livrée :** Quentin ne voit plus les non-graphistes dans les listes/stats. Foundation prête pour les phases suivantes.
 
-## Fichiers à modifier / créer
+**Pas de breaking change** sur les rôles existants (`admin` / `graphiste` continuent de marcher exactement comme avant via la colonne `profiles.role`).
 
-### 1. Nouveau composant `NoteAddButton.tsx`
-**Chemin :** `src/components/dossiers/NoteAddButton.tsx` (nouveau)
+#### Schéma DB (nouvelle migration `027_rbac_foundation.sql`)
+- Nouvelle table `roles` :
+  - `id UUID PK`
+  - `slug TEXT UNIQUE` (ex: `admin`, `graphiste`, `gestionnaire-dossier-mairie`)
+  - `label TEXT` (ex: "Admin", "Graphiste", "Gestionnaire dossier mairie")
+  - `is_system BOOLEAN` (true pour admin/graphiste, non-supprimables)
+  - `is_graphiste BOOLEAN` (★ flag clé : ce rôle apparaît-il dans les listes de graphistes ?)
+  - `couleur TEXT` (pour le badge UI, ex: `#3b82f6`)
+  - `created_at`, `updated_at`
+- Nouvelle table `role_permissions` :
+  - `id UUID PK`
+  - `role_id UUID FK roles`
+  - `permission_key TEXT` (ex: `can_view_all_dossiers`)
+  - `UNIQUE(role_id, permission_key)`
+- Ajout colonne `profiles.role_id UUID FK roles NULLABLE`
+- **Seed** : créer les 2 rôles système `admin` et `graphiste` avec `is_graphiste = true` pour graphiste et `false` pour admin
+- **Backfill** : `UPDATE profiles SET role_id = (SELECT id FROM roles WHERE slug = profiles.role)`
+- RLS sur `roles` et `role_permissions` : lecture pour tous authenticated, écriture admin-only
+- Garder `profiles.role` en place (compat) — sera dépréciée en Phase 4
 
-Responsabilités :
-- Afficher un bouton `+` bleu (style cohérent avec le `+` vert de BatCell)
-- Au clic → ouvrir un `Dialog` avec un `Textarea` pour saisir la note
-- Au submit :
-  1. Récupérer `commentaires` actuels depuis Supabase (fresh fetch pour éviter race condition, comme fait BatCell L61-65)
-  2. Construire la ligne : `[${new Date().toLocaleDateString("fr-FR")}] Note: ${texteSaisi}`
-  3. Append avec `\n` si `commentaires` existe, sinon juste la ligne
-  4. Appeler `useUpdateDossier().mutateAsync({ id, data: { commentaires, has_commentaires: true } })`
-  5. Fermer la modale, toast de succès (géré par le hook)
+#### Fix des bugs latents (les vrais besoins de Quentin)
+- **`useGraphistes()`** : actuellement ne filtre RIEN. Le fixer pour ne renvoyer que les profils dont `roles.is_graphiste = true` (via JOIN ou via la nouvelle colonne).
+- **RPC `get_stats_par_graphiste()` et autres** : ajouter `WHERE EXISTS (SELECT 1 FROM roles r WHERE r.id = p.role_id AND r.is_graphiste = true)`.
+- **`DossierForm` dropdown / `TransferModal` / `Franchises` assignation** : tous utilisent `useProfiles()` ou `useGraphistes()` → bénéficient automatiquement du fix.
 
-Props : `{ dossierId: string }`
+#### Pas encore dans cette phase (volontairement)
+- Pas d'UI admin pour créer des rôles custom
+- Pas de touch aux 70 checks `isAdmin` (continuent de marcher via la colonne `role`)
+- Pas de modif des RLS policies (continuent sur `role = 'admin'`)
 
-Pattern à copier quasi à l'identique : `src/components/dossiers/BatCell.tsx:46-97` (handleAddBat) + dialog L262-339
+**Estimation Phase 1 :** ~2-3h de dev. **Tests à faire en local + sur prod Supabase.**
 
-### 2. Modifier `DossiersTable.tsx`
-**Chemin :** `src/components/dossiers/DossiersTable.tsx`
-**Lignes :** 734-748 (TableCell de la colonne Commentaires)
+---
 
-Changement :
-- Wrapper le `<InlineEdit>` dans un `<div className="flex items-start gap-1">`
-- Insérer `<NoteAddButton dossierId={dossier.id} />` AVANT le `<InlineEdit>`
-- Vérifier que l'alignement vertical reste propre (le bouton est `h-7`, le textarea placeholder peut être aligné avec `items-start` ou `items-center` selon rendu)
+### **Phase 2 — UI d'admin pour gérer les rôles**
+- Page dédiée (probablement onglet dans `/parametres`) : liste des rôles, créer/modifier/supprimer (sauf system roles)
+- Modal d'édition avec :
+  - Slug, label, couleur, flag `is_graphiste`
+  - Liste de permissions cochables (UI type Discord)
+- Sur `/utilisateurs` : remplacer le select binaire admin/graphiste par un select du rôle complet
+- Affichage du badge rôle avec sa couleur dans le header, le tableau utilisateurs, etc.
 
-### 3. Bump de version
-- `package.json` : 1.1.14 → 1.1.15
-- `src-tauri/Cargo.toml` : 1.1.14 → 1.1.15
-- `src-tauri/tauri.conf.json` : 1.1.14 → 1.1.15
+**Estimation Phase 2 :** ~3-4h.
 
-## Checklist d'implémentation
+---
 
-- [ ] Créer `src/components/dossiers/NoteAddButton.tsx` avec Dialog + Textarea
-- [ ] Importer et placer `<NoteAddButton>` dans `DossiersTable.tsx` colonne Commentaires
-- [ ] Ajuster le layout flex pour que bouton + textarea s'alignent bien
-- [ ] Vérifier le rendu en mode dark (classes `dark:` cohérentes)
-- [ ] Bump version 1.1.14 → 1.1.15 (3 fichiers)
-- [ ] Test manuel `npm run dev` :
-  - [ ] Clic sur le "+" bleu → modale s'ouvre
-  - [ ] Saisie + submit → note apparaît avec date en préfixe
-  - [ ] Le flux est conservé (BAT envoyé + Note mélangés chronologiquement si créés dans l'ordre)
-  - [ ] Ré-édition possible en cliquant sur le bloc commentaire
-  - [ ] Cas edge : commentaire vide avant ajout → pas de `\n` en tête
-  - [ ] Cas edge : submit avec textarea vide → bouton "Ajouter" disabled OU message d'erreur
-- [ ] `npm run type-check` doit passer
-- [ ] Commit avec message `v1.1.15 - FabRik/Dossiers : ajout bouton + pour notes libres datées`
+### **Phase 3 — Migration progressive des permissions**
+- Définir la liste exhaustive des `permission_key` (audit a déjà identifié les zones)
+- Hook frontend `useHasPermission(key: string)` qui check le `role_id` du profil contre `role_permissions`
+- Pré-seed des permissions sur les 2 rôles système :
+  - `admin` → toutes les permissions
+  - `graphiste` → permissions de base (voir/modifier ses dossiers, etc.)
+- Fonction SQL helper `user_has_permission(key)` SECURITY DEFINER pour les RLS
+- Refacto progressif page par page : remplacer `isAdmin` par `useHasPermission('can_xxx')`
+- RLS : migrer les policies critiques (dossiers, franchises, app_settings) vers `user_has_permission()` avec fallback sur `role = 'admin'` pour rétro-compat
 
-## Points d'attention / questions ouvertes
+**Estimation Phase 3 :** ~4-5h.
 
-1. **Couleur du bouton** : je pars sur bleu (`text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30`), mais si tu préfères gris ou une autre couleur, dis-moi.
+---
 
-2. **Icône** : je pars sur `Plus` (lucide-react) pour rester cohérent avec le `+` de BAT. Alternative possible : `MessageSquarePlus` pour distinguer visuellement. **Recommandation :** rester sur `Plus` pour la cohérence UI, la couleur bleue suffira à différencier.
+### **Phase 4 — Nettoyage final**
+- Supprimer la colonne `profiles.role` (devenue redondante)
+- Supprimer le CHECK constraint `role IN ('admin', 'graphiste')` (déjà supprimé en pratique mais à formaliser)
+- Supprimer le `selectIsAdmin` de l'authStore (remplacé par `useHasPermission('admin_panel')` ou similaire)
+- Bump `1.2.0` au moment du cleanup final
+- Update du CLAUDE_INSTRUCTIONS.md du projet
 
-3. **Préfixe "Note:"** : j'ai choisi `[JJ/MM/AAAA] Note: {texte}` pour garder un pattern clair. L'exemple de Quentin dans le ticket est `[JJ/MM/AAAA] En attente des côtes clients` (sans "Note:"). À toi de trancher :
-   - **Option A** : `[JJ/MM/AAAA] Note: En attente des côtes clients` (verbeux mais clair)
-   - **Option B** : `[JJ/MM/AAAA] En attente des côtes clients` (calque l'exemple exact)
-   - **Recommandation :** Option B, plus concis, et la distinction avec "BAT VX envoyé" est déjà claire par le contenu.
+**Estimation Phase 4 :** ~2h + tests poussés.
 
-4. **Modale ou input inline ?** Vu qu'on a déjà l'édition inline sur le bloc commentaire, on pourrait se dire "pourquoi une modale de plus ?" → la différence c'est que la modale **préfixe automatiquement la date**, alors que l'édition inline laisse l'utilisateur écrire librement sans préfixage auto. C'est bien le besoin exprimé par Quentin.
+---
 
-## Review (post-implémentation)
+## 🚀 Proposition pour CETTE session : Phase 1 uniquement
 
-### Ce qui a été fait
-- ✅ Composant `NoteAddButton.tsx` créé avec Dialog + Textarea auto-grow
-- ✅ Intégration dans `DossiersTable.tsx` colonne Commentaires (wrapper `flex items-start gap-1`)
-- ✅ Bump version 1.1.14 → 1.1.15 (3 fichiers)
-- ✅ Validé visuellement par le user dans l'app Tauri en dev
-- ✅ `npx tsc --noEmit` passe sans erreur
+### Pourquoi ne pas tout faire d'un coup
+1. **Risque** : toucher aux 35 RLS d'un coup, c'est s'exposer à des cascades de bugs en prod
+2. **Valeur immédiate** : Phase 1 répond déjà au besoin direct (Quentin ne voit plus les non-graphistes)
+3. **Réversibilité** : Phase 1 n'introduit aucun breaking change, on peut rollback facile
+4. **Contexte limité** : faire les 4 phases en une session = 12-15h de dev, contexte saturé, qualité dégradée
 
-### Bonus non prévus au plan
-- **Auto-resize du textarea dans `InlineEdit.tsx`** : la mise en évidence du bouton `+` a révélé que le textarea inline de la colonne Commentaires ne s'adaptait pas à la hauteur du contenu. Fix ajouté dans le composant partagé → bénéficie à TOUS les textareas InlineEdit de l'app.
-- **`.gitignore`** : ajout de `.claude/*.lock` pour éviter que les fichiers lock du runtime Claude Code polluent le repo.
+### Checklist Phase 1 (si tu valides)
 
-### Décisions finales
-- Couleur du bouton : **bleu** (`text-blue-600`)
-- Préfixe : **`[JJ/MM/AAAA] Note: {texte}`** (option A du plan initial, finalement retenue)
-- Icône : **`Plus`** de lucide-react (cohérent avec le `+` de BAT)
+- [ ] Créer migration `027_rbac_foundation.sql` (tables roles + role_permissions + seed + backfill + RLS)
+- [ ] Appliquer la migration sur Supabase (via dashboard, comme la dernière fois)
+- [ ] Régénérer les types TypeScript pour avoir les nouvelles tables (`mcp__supabase__generate_typescript_types` ou manuellement)
+- [ ] Modifier `useGraphistes()` dans `src/hooks/useProfiles.ts` → filtrer sur `is_graphiste`
+- [ ] Modifier les RPC `get_stats_par_graphiste`, `get_stats_graphiste_par_statut`, `get_stats_archives_par_graphiste`, `get_stats_bat_par_graphiste` → ajouter le filtre `is_graphiste`
+- [ ] Vérifier que `DossierForm.tsx`, `TransferModal.tsx`, `Franchises.tsx`, `Dashboard.tsx`, `Statistiques.tsx` utilisent bien le hook fixé (ou faire les ajustements ponctuels)
+- [ ] Tests en dev (`npm run tauri dev`) :
+  - [ ] Login admin → menu et listes inchangés
+  - [ ] Login graphiste (Quentin) → ne voit pas les admins dans le dropdown de transfert, dans les stats par graphiste, etc.
+- [ ] **Pas de bump version** pour la Phase 1 (juste migration + frontend, le Tauri binaire change peu)
+  - OU bump 1.1.16 si tu préfères tracer ce milestone
 
-### Fichiers impactés
-- `src/components/dossiers/NoteAddButton.tsx` (nouveau)
-- `src/components/dossiers/DossiersTable.tsx` (modifié)
-- `src/components/shared/InlineEdit.tsx` (modifié — auto-resize bonus)
-- `.gitignore` (modifié)
-- `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json` (version bump)
-- `src-tauri/Cargo.lock` (auto-régénéré par cargo)
+### À garder pour les prochaines sessions
+- Phases 2, 3, 4 du plan ci-dessus
+- Demander à Quentin lesquels de ses collègues sont à passer comme "Gestionnaire dossier mairie" (besoin de rôles concrets pour la Phase 2)
+
+## ❓ Questions de cadrage (avant de coder)
+
+1. **Tu valides l'approche en 4 phases** ou tu veux qu'on fasse TOUT (multi-sessions) avec un plan plus détaillé ?
+2. **Pour la Phase 1, on bump (1.1.16) ou pas** ? (Argument bump = tracer un milestone clair même si c'est mineur sur le binaire.)
+3. **Liste des rôles initiaux** : pour l'instant on garde juste `admin` + `graphiste`. Veux-tu que je seed aussi `gestionnaire-dossier-mairie` (vide en termes de permissions) ou tu préfères le créer toi-même via l'UI en Phase 2 ?
+4. **MCP Supabase** : j'ai vu dans les outils disponibles `apply_migration`, `execute_sql`, `generate_typescript_types`. Tu m'autorises à les utiliser pour appliquer la migration et régénérer les types **directement** ? Ça nous évite l'aller-retour par le dashboard.
+
+## Review post-implémentation
+
+### Ce qui a été livré (Phase 1 + 2 du plan initial)
+
+**Backend Supabase :**
+- ✅ Migration `027_rbac_foundation.sql` — tables `roles`, `role_permissions`, colonne `profiles.role_id`, seed admin + graphiste avec leurs permissions, fonction `user_has_permission()`, RLS, trigger anti-suppression rôles système
+- ✅ Migration `028_rbac_dashboard_perms.sql` — ajout permissions `access:dashboard`, `access:mes_dossiers`, `access:archives`
+- ✅ RPC `get_stats_bat_par_graphiste` filtre désormais sur `is_graphiste`
+
+**Frontend :**
+- ✅ Types `Role`, `RolePermission`, `ProfileWithRole`
+- ✅ Catalogue centralisé `src/lib/permissions.ts` (27 permissions catégorisées)
+- ✅ Hooks `useRoles`, `useRolePermissions`, `useCurrentUserPermissions`, `useCreateRole`, `useUpdateRole`, `useDeleteRole`, `useTogglePermission`
+- ✅ Hook `useHasPermission` + `useHasAnyPermission` (pattern super-admin pour les admins legacy)
+- ✅ `useGraphistes()` filtré sur `is_graphiste`
+- ✅ Sidebar dynamique selon permissions
+- ✅ Header : badge du rôle granulaire avec couleur + contraste auto
+- ✅ Page Paramètres : nouvelle section "Gestion des rôles" (CRUD complet + UI permissions cochables)
+- ✅ Page Utilisateurs : dropdown unique de rôle granulaire (legacy/granulaire fusionnés)
+- ✅ Dashboard adaptatif : launcher de modules pour les users sans accès dossiers
+
+### Bonus non prévus
+- Fonction `getContrastTextColor()` dans utils.ts (réutilisable)
+- Revert auto port Vite (1421 → 1420 standard Tauri)
+
+### Limites connues (Phase 3 non faite)
+- Les permissions `manage:*` ne sont pas encore connectées aux boutons d'action dans les pages (ils utilisent encore le check `isAdmin` legacy)
+- Les RLS Supabase utilisent encore `role = 'admin'` (sécurité ceinture+bretelles)
+- À traiter dans une future session quand un rôle nécessitera des `manage:*`

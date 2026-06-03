@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
+import { useCurrentUserPermissions } from "@/hooks/useRoles";
 import { useFeedbacksPendingCount } from "@/hooks/useFeedbacks";
 import { cn } from "@/lib/utils";
 import { ROUTES, APP_CONFIG } from "@/lib/constants";
@@ -35,7 +36,10 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   path: string;
+  /** @deprecated utiliser `permission` à la place. Conservé pour rétro-compat. */
   adminOnly?: boolean;
+  /** Clé de permission requise pour voir cet item (système RBAC). */
+  permission?: string;
   badge?: number;
 }
 
@@ -50,27 +54,30 @@ const dashboardItem: NavItem = {
   label: "Tableau de bord",
   icon: LayoutDashboard,
   path: ROUTES.DASHBOARD,
+  permission: "access:dashboard",
 };
 
 // Groupes de navigation
+// Chaque item peut être conditionné par une `permission`. Si non spécifiée, l'item est
+// visible par tous les utilisateurs authentifiés.
 const navGroups: NavGroup[] = [
   {
     label: "Gestion de projet",
     defaultOpen: true,
     items: [
-      { label: "Mes Dossiers", icon: FolderOpen, path: ROUTES.MES_DOSSIERS },
-      { label: "Tous les Dossiers", icon: Folders, path: ROUTES.TOUS_LES_DOSSIERS, adminOnly: true },
-      { label: "Archives", icon: Archive, path: ROUTES.ARCHIVES },
-      { label: "Franchises", icon: Building2, path: ROUTES.FRANCHISES },
-      { label: "Projets Internes", icon: ClipboardList, path: ROUTES.PROJETS_INTERNES },
-      { label: "Statistiques", icon: BarChart3, path: ROUTES.STATISTIQUES },
+      { label: "Mes Dossiers", icon: FolderOpen, path: ROUTES.MES_DOSSIERS, permission: "access:mes_dossiers" },
+      { label: "Tous les Dossiers", icon: Folders, path: ROUTES.TOUS_LES_DOSSIERS, permission: "access:dossiers_all" },
+      { label: "Archives", icon: Archive, path: ROUTES.ARCHIVES, permission: "access:archives" },
+      { label: "Franchises", icon: Building2, path: ROUTES.FRANCHISES, permission: "access:franchises" },
+      { label: "Projets Internes", icon: ClipboardList, path: ROUTES.PROJETS_INTERNES, permission: "access:projets_internes" },
+      { label: "Statistiques", icon: BarChart3, path: ROUTES.STATISTIQUES, permission: "access:statistiques" },
     ],
   },
   {
     label: "Mes outils",
     defaultOpen: true,
     items: [
-      { label: "FabRik", icon: Wrench, path: ROUTES.FABRIK },
+      { label: "FabRik", icon: Wrench, path: ROUTES.FABRIK, permission: "access:fabrik" },
       // --- HEURES SUPPLÉMENTAIRES : MASQUÉ DEPUIS v1.1.12 ---
       // Le suivi des heures est désormais géré via Tiimizy (https://tiimizy.fr).
       // L'onglet est caché côté UI mais tout le code HS est conservé (page, hooks, composants, routes)
@@ -79,26 +86,26 @@ const navGroups: NavGroup[] = [
       // --- PLANNING VACANCES : MASQUÉ DEPUIS v1.1.12 ---
       // Désormais géré via Tiimizy. Pour restaurer, décommenter la ligne ci-dessous :
       // { label: "Planning vacances", icon: Palmtree, path: ROUTES.PLANNING_VACANCES },
-      { label: "Sites internet", icon: Globe, path: ROUTES.SITES_INTERNET },
-      { label: "Process", icon: BookOpen, path: ROUTES.PROCESS },
-      { label: "Réunions", icon: UsersRound, path: ROUTES.REUNIONS },
-      { label: "Nuancier", icon: Palette, path: ROUTES.RAL_CONVERTER },
-      { label: "Calculatrice", icon: Calculator, path: ROUTES.CALCULATRICE },
+      { label: "Sites internet", icon: Globe, path: ROUTES.SITES_INTERNET, permission: "access:sites_internet" },
+      { label: "Process", icon: BookOpen, path: ROUTES.PROCESS, permission: "access:process" },
+      { label: "Réunions", icon: UsersRound, path: ROUTES.REUNIONS, permission: "access:reunions" },
+      { label: "Nuancier", icon: Palette, path: ROUTES.RAL_CONVERTER, permission: "access:nuancier" },
+      { label: "Calculatrice", icon: Calculator, path: ROUTES.CALCULATRICE, permission: "access:calculatrice" },
       // --- ANNUAIRE : MASQUÉ DEPUIS v1.1.12 ---
       // Désormais géré via Tiimizy. Pour restaurer, décommenter la ligne ci-dessous :
       // { label: "Annuaire", icon: Contact, path: ROUTES.ANNUAIRE },
-      { label: "Feedbacks", icon: MessageSquarePlus, path: ROUTES.FEEDBACKS },
+      { label: "Feedbacks", icon: MessageSquarePlus, path: ROUTES.FEEDBACKS, permission: "access:feedbacks" },
     ],
   },
 ];
 
-// Items admin uniquement
+// Items admin (groupe affiché si l'user a au moins une de ces permissions)
 const adminGroup: NavGroup = {
   label: "Administration",
   defaultOpen: true,
   items: [
-    { label: "Utilisateurs", icon: Users, path: ROUTES.UTILISATEURS, adminOnly: true },
-    { label: "Paramètres", icon: Settings, path: ROUTES.PARAMETRES, adminOnly: true },
+    { label: "Utilisateurs", icon: Users, path: ROUTES.UTILISATEURS, permission: "access:utilisateurs" },
+    { label: "Paramètres", icon: Settings, path: ROUTES.PARAMETRES, permission: "access:parametres" },
   ],
 };
 
@@ -106,6 +113,21 @@ export function Sidebar() {
   const location = useLocation();
   const { isAdmin } = useEffectiveRole();
   const appVersion = useAppVersion();
+  const { data: permissions } = useCurrentUserPermissions();
+
+  // Fonction synchrone pour décider si un item est visible
+  // Pattern super-admin : si isAdmin (et pas en mode "Voir comme"), tout est visible.
+  // Sinon on applique le système granulaire de permissions.
+  const canSeeItem = (item: NavItem): boolean => {
+    if (!item.permission && !item.adminOnly) return true;
+    if (isAdmin) return true; // super-admin
+    if (item.adminOnly && !item.permission) return false; // pas admin et legacy adminOnly
+    if (item.permission) {
+      if (permissions) return permissions.has(item.permission);
+      return false;
+    }
+    return false;
+  };
 
   // Récupérer le nombre de feedbacks en attente (admin only)
   const { data: pendingFeedbacksCount } = useFeedbacksPendingCount();
@@ -198,17 +220,18 @@ export function Sidebar() {
   };
 
   const NavGroupComponent = ({ group }: { group: NavGroup }) => {
-    const filteredItems = group.items.filter(
-      (item) => !item.adminOnly || isAdmin
-    );
+    const filteredItems = group.items.filter(canSeeItem);
 
     if (filteredItems.length === 0) return null;
 
     const isOpen = openGroups[group.label] ?? group.defaultOpen ?? true;
 
-    // Injecter le badge sur l'item Feedbacks pour les admins
+    // Injecter le badge sur l'item Feedbacks pour les users qui peuvent répondre aux feedbacks
+    const canRespondToFeedbacks = permissions
+      ? permissions.has("manage:feedbacks_respond")
+      : isAdmin; // fallback rétrocompat
     const itemsWithBadges = filteredItems.map((item) => {
-      if (item.path === ROUTES.FEEDBACKS && isAdmin && pendingFeedbacksCount) {
+      if (item.path === ROUTES.FEEDBACKS && canRespondToFeedbacks && pendingFeedbacksCount) {
         return { ...item, badge: pendingFeedbacksCount };
       }
       return item;
@@ -283,8 +306,8 @@ export function Sidebar() {
           <NavGroupComponent key={group.label} group={group} />
         ))}
 
-        {/* Groupe Administration (admin only) */}
-        {isAdmin && (
+        {/* Groupe Administration (visible si au moins un item l'est) */}
+        {adminGroup.items.some(canSeeItem) && (
           <>
             <div className="my-3 border-t border-slate-700 dark:border-slate-800" />
             <NavGroupComponent group={adminGroup} />

@@ -28,6 +28,7 @@ import type { Profile } from "@/types";
 import { Users, Plus, Edit, UserX, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBadgeClassName } from "@/lib/badgeColors";
+import { useRoles } from "@/hooks/useRoles";
 
 export default function Utilisateurs() {
   const queryClient = useQueryClient();
@@ -35,13 +36,18 @@ export default function Utilisateurs() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [toggleConfirm, setToggleConfirm] = useState<Profile | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Form state
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [initials, setInitials] = useState("");
   const [role, setRole] = useState<"admin" | "graphiste">("graphiste");
+  const [roleId, setRoleId] = useState<string>(""); // ID du rôle granulaire (pour le dialog d'édition)
   const [password, setPassword] = useState("");
+
+  // Liste des rôles disponibles (pour le dropdown granulaire)
+  const { data: roles } = useRoles();
 
   // Récupérer tous les utilisateurs (y compris inactifs)
   const { data: users, isLoading } = useQuery({
@@ -177,6 +183,7 @@ export default function Utilisateurs() {
     setFullName("");
     setInitials("");
     setRole("graphiste");
+    setRoleId("");
     setPassword("");
   };
 
@@ -184,6 +191,7 @@ export default function Utilisateurs() {
     setFullName(user.full_name);
     setInitials(user.initials);
     setRole(user.role);
+    setRoleId(user.role_id ?? "");
     setEditingUser(user);
   };
 
@@ -208,13 +216,27 @@ export default function Utilisateurs() {
       return;
     }
 
+    // Construire le payload : on met à jour role_id si un rôle granulaire est choisi,
+    // et on garde le rôle legacy (admin/graphiste) synchronisé selon le slug du rôle choisi.
+    const data: Partial<Profile> = {
+      full_name: fullName,
+      initials: initials.toUpperCase(),
+      role,
+    };
+
+    if (roleId) {
+      const selectedRole = roles?.find((r) => r.id === roleId);
+      if (selectedRole) {
+        data.role_id = selectedRole.id;
+        // Pour la rétro-compat avec le CHECK constraint sur profiles.role :
+        // si le rôle a slug='admin', on garde 'admin', sinon 'graphiste'
+        data.role = selectedRole.slug === "admin" ? "admin" : "graphiste";
+      }
+    }
+
     updateUser.mutate({
       id: editingUser.id,
-      data: {
-        full_name: fullName,
-        initials: initials.toUpperCase(),
-        role,
-      },
+      data,
     });
   };
 
@@ -239,10 +261,18 @@ export default function Utilisateurs() {
           </div>
         </div>
 
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvel utilisateur
-        </Button>
+        <div className="flex items-center gap-3">
+          <Input
+            type="text"
+            placeholder="Rechercher un utilisateur..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouvel utilisateur
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
@@ -275,64 +305,68 @@ export default function Utilisateurs() {
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((user) => (
-                <TableRow
-                  key={user.id}
-                  className={!user.is_active ? "bg-gray-50 dark:bg-slate-700 opacity-60" : ""}
-                >
-                  <TableCell className="font-medium">{user.full_name}</TableCell>
-                  <TableCell className="text-gray-500 dark:text-slate-400">{user.email}</TableCell>
-                  <TableCell>
-                    <span className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium",
-                      getBadgeClassName(user.badge_color)
-                    )}>
-                      {user.initials}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={user.role === "admin" ? "default" : "secondary"}
-                    >
-                      {user.role === "admin" ? "Admin" : "Graphiste"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {user.is_active ? (
-                      <Badge variant="success">Actif</Badge>
-                    ) : (
-                      <Badge variant="destructive">Inactif</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditModal(user)}
+              users
+                .filter(user =>
+                  user.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map((user) => (
+                  <TableRow
+                    key={user.id}
+                    className={!user.is_active ? "bg-gray-50 dark:bg-slate-700 opacity-60" : ""}
+                  >
+                    <TableCell className="font-medium">{user.full_name}</TableCell>
+                    <TableCell className="text-gray-500 dark:text-slate-400">{user.email}</TableCell>
+                    <TableCell>
+                      <span className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium",
+                        getBadgeClassName(user.badge_color)
+                      )}>
+                        {user.initials}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={user.role === "admin" ? "default" : "secondary"}
                       >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setToggleConfirm(user)}
-                        className={
-                          user.is_active
-                            ? "text-red-600 hover:text-red-700"
-                            : "text-green-600 hover:text-green-700"
-                        }
-                      >
-                        {user.is_active ? (
-                          <UserX className="h-4 w-4" />
-                        ) : (
-                          <UserCheck className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                        {user.role === "admin" ? "Admin" : "Graphiste"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {user.is_active ? (
+                        <Badge variant="success">Actif</Badge>
+                      ) : (
+                        <Badge variant="destructive">Inactif</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditModal(user)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setToggleConfirm(user)}
+                          className={
+                            user.is_active
+                              ? "text-red-600 hover:text-red-700"
+                              : "text-green-600 hover:text-green-700"
+                          }
+                        >
+                          {user.is_active ? (
+                            <UserX className="h-4 w-4" />
+                          ) : (
+                            <UserCheck className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
             )}
           </TableBody>
         </Table>
@@ -464,13 +498,19 @@ export default function Utilisateurs() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-role">Rôle</Label>
+              <Label htmlFor="edit-role-id">Rôle</Label>
               <Select
-                id="edit-role"
-                options={roleOptions}
-                value={role}
-                onChange={(e) => setRole(e.target.value as "admin" | "graphiste")}
+                id="edit-role-id"
+                options={
+                  roles?.map((r) => ({ value: r.id, label: r.label })) ?? []
+                }
+                value={roleId}
+                onChange={(e) => setRoleId(e.target.value)}
               />
+              <p className="text-xs text-gray-400 dark:text-slate-500">
+                Définit les onglets et actions auxquels l'utilisateur a accès. Le rôle
+                "Administrateur" donne tous les droits.
+              </p>
             </div>
           </div>
 

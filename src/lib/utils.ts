@@ -5,6 +5,25 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Calcule la couleur de texte (noir ou blanc) qui offre le meilleur contraste
+ * sur une couleur de fond donnée (au format hex #rrggbb).
+ * Utilise la formule de luminance perçue (W3C / WCAG simplifié).
+ */
+export function getContrastTextColor(hexColor: string): "black" | "white" {
+  // Nettoyage : retirer le # éventuel
+  const hex = hexColor.replace(/^#/, "");
+  if (hex.length !== 6) return "white"; // fallback safe
+
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+
+  // Luminance perçue (formule classique)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? "black" : "white";
+}
+
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
