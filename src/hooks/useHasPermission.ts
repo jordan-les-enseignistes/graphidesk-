@@ -2,6 +2,26 @@ import { useAuthStore } from "@/stores/authStore";
 import { useCurrentUserPermissions } from "@/hooks/useRoles";
 import { useViewAsStore } from "@/stores/viewAsStore";
 
+// Permissions de fallback pour un graphiste legacy (role='graphiste') si jamais
+// le chargement de role_permissions échoue ou n'a pas encore eu lieu.
+// Ça évite qu'un graphiste se retrouve avec un écran vide en cas de souci réseau
+// ou d'inconsistance temporaire avec les nouvelles tables RBAC.
+const GRAPHISTE_FALLBACK_PERMS = new Set<string>([
+  "access:dashboard",
+  "access:mes_dossiers",
+  "access:archives",
+  "access:franchises",
+  "access:projets_internes",
+  "access:statistiques",
+  "access:process",
+  "access:reunions",
+  "access:sites_internet",
+  "access:fabrik",
+  "access:calculatrice",
+  "access:nuancier",
+  "access:feedbacks",
+]);
+
 /**
  * Hook central pour vérifier si l'utilisateur courant a une permission donnée.
  *
@@ -21,7 +41,7 @@ import { useViewAsStore } from "@/stores/viewAsStore";
 export function useHasPermission(key: string): boolean {
   const profile = useAuthStore((state) => state.profile);
   const { isViewingAs } = useViewAsStore();
-  const { data: permissions } = useCurrentUserPermissions();
+  const { data: permissions, isError, isLoading } = useCurrentUserPermissions();
 
   if (!profile) return false;
 
@@ -33,12 +53,19 @@ export function useHasPermission(key: string): boolean {
   }
 
   // ★ Super-admin : si role legacy = 'admin', toutes les permissions sont accordées.
-  // Le système granulaire ne s'applique qu'aux rôles non-admin.
   if (profile.role === "admin") return true;
 
   // Système granulaire : check dans le Set des permissions du rôle
-  if (permissions) {
+  if (permissions && permissions.size > 0) {
     return permissions.has(key);
+  }
+
+  // ★ Fallback safe : si la query role_permissions n'a rien renvoyé (error ou
+  // pas encore loaded ou role_id sans perms), et que le user a role='graphiste'
+  // en legacy, on lui donne les permissions de base d'un graphiste. Ça évite
+  // qu'un souci réseau / cache bloque complètement l'app.
+  if ((isError || isLoading || !permissions || permissions.size === 0) && profile.role === "graphiste") {
+    return GRAPHISTE_FALLBACK_PERMS.has(key);
   }
 
   return false;
@@ -51,7 +78,7 @@ export function useHasPermission(key: string): boolean {
 export function useHasAnyPermission(keys: string[]): boolean {
   const profile = useAuthStore((state) => state.profile);
   const { isViewingAs } = useViewAsStore();
-  const { data: permissions } = useCurrentUserPermissions();
+  const { data: permissions, isError, isLoading } = useCurrentUserPermissions();
 
   if (!profile) return false;
 
@@ -66,8 +93,13 @@ export function useHasAnyPermission(keys: string[]): boolean {
   // Super-admin
   if (profile.role === "admin") return true;
 
-  if (permissions) {
+  if (permissions && permissions.size > 0) {
     return keys.some((key) => permissions.has(key));
+  }
+
+  // Fallback graphiste legacy
+  if ((isError || isLoading || !permissions || permissions.size === 0) && profile.role === "graphiste") {
+    return keys.some((key) => GRAPHISTE_FALLBACK_PERMS.has(key));
   }
 
   return false;
