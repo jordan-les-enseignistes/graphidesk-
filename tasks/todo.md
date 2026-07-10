@@ -1,158 +1,116 @@
-# Plan — Système de rôles granulaires (RBAC type Discord)
+# Plan — FabRik : Lettres relief PVC rétroéclairées sur entretoises
 
-**Demandeur** : Jordan (ticket "Avoir plus de rôle possible" du 27/05/2026)
-**Précision admin** : si rôle ≠ "Graphiste", l'utilisateur ne doit PAS apparaître dans la partie "Gestion de projet" (stats, switch de dossier, Franchises, etc.)
-**Version cible (full)** : 1.2.0 (changement majeur — breaking au niveau du modèle de rôle)
+**Demandeur** : Jordan
+**Contexte** : nouveau module d'automatisation FabRik, sur le modèle des "Adhésifs découpés à la forme" (`full_automation.jsx`)
+**Version cible** : 1.3.0 (nouvelle feature FabRik)
+**Fichiers de référence (placements faits main, vérité terrain)** :
+- `\\192.168.10.199\Syno-dossiers\C\CENTRE SERVICES\QUIMPER\FAB_CO2601-4928\PVC_19mm_RETROECLAIREES_SUR_ENTRETOISES_SUR_LISSES_CENTRE_SERVICES_QUIMPER_N2.pdf`
+- AMEDEO (cursive, fallback cercles entiers intérieurs)
+- LA GRANGE AU BOUC (serif capitales)
+- AU P'TIT TERNOIS (VFR Publicité)
 
-## ⚠️ Réalité du chantier (issue de l'audit)
+## Spécification métier (validée avec Jordan)
 
-| Élément | Volume |
-|---------|--------|
-| Checks `isAdmin` dans le code | ~70 occurrences, 12+ pages |
-| Policies RLS dépendantes du rôle | ~35-40 |
-| Pages impactées | 12+ |
-| Hooks à refactorer | 3+ (useProfiles, useGraphistes, useStatistiques) |
-| RPC à adapter | 4+ (stats par graphiste) |
+### Tracés
+- **Rose** : tracé de découpe à l'échelle 1:1 (existant dans le fichier du graphiste)
+- **Vert** : offset intérieur de **5mm** (défaut, paramétrable au cas par cas) — généré par le script
+- **Entretoises** : cercles de **Ø9mm** (défaut = minimum, paramétrable à la hausse)
 
-**Estimation brute :** 11-16 jours dev. Donc **on découpe en phases livrables indépendamment**.
+### Placement — style par défaut (Centre Services)
+- Centre de l'entretoise **sur le tracé vert** → après pathfinder, l'encoche "mange" le vert en demi-cercle
+- Contrainte dure : le cercle **entier** doit tenir dans le tracé rose (l'entretoise physique doit rentrer dans la lettre)
 
-## 🎯 Découpage en 4 phases
+### Placement — fallback (style Amedeo)
+- Si le cercle centré sur le vert ne tient pas dans le rose → **glisser vers l'intérieur** de la forme
+- Avec **marge supplémentaire** au-delà du strict minimum (l'entretoise près du bord se voit dans le halo du rétroéclairage → moins esthétique). Marge paramétrable, défaut à définir (~3mm ?)
+- Ces cercles-là ne sont PAS pathfindés (ils ne touchent pas le vert), ils restent des trous entiers
 
-### **Phase 1 — Foundation + fix du besoin immédiat de Quentin** ⭐ (ciblée pour cette session)
-**Valeur livrée :** Quentin ne voit plus les non-graphistes dans les listes/stats. Foundation prête pour les phases suivantes.
+### Intelligence de placement (le cœur du sujet) — règle de COUVERTURE
+Principe : la densité d'entretoises est une contrainte **physique du PVC 19mm**, pas un choix par dossier. Fichiers à l'échelle 1:1 → règle en mm absolus.
 
-**Pas de breaking change** sur les rôles existants (`admin` / `graphiste` continuent de marcher exactement comme avant via la colonne `profiles.role`).
+> **Règle** : tout point de la surface d'une sous-forme doit être à ≤ X mm d'une entretoise.
+> X = rayon de couverture, constante calibrée sur les fichiers d'exemple (hypothèse initiale : 120–180mm).
 
-#### Schéma DB (nouvelle migration `027_rbac_foundation.sql`)
-- Nouvelle table `roles` :
-  - `id UUID PK`
-  - `slug TEXT UNIQUE` (ex: `admin`, `graphiste`, `gestionnaire-dossier-mairie`)
-  - `label TEXT` (ex: "Admin", "Graphiste", "Gestionnaire dossier mairie")
-  - `is_system BOOLEAN` (true pour admin/graphiste, non-supprimables)
-  - `is_graphiste BOOLEAN` (★ flag clé : ce rôle apparaît-il dans les listes de graphistes ?)
-  - `couleur TEXT` (pour le badge UI, ex: `#3b82f6`)
-  - `created_at`, `updated_at`
-- Nouvelle table `role_permissions` :
-  - `id UUID PK`
-  - `role_id UUID FK roles`
-  - `permission_key TEXT` (ex: `can_view_all_dossiers`)
-  - `UNIQUE(role_id, permission_key)`
-- Ajout colonne `profiles.role_id UUID FK roles NULLABLE`
-- **Seed** : créer les 2 rôles système `admin` et `graphiste` avec `is_graphiste = true` pour graphiste et `false` pour admin
-- **Backfill** : `UPDATE profiles SET role_id = (SELECT id FROM roles WHERE slug = profiles.role)`
-- RLS sur `roles` et `role_permissions` : lecture pour tous authenticated, écriture admin-only
-- Garder `profiles.role` en place (compat) — sera dépréciée en Phase 4
+Règles structurelles complémentaires :
+1. **Minimum 2 entretoises par sous-forme fermée** (anti-rotation), sauf forme trop petite pour 2 → 1 seule (ex : point de "i")
+2. **Priorité aux extrémités et angles** : les premiers candidats sont les maxima de courbure du tracé vert (fins de jambes, coins, pointes) — c'est le placement naturel du graphiste
+3. Complétion des longues portions par écartement maximal (farthest-point sampling) jusqu'à satisfaire la couverture
 
-#### Fix des bugs latents (les vrais besoins de Quentin)
-- **`useGraphistes()`** : actuellement ne filtre RIEN. Le fixer pour ne renvoyer que les profils dont `roles.is_graphiste = true` (via JOIN ou via la nouvelle colonne).
-- **RPC `get_stats_par_graphiste()` et autres** : ajouter `WHERE EXISTS (SELECT 1 FROM roles r WHERE r.id = p.role_id AND r.is_graphiste = true)`.
-- **`DossierForm` dropdown / `TransferModal` / `Franchises` assignation** : tous utilisent `useProfiles()` ou `useGraphistes()` → bénéficient automatiquement du fix.
+### V2 (plus tard, hors scope V1)
+- Mode "sur lisses" : alignement des entretoises sur N lignes horizontales (guides tracés par le graphiste ou hauteurs proposées par le script). Les fichiers Amedeo / La Grange au Bouc montrent ce pattern.
 
-#### Pas encore dans cette phase (volontairement)
-- Pas d'UI admin pour créer des rôles custom
-- Pas de touch aux 70 checks `isAdmin` (continuent de marcher via la colonne `role`)
-- Pas de modif des RLS policies (continuent sur `role = 'admin'`)
+## Workflow utilisateur (2 boutons, comme convenu)
 
-**Estimation Phase 1 :** ~2-3h de dev. **Tests à faire en local + sur prod Supabase.**
+### Bouton 1 — "Placer les entretoises"
+1. Dialogue : offset contour (déf. 5mm), Ø entretoise (déf. 9mm), rayon de couverture X (déf. calibré, réglable en avancé), marge fallback
+2. Le script :
+   - Vérifie/génère le tracé vert (offset intérieur du rose)
+   - Décompose en sous-formes fermées
+   - Calcule les emplacements (règles ci-dessus)
+   - Pose les cercles sur un calque **`ENTRETOISES_PREVIEW`** (éditables : le graphiste peut déplacer/ajouter/supprimer)
+   - Rapport : "N entretoises placées, dont M en fallback intérieur, K sous-formes détectées, 0 conflit"
+3. Le graphiste ajuste à l'œil si besoin (les 10% de cas où l'algo est moins bon)
 
----
+### Bouton 2 — "Finaliser"
+1. Reprend les cercles du calque preview (y compris ceux ajoutés/déplacés à la main)
+2. Re-vérifie la contrainte "cercle dans le rose" (alerte si un cercle déplacé à la main déborde)
+3. Pathfinder : découpe les encoches dans le tracé vert (uniquement les cercles qui l'intersectent)
+4. Mise au propre : couleurs (rose = tracé découpe, vert = offset), calques, nomenclature → conforme au fichier Centre Services
+5. Rapport final
 
-### **Phase 2 — UI d'admin pour gérer les rôles**
-- Page dédiée (probablement onglet dans `/parametres`) : liste des rôles, créer/modifier/supprimer (sauf system roles)
-- Modal d'édition avec :
-  - Slug, label, couleur, flag `is_graphiste`
-  - Liste de permissions cochables (UI type Discord)
-- Sur `/utilisateurs` : remplacer le select binaire admin/graphiste par un select du rôle complet
-- Affichage du badge rôle avec sa couleur dans le header, le tableau utilisateurs, etc.
+## Architecture technique
 
-**Estimation Phase 2 :** ~3-4h.
+- **Script ExtendScript** : `src-tauri/assets/fabrik/scripts/entretoises_automation.jsx` (nouveau, même pattern que `full_automation.jsx`)
+- **Formulaire React** : nouveau composant dans `src/components/fabrik/` (s'inspirer de `AdhesifForm.tsx`)
+- **Intégration FabRik** : nouvelle entrée dans la page FabRik ("Lettres relief rétroéclairées / entretoises")
+- **Géométrie en pur ExtendScript** (pas de lib) :
+  - Aplatissement Bézier → polylignes (échantillonnage fin)
+  - Distance point-segment, point-in-polygon (ray casting)
+  - Offset : `offsetPath` natif d'Illustrator (action ou menu Objet > Tracé > Décalage)
+  - Courbure discrète pour détecter angles/extrémités
+  - Couverture : échantillonnage de la surface (grille ou points du contour) + test distance aux entretoises posées
+  - Pathfinder : `app.executeMenuCommand("group")` + Pathfinder Minus Front par paires, ou opération de groupe composé
 
----
+## Étapes d'implémentation
 
-### **Phase 3 — Migration progressive des permissions**
-- Définir la liste exhaustive des `permission_key` (audit a déjà identifié les zones)
-- Hook frontend `useHasPermission(key: string)` qui check le `role_id` du profil contre `role_permissions`
-- Pré-seed des permissions sur les 2 rôles système :
-  - `admin` → toutes les permissions
-  - `graphiste` → permissions de base (voir/modifier ses dossiers, etc.)
-- Fonction SQL helper `user_has_permission(key)` SECURITY DEFINER pour les RLS
-- Refacto progressif page par page : remplacer `isAdmin` par `useHasPermission('can_xxx')`
-- RLS : migrer les policies critiques (dossiers, franchises, app_settings) vers `user_has_permission()` avec fallback sur `role = 'admin'` pour rétro-compat
+- [ ] **Étape 0 — Calibration** : mini-script de mesure à lancer sur les 4 fichiers d'exemple → extrait Ø réels, offsets réels, distances entre entretoises voisines, distance max surface→entretoise. Fixe la valeur par défaut de X.
+- [ ] **Étape 1 — Squelette du script** : lecture du document, identification du tracé rose (sélection ou calque), génération de l'offset vert 5mm
+- [ ] **Étape 2 — Géométrie de base** : aplatissement, sous-formes, point-in-polygon, distance
+- [ ] **Étape 3 — Placement** : candidats sur le vert, filtre "cercle dans le rose", extrémités/angles d'abord, complétion par couverture, fallback glissement intérieur
+- [ ] **Étape 4 — Mode Placer** : calque preview + rapport
+- [ ] **Étape 5 — Mode Finaliser** : re-validation, pathfinder, couleurs/calques Centre Services
+- [ ] **Étape 6 — Formulaire React FabRik** + intégration (2 boutons)
+- [ ] **Étape 7 — Tests réels** : rejouer les 4 dossiers d'exemple, comparer aux placements faits main, tuning de X et des heuristiques
+- [ ] Bump 1.3.0, commit, tag, push (procédure GitHub Desktop habituelle)
 
-**Estimation Phase 3 :** ~4-5h.
+## Points ouverts
+1. Valeur de la marge fallback (défaut ~3mm ?) — à valider à l'usage
+2. Comment le script identifie le tracé rose en entrée : sélection active ? calque nommé ? couleur ? (les adhésifs découpés ont déjà une convention → reprendre la même)
+3. Anti-collision entre entretoises proches (deux encoches qui se chevauchent sur une pointe fine) → distance min entre centres = Ø + qq mm
 
----
+## Review post-implémentation (V1 validée le jour même sur JŌTŌ + Centre Services)
 
-### **Phase 4 — Nettoyage final**
-- Supprimer la colonne `profiles.role` (devenue redondante)
-- Supprimer le CHECK constraint `role IN ('admin', 'graphiste')` (déjà supprimé en pratique mais à formaliser)
-- Supprimer le `selectIsAdmin` de l'authStore (remplacé par `useHasPermission('admin_panel')` ou similaire)
-- Bump `1.2.0` au moment du cleanup final
-- Update du CLAUDE_INSTRUCTIONS.md du projet
+### Livré
+- ✅ `entretoises_automation.jsx` : modes Placer / Finaliser complets
+- ✅ `LettresReliefForm.tsx` + carte FabRik "💡 Lettres Relief"
+- ✅ `tools/entretoises_calibration.jsx` (outil de mesure, calibration à faire plus tard)
+- ✅ Placement : couverture physique + extrémités/angles + min 2/forme + garde bord (2mm déf.) + fallback intérieur bidirectionnel
+- ✅ Finalisation : encoches GÉOMÉTRIQUES (arc inséré dans la polyligne) — le Pathfinder scripté d'Illustrator a été abandonné après 3 échecs (résultats vides, il exige des surfaces remplies et reste peu fiable)
 
-**Estimation Phase 4 :** ~2h + tests poussés.
+### Bugs corrigés en cours de route (leçons)
+1. `ZOrderMethod.SENDTOFRONT` n'existe pas → `BRINGTOFRONT`
+2. Normale de glissement : direction indécidable par point-dans-forme au milieu d'un trait large → choisir la direction qui ÉLOIGNE du bord, essayer les deux
+3. Aplatissement Bézier fixe (10 pas) → adaptatif (~2mm) sinon les grands arcs faussent les distances
+4. Tracés "ouverts" à extrémités confondues (flag closed=false) → accepter et refermer implicitement (les O étaient invisibles)
+5. Perf : index de parité avec bbox (30-45s → 6s)
+6. `setEntirePath` limité à ~1000 points → simplification de polyligne (tol. 0.05mm)
+7. Segments droits aplatis en 1 point/sommet → densifier avant encochage (T/macrons sans encoches)
 
----
+### Limites connues V1 (acceptées)
+- Le placement auto nécessite du repositionnement manuel à l'œil (workflow preview prévu pour ça)
+- Rayon de couverture 150mm par défaut non calibré (lancer tools/entretoises_calibration.jsx sur Amedeo pour affiner)
+- Les anneaux verts encochés deviennent des polylignes denses (déviation < 0.05mm, OK fab)
 
-## 🚀 Proposition pour CETTE session : Phase 1 uniquement
-
-### Pourquoi ne pas tout faire d'un coup
-1. **Risque** : toucher aux 35 RLS d'un coup, c'est s'exposer à des cascades de bugs en prod
-2. **Valeur immédiate** : Phase 1 répond déjà au besoin direct (Quentin ne voit plus les non-graphistes)
-3. **Réversibilité** : Phase 1 n'introduit aucun breaking change, on peut rollback facile
-4. **Contexte limité** : faire les 4 phases en une session = 12-15h de dev, contexte saturé, qualité dégradée
-
-### Checklist Phase 1 (si tu valides)
-
-- [ ] Créer migration `027_rbac_foundation.sql` (tables roles + role_permissions + seed + backfill + RLS)
-- [ ] Appliquer la migration sur Supabase (via dashboard, comme la dernière fois)
-- [ ] Régénérer les types TypeScript pour avoir les nouvelles tables (`mcp__supabase__generate_typescript_types` ou manuellement)
-- [ ] Modifier `useGraphistes()` dans `src/hooks/useProfiles.ts` → filtrer sur `is_graphiste`
-- [ ] Modifier les RPC `get_stats_par_graphiste`, `get_stats_graphiste_par_statut`, `get_stats_archives_par_graphiste`, `get_stats_bat_par_graphiste` → ajouter le filtre `is_graphiste`
-- [ ] Vérifier que `DossierForm.tsx`, `TransferModal.tsx`, `Franchises.tsx`, `Dashboard.tsx`, `Statistiques.tsx` utilisent bien le hook fixé (ou faire les ajustements ponctuels)
-- [ ] Tests en dev (`npm run tauri dev`) :
-  - [ ] Login admin → menu et listes inchangés
-  - [ ] Login graphiste (Quentin) → ne voit pas les admins dans le dropdown de transfert, dans les stats par graphiste, etc.
-- [ ] **Pas de bump version** pour la Phase 1 (juste migration + frontend, le Tauri binaire change peu)
-  - OU bump 1.1.16 si tu préfères tracer ce milestone
-
-### À garder pour les prochaines sessions
-- Phases 2, 3, 4 du plan ci-dessus
-- Demander à Quentin lesquels de ses collègues sont à passer comme "Gestionnaire dossier mairie" (besoin de rôles concrets pour la Phase 2)
-
-## ❓ Questions de cadrage (avant de coder)
-
-1. **Tu valides l'approche en 4 phases** ou tu veux qu'on fasse TOUT (multi-sessions) avec un plan plus détaillé ?
-2. **Pour la Phase 1, on bump (1.1.16) ou pas** ? (Argument bump = tracer un milestone clair même si c'est mineur sur le binaire.)
-3. **Liste des rôles initiaux** : pour l'instant on garde juste `admin` + `graphiste`. Veux-tu que je seed aussi `gestionnaire-dossier-mairie` (vide en termes de permissions) ou tu préfères le créer toi-même via l'UI en Phase 2 ?
-4. **MCP Supabase** : j'ai vu dans les outils disponibles `apply_migration`, `execute_sql`, `generate_typescript_types`. Tu m'autorises à les utiliser pour appliquer la migration et régénérer les types **directement** ? Ça nous évite l'aller-retour par le dashboard.
-
-## Review post-implémentation
-
-### Ce qui a été livré (Phase 1 + 2 du plan initial)
-
-**Backend Supabase :**
-- ✅ Migration `027_rbac_foundation.sql` — tables `roles`, `role_permissions`, colonne `profiles.role_id`, seed admin + graphiste avec leurs permissions, fonction `user_has_permission()`, RLS, trigger anti-suppression rôles système
-- ✅ Migration `028_rbac_dashboard_perms.sql` — ajout permissions `access:dashboard`, `access:mes_dossiers`, `access:archives`
-- ✅ RPC `get_stats_bat_par_graphiste` filtre désormais sur `is_graphiste`
-
-**Frontend :**
-- ✅ Types `Role`, `RolePermission`, `ProfileWithRole`
-- ✅ Catalogue centralisé `src/lib/permissions.ts` (27 permissions catégorisées)
-- ✅ Hooks `useRoles`, `useRolePermissions`, `useCurrentUserPermissions`, `useCreateRole`, `useUpdateRole`, `useDeleteRole`, `useTogglePermission`
-- ✅ Hook `useHasPermission` + `useHasAnyPermission` (pattern super-admin pour les admins legacy)
-- ✅ `useGraphistes()` filtré sur `is_graphiste`
-- ✅ Sidebar dynamique selon permissions
-- ✅ Header : badge du rôle granulaire avec couleur + contraste auto
-- ✅ Page Paramètres : nouvelle section "Gestion des rôles" (CRUD complet + UI permissions cochables)
-- ✅ Page Utilisateurs : dropdown unique de rôle granulaire (legacy/granulaire fusionnés)
-- ✅ Dashboard adaptatif : launcher de modules pour les users sans accès dossiers
-
-### Bonus non prévus
-- Fonction `getContrastTextColor()` dans utils.ts (réutilisable)
-- Revert auto port Vite (1421 → 1420 standard Tauri)
-
-### Limites connues (Phase 3 non faite)
-- Les permissions `manage:*` ne sont pas encore connectées aux boutons d'action dans les pages (ils utilisent encore le check `isAdmin` legacy)
-- Les RLS Supabase utilisent encore `role = 'admin'` (sécurité ceinture+bretelles)
-- À traiter dans une future session quand un rôle nécessitera des `manage:*`
+### V2 envisagée
+- Mode "sur lisses" : alignement des entretoises sur N lignes horizontales
+- Amélioration des heuristiques de placement d'après retours d'usage

@@ -1,6 +1,6 @@
 // Types pour FabRik
 
-export type FabType = "adhesif" | "caisson" | "lettres-boitiers" | "";
+export type FabType = "adhesif" | "caisson" | "lettres-boitiers" | "lettres-relief" | "";
 export type CaissonType = "simple" | "multi" | "double";
 export type LightingType = "lumineux" | "non-lumineux";
 export type PartType = "left" | "center" | "right";
@@ -55,6 +55,14 @@ export interface LettresBoitiersParams {
   trancheEpaisseur?: string; // Ex: "100" pour 100MM
   trancheRal?: string; // Ex: "8019" pour RAL_8019
   trancheFinition?: TrancheFinition; // MAT ou BRILLANT (uniquement si RAL renseigné)
+}
+
+export interface LettresReliefParams {
+  mode: "placer" | "finaliser";
+  offsetMm: number;
+  diamMm: number;
+  coverageMm: number;
+  clearanceMm: number;
 }
 
 export interface FabrikSettings {

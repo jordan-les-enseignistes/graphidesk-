@@ -10,6 +10,7 @@ import { CaissonMultiForm } from "@/components/fabrik/CaissonMultiForm";
 import { CaissonDoubleForm } from "@/components/fabrik/CaissonDoubleForm";
 import { AdhesifForm } from "@/components/fabrik/AdhesifForm";
 import { LettresBoitiersForm } from "@/components/fabrik/LettresBoitiersForm";
+import { LettresReliefForm } from "@/components/fabrik/LettresReliefForm";
 import { IllustratorSettings } from "@/components/fabrik/IllustratorSettings";
 
 import type {
@@ -19,6 +20,7 @@ import type {
   CaissonMultiParams,
   CaissonDoubleParams,
   LettresBoitiersParams,
+  LettresReliefParams,
 } from "@/components/fabrik/types";
 import { DEFAULT_ILLUSTRATOR_PATH } from "@/components/fabrik/types";
 
@@ -105,6 +107,10 @@ export default function FabRik() {
     runScript("lettres_boitiers.jsx", params);
   };
 
+  const handleLettresReliefGenerate = (params: LettresReliefParams) => {
+    runScript("entretoises_automation.jsx", params);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -141,7 +147,7 @@ export default function FabRik() {
       {/* Sélection du type de fab */}
       <Card className="p-4">
         <h3 className="font-medium mb-4 dark:text-slate-200">Type de fichier à générer</h3>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <button
             type="button"
             onClick={() => setFabType("adhesif")}
@@ -195,6 +201,25 @@ export default function FabRik() {
                 <div className="font-semibold text-lg dark:text-slate-200">Lettres Boîtiers</div>
                 <div className="text-sm text-slate-500 dark:text-slate-400">
                   Tranches, semelles et plexi
+                </div>
+              </div>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFabType("lettres-relief")}
+            className={`p-6 rounded-xl border-2 transition-all text-left ${
+              fabType === "lettres-relief"
+                ? "border-orange-500 bg-orange-50 dark:bg-orange-900/30 shadow-lg"
+                : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="text-4xl">💡</div>
+              <div>
+                <div className="font-semibold text-lg dark:text-slate-200">Lettres Relief</div>
+                <div className="text-sm text-slate-500 dark:text-slate-400">
+                  PVC rétroéclairé sur entretoises
                 </div>
               </div>
             </div>
@@ -280,6 +305,13 @@ export default function FabRik() {
       {fabType === "lettres-boitiers" && (
         <LettresBoitiersForm
           onGenerate={handleLettresBoitiersGenerate}
+          isProcessing={isProcessing}
+        />
+      )}
+
+      {fabType === "lettres-relief" && (
+        <LettresReliefForm
+          onGenerate={handleLettresReliefGenerate}
           isProcessing={isProcessing}
         />
       )}

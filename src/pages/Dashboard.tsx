@@ -38,18 +38,25 @@ import {
   Palmtree,
 } from "lucide-react";
 
+// ★ Wrapper qui décide quel Dashboard rendre selon les permissions.
+// ⚠️ CRUCIAL : ce wrapper doit être un composant SÉPARÉ pour respecter les Rules of Hooks.
+// Le sous-composant `DashboardClassique` ci-dessous contient ~30 hooks. Si on avait fait
+// un early return AVANT ces hooks dans le même composant, React aurait crashé quand
+// `hasDossierAccess` passe de false (loading) à true (perms loaded) car le nombre
+// de hooks appelés changerait entre les renders.
+// C'est exactement ce qui causait l'écran noir en v1.2.0/1.2.1 pour les non-admins.
 export default function Dashboard() {
-  const [showImport, setShowImport] = useState(false);
-  const profile = useAuthStore((state) => state.profile);
-  const { isAdmin } = useEffectiveRole();
-
-  // Si l'user n'a pas accès aux modules de dossiers (Mes Dossiers ou Tous les Dossiers),
-  // on lui affiche un dashboard "launcher" qui liste les outils auxquels il a accès.
-  // Le dashboard classique (stats dossiers) n'a aucun intérêt pour un user "outil seul".
   const hasDossierAccess = useHasAnyPermission(["access:mes_dossiers", "access:dossiers_all"]);
   if (!hasDossierAccess) {
     return <DashboardLauncher />;
   }
+  return <DashboardClassique />;
+}
+
+function DashboardClassique() {
+  const [showImport, setShowImport] = useState(false);
+  const profile = useAuthStore((state) => state.profile);
+  const { isAdmin } = useEffectiveRole();
 
   // Préférence secrète pour masquer les encarts "À relancer"
   const { hideRelanceCards, setHideRelanceCards } = useUserPreferencesStore();
