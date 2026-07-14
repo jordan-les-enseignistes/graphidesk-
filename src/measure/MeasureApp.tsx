@@ -214,23 +214,9 @@ export function MeasureApp() {
   // depuis IndexedDB → photo invisible jusqu'à un rechargement forcé.
   useEffect(() => {
     return () => {
-      // --- diagnostic temporaire : délai observé à la sortie du module ---
-      // trace les tâches longues (>50ms) pendant 10s après le démontage
+      // diagnostic : horodatage de la sortie (la sonde globale de main.tsx
+      // capte les tâches longues JS ; corréler les timestamps)
       const t0 = performance.now();
-      try {
-        const obs = new PerformanceObserver((list) => {
-          for (const e of list.getEntries()) {
-            // eslint-disable-next-line no-console
-            console.warn(
-              `[Mesure] tâche longue après sortie : ${Math.round(e.duration)} ms (début +${Math.round(e.startTime - t0)} ms)`
-            );
-          }
-        });
-        obs.observe({ entryTypes: ["longtask"] });
-        setTimeout(() => obs.disconnect(), 10000);
-      } catch {
-        /* longtask non supporté */
-      }
 
       const img = useMeasureImage.getState().image;
       if (img) URL.revokeObjectURL(img.url);
@@ -238,7 +224,9 @@ export function MeasureApp() {
       clearOffscreen();
 
       // eslint-disable-next-line no-console
-      console.info(`[Mesure] cleanup sortie : ${Math.round(performance.now() - t0)} ms`);
+      console.info(
+        `[Mesure] cleanup sortie : ${Math.round(performance.now() - t0)} ms (à t+${Math.round(t0)} ms)`
+      );
     };
   }, []);
 

@@ -342,9 +342,12 @@ struct IndesignPluginStatus {
     upia_available: bool,
 }
 
-// État du plugin : version livrée avec GraphiDesk vs versions installées
+// État du plugin : version livrée avec GraphiDesk vs versions installées.
+// ⚠️ async : une commande SYNCHRONE s'exécute sur le thread principal de
+// l'app et `tasklist` peut prendre plusieurs secondes → fenêtre gelée
+// (clics mis en file par Windows et rejoués après).
 #[tauri::command]
-fn get_indesign_plugin_status(app: tauri::AppHandle) -> Result<IndesignPluginStatus, String> {
+async fn get_indesign_plugin_status(app: tauri::AppHandle) -> Result<IndesignPluginStatus, String> {
     let assets = resolve_assets_dir(&app, "indesign")?;
     let embedded_version = fs::read_to_string(assets.join("version.txt"))
         .map_err(|e| format!("version.txt du plugin introuvable : {}", e))?
@@ -362,7 +365,7 @@ fn get_indesign_plugin_status(app: tauri::AppHandle) -> Result<IndesignPluginSta
 // versions du registre UXP (UPIA laisse les doublons -> InDesign charge
 // la plus ancienne et les mises à jour semblent ne jamais prendre).
 #[tauri::command]
-fn install_indesign_plugin(app: tauri::AppHandle) -> Result<String, String> {
+async fn install_indesign_plugin(app: tauri::AppHandle) -> Result<String, String> {
     if indesign_is_running() {
         return Err("Ferme InDesign avant d'installer le plugin (sinon l'ancienne version resterait chargée).".into());
     }

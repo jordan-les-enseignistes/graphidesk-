@@ -4,6 +4,28 @@ import App from "./App";
 import "./index.css";
 
 // ============================================
+// Sonde de performance GLOBALE (diagnostic gel ~5s sortie Mesure photo).
+// Active dès le démarrage + buffered : aucune tâche longue du thread JS ne
+// peut lui échapper, même pendant un démontage React. Si un gel n'apparaît
+// PAS ici, il vient du thread NATIF (commande Tauri synchrone, etc.).
+// ============================================
+try {
+  const perfObs = new PerformanceObserver((list) => {
+    for (const e of list.getEntries()) {
+      if (e.duration >= 300) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[Perf] tâche longue JS : ${Math.round(e.duration)} ms (début à t+${Math.round(e.startTime)} ms)`
+        );
+      }
+    }
+  });
+  perfObs.observe({ type: "longtask", buffered: true });
+} catch {
+  /* longtask non supporté */
+}
+
+// ============================================
 // Handler d'erreur global — affiche les erreurs JS à l'écran
 // au lieu d'un écran noir silencieux (utile pour debug post-release)
 // ============================================
