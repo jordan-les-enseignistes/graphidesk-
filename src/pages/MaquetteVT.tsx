@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -26,6 +27,10 @@ import {
 } from "lucide-react";
 import { StatsVt } from "@/measure/components/StatsVt";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
+import { useMeasureDoc, useMeasureImage, clearDocHistory } from "@/measure/state/store";
+import { savePhotoBlob } from "@/measure/engine/imageStore";
+import { clearOffscreen } from "@/measure/engine/offscreen";
+import { ROUTES } from "@/lib/constants";
 import {
   listProjects,
   downloadProjectPhoto,
@@ -294,6 +299,8 @@ function ProjectDetail({
 }) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoCanvas, setPhotoCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  const navigate = useNavigate();
   // Préremplissage : cotes VT déjà saisies, sinon les cotes provisoires
   // (la VT confirme souvent — il n'y a plus qu'à corriger les écarts)
   const [vtDims, setVtDims] = useState<VtDims>(() => {
@@ -328,6 +335,7 @@ function ProjectDetail({
     let revoked: string | null = null;
     downloadProjectPhoto(project.photo_path)
       .then((blob) => {
+        setPhotoBlob(blob);
         const url = URL.createObjectURL(blob);
         revoked = url;
         const img = new window.Image();
@@ -464,6 +472,57 @@ function ProjectDetail({
     }
   };
 
+  // ---- Reprendre le projet dans Mesure photo ----
+  // Recharge photo + calibration + zones dans l'outil de mesure (ajouter
+  // des zones, ré-exporter une fiche...). Remplace la session en cours.
+  const handleReprendre = async () => {
+    if (!photoBlob) {
+      toast.error("Photo non chargée — attends la fin du chargement");
+      return;
+    }
+    const imageName = project.doc.imageName ?? project.nom;
+    try {
+      await savePhotoBlob(imageName, photoBlob);
+      // compteur de zones : reprendre APRÈS la plus grande lettre existante
+      // (sinon les prochaines zones recommenceraient à "Zone A")
+      const letterIndex = (s: string) => {
+        let v = 0;
+        for (const c of s) {
+          const d = c.charCodeAt(0) - 64; // A=1..Z=26
+          if (d < 1 || d > 26) return -1;
+          v = v * 26 + d;
+        }
+        return v - 1;
+      };
+      const maxIdx = project.doc.zones.reduce(
+        (m, z) => Math.max(m, letterIndex(z.label.replace(/^Zone\s+/i, "").toUpperCase())),
+        -1
+      );
+      useMeasureDoc.setState({
+        planes: project.doc.planes,
+        activePlaneId: project.doc.activePlaneId,
+        zones: project.doc.zones,
+        imageName,
+        draftRefPts: [],
+        draftZonePts: [],
+        zoneCounter: maxIdx + 1,
+      });
+      clearDocHistory();
+      // purge de l'image en cours dans Mesure photo (sinon la restauration
+      // au montage serait sautée et l'ancienne photo resterait affichée)
+      const prevImg = useMeasureImage.getState().image;
+      if (prevImg) URL.revokeObjectURL(prevImg.url);
+      useMeasureImage.getState().setImage(null);
+      clearOffscreen();
+      toast.success(
+        `Projet "${project.nom}" rechargé dans Mesure photo (${project.doc.zones.length} zone(s) + calibration)`
+      );
+      navigate(ROUTES.MESURE);
+    } catch (err) {
+      toast.error(`Reprise impossible : ${String(err)}`);
+    }
+  };
+
   // ---- Recalage de la maquette .ai OUVERTE aux cotes VT ----
   // Les blocs générés portent des noms GD_ZONE_* qui survivent au .ai :
   // le script les retrouve et redimensionne cadres/verre (centre conservé)
@@ -581,11 +640,24 @@ function ProjectDetail({
           <ArrowLeft className="h-4 w-4" />
           Retour aux projets
         </Button>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-medium ${STATUT_BADGE[statut].cls}`}
-        >
-          {STATUT_BADGE[statut].label}
-        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReprendre}
+            disabled={!photoBlob}
+            className="gap-1.5"
+            title="Recharge photo + calibration + zones dans l'outil Mesure photo (remplace la session en cours) — pour ajouter des zones ou ré-exporter"
+          >
+            <PencilRuler className="h-4 w-4" />
+            Reprendre dans Mesure photo
+          </Button>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-medium ${STATUT_BADGE[statut].cls}`}
+          >
+            {STATUT_BADGE[statut].label}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
