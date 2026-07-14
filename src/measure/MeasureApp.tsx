@@ -19,7 +19,13 @@ import { setOffscreenFromImage, clearOffscreen } from "./engine/offscreen";
 import { selfTestHomography } from "./engine/homography";
 import { savePhotoBlob, loadPhotoBlob, clearPhotoBlob } from "./engine/imageStore";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useAuthStore } from "@/stores/authStore";
 import type { Pt } from "./state/types";
+
+// La session Mesure photo (localStorage + IndexedDB) est stockée PAR POSTE :
+// on la marque avec l'id de son propriétaire, et si un AUTRE utilisateur se
+// connecte sur le même PC, elle est purgée au lieu d'être restaurée.
+const MEASURE_OWNER_KEY = "graphidesk-measure-owner";
 
 // Auto-test de l'homographie en dev (critère : < 0.5 % d'erreur)
 if (import.meta.env.DEV) {
@@ -108,6 +114,27 @@ export function MeasureApp() {
 
   // ----- Restauration automatique de la session au montage -----
   useEffect(() => {
+    // isolation par utilisateur : la session d'un collègue sur ce poste
+    // n'est jamais restaurée (purge silencieuse). Une session SANS
+    // propriétaire (antérieure à ce fix) est purgée aussi — impossible de
+    // savoir à qui elle appartient, on ne l'attribue jamais par défaut.
+    const userId = useAuthStore.getState().profile?.id ?? null;
+    const owner = localStorage.getItem(MEASURE_OWNER_KEY);
+    if (userId) {
+      const doc = useMeasureDoc.getState();
+      const hasSession =
+        doc.zones.length > 0 || doc.planes.some((p) => p.reference !== null) || !!doc.imageName;
+      if (owner !== userId && hasSession) {
+        resetDoc();
+        clearDocHistory();
+        clearPhotoBlob().catch(() => {});
+        clearOffscreen();
+        localStorage.setItem(MEASURE_OWNER_KEY, userId);
+        return;
+      }
+      localStorage.setItem(MEASURE_OWNER_KEY, userId);
+    }
+
     if (useMeasureImage.getState().image) return; // déjà une image (HMR)
     loadPhotoBlob().then((stored) => {
       if (stored && !useMeasureImage.getState().image) {
@@ -187,10 +214,31 @@ export function MeasureApp() {
   // depuis IndexedDB → photo invisible jusqu'à un rechargement forcé.
   useEffect(() => {
     return () => {
+      // --- diagnostic temporaire : délai observé à la sortie du module ---
+      // trace les tâches longues (>50ms) pendant 10s après le démontage
+      const t0 = performance.now();
+      try {
+        const obs = new PerformanceObserver((list) => {
+          for (const e of list.getEntries()) {
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[Mesure] tâche longue après sortie : ${Math.round(e.duration)} ms (début +${Math.round(e.startTime - t0)} ms)`
+            );
+          }
+        });
+        obs.observe({ entryTypes: ["longtask"] });
+        setTimeout(() => obs.disconnect(), 10000);
+      } catch {
+        /* longtask non supporté */
+      }
+
       const img = useMeasureImage.getState().image;
       if (img) URL.revokeObjectURL(img.url);
       useMeasureImage.getState().setImage(null);
       clearOffscreen();
+
+      // eslint-disable-next-line no-console
+      console.info(`[Mesure] cleanup sortie : ${Math.round(performance.now() - t0)} ms`);
     };
   }, []);
 
