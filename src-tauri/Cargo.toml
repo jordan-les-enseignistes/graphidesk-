@@ -1,6 +1,6 @@
 [package]
 name = "graphidesk"
-version = "1.4.4"
+version = "1.4.5"
 description = "Application de suivi des dossiers graphistes - Les Enseignistes"
 authors = ["Les Enseignistes"]
 license = "UNLICENSED"
@@ -20,7 +20,9 @@ serde_json = "1.0"
 base64 = "0.22"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2", features = ["tray-icon"] }
+# "devtools" : F12 disponible aussi en build de production (outil interne —
+# indispensable pour diagnostiquer les comportements spécifiques à la prod)
+tauri = { version = "2", features = ["tray-icon", "devtools"] }
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"
 tauri-plugin-notification = "2"
