@@ -21,7 +21,11 @@ import {
   FileDown,
   ImageIcon,
   RefreshCw,
+  Wand2,
+  BarChart3,
 } from "lucide-react";
+import { StatsVt } from "@/measure/components/StatsVt";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import {
   listProjects,
   downloadProjectPhoto,
@@ -32,7 +36,8 @@ import {
   type ProjectStatut,
   type VtDims,
 } from "@/measure/persistence/projects";
-import { buildPremaquetteSvg, downloadSvg } from "@/measure/engine/svgExport";
+import { buildPremaquetteSvg, downloadSvg, gdZoneName, gdProjetKey } from "@/measure/engine/svgExport";
+import { roundTo5Mm } from "@/measure/engine/zones";
 import { buildPhotomontagePsd, toBase64 } from "@/measure/engine/psdExport";
 import { DEFAULT_ILLUSTRATOR_PATH } from "@/components/fabrik/types";
 import type { Zone } from "@/measure/state/types";
@@ -65,6 +70,9 @@ export default function MaquetteVT() {
   const [deleteTarget, setDeleteTarget] = useState<MeasureProjectRow | null>(null);
   const [search, setSearch] = useState("");
   const [statutFilter, setStatutFilter] = useState<"all" | ProjectStatut>("all");
+  // stats de précision : réservées à l'admin (les graphistes n'en ont pas l'usage)
+  const { isAdmin } = useEffectiveRole();
+  const [showStats, setShowStats] = useState(false);
 
   const filtered = projects.filter((p) => {
     if (statutFilter !== "all" && p.statut !== statutFilter) return false;
@@ -122,14 +130,30 @@ export default function MaquetteVT() {
           </div>
         </div>
         {!selected && (
-          <Button variant="outline" size="sm" onClick={refresh} className="gap-1.5">
-            <RefreshCw className="h-4 w-4" />
-            Actualiser
-          </Button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Button
+                variant={showStats ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowStats((s) => !s)}
+                className="gap-1.5"
+                title="Précision des mesures photo vs cotes VT (tous les graphistes)"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Stats précision
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={refresh} className="gap-1.5">
+              <RefreshCw className="h-4 w-4" />
+              Actualiser
+            </Button>
+          </div>
         )}
       </div>
 
-      {selected ? (
+      {!selected && showStats && isAdmin ? (
+        <StatsVt projects={projects} />
+      ) : selected ? (
         <ProjectDetail
           project={selected}
           onBack={() => {
@@ -287,6 +311,8 @@ function ProjectDetail({
   const [busy, setBusy] = useState(false);
   const [showPsdDialog, setShowPsdDialog] = useState(false);
   const [psdExcluded, setPsdExcluded] = useState<Set<string>>(new Set());
+  const [showRecaleDialog, setShowRecaleDialog] = useState(false);
+  const [recaleExcluded, setRecaleExcluded] = useState<Set<string>>(new Set());
 
   const togglePsdExcluded = (id: string) => {
     setPsdExcluded((prev) => {
@@ -438,6 +464,82 @@ function ProjectDetail({
     }
   };
 
+  // ---- Recalage de la maquette .ai OUVERTE aux cotes VT ----
+  // Les blocs générés portent des noms GD_ZONE_* qui survivent au .ai :
+  // le script les retrouve et redimensionne cadres/verre (centre conservé)
+  // SANS toucher au travail posé par le graphiste.
+  const openRecaleDialog = () => {
+    // pré-cochées : les vitrines uniquement (le reste est rarement recalé)
+    setRecaleExcluded(new Set(zones.filter((z) => z.fill !== "vitrage").map((z) => z.id)));
+    setShowRecaleDialog(true);
+  };
+
+  const toggleRecaleExcluded = (id: string) => {
+    setRecaleExcluded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleRecale = async () => {
+    const selected = zones.filter((z) => !recaleExcluded.has(z.id));
+    if (selected.length === 0) {
+      toast.error("Aucune zone sélectionnée");
+      return;
+    }
+    setShowRecaleDialog(false);
+    setBusy(true);
+    try {
+      const zonesParams = selected.map((z) => {
+        const v = vtDims[z.id];
+        // base du ratio = la cote DESSINÉE dans la prémaquette (provisoire
+        // arrondie au 5mm), cible = cote VT (axe sans cote VT : inchangé)
+        const provW = roundTo5Mm(z.widthMm);
+        const provH = roundTo5Mm(z.heightMm);
+        const vtW = v && v.widthMm > 0 ? v.widthMm : null;
+        const vtH = v && v.heightMm > 0 ? v.heightMm : null;
+        const full = vtW !== null && vtH !== null;
+        return {
+          key: gdZoneName(z.label),
+          label: z.label,
+          provW,
+          provH,
+          vtW,
+          vtH,
+          dimsText: `${vtW ?? provW} × ${vtH ?? provH} mm${full ? " (VT)" : " (VT partielle)"}`,
+        };
+      });
+      const illustratorPath =
+        localStorage.getItem(ILLUSTRATOR_PATH_KEY) ?? DEFAULT_ILLUSTRATOR_PATH;
+      await invoke<string>("run_illustrator_script", {
+        illustratorPath,
+        scriptName: "recale_vt.jsx",
+        params: JSON.stringify({
+          zones: zonesParams,
+          projetKey: gdProjetKey(project.doc.imageName ?? project.nom),
+        }),
+      });
+      // sauvegarde AUTOMATIQUE des cotes VT (deltas pour les stats de
+      // précision) + le recalage clôt le projet
+      try {
+        await updateProjectVt(project.id, vtDims, "terminee");
+        setStatut("terminee");
+      } catch {
+        // la sauvegarde ne doit pas masquer le succès du recalage
+      }
+      toast.success(
+        "Recalage lancé — rapport dans Illustrator. Cotes VT enregistrées, projet terminé ✔",
+        { duration: 7000 }
+      );
+    } catch (err) {
+      toast.error(`Recalage : ${String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handlePsd = async () => {
     if (!photoCanvas) {
       toast.error("Photo non chargée");
@@ -514,11 +616,13 @@ function ProjectDetail({
               const dH = v.heightMm > 0 ? v.heightMm - z.heightMm : 0;
               const pW = z.widthMm > 0 ? (dW / z.widthMm) * 100 : 0;
               const pH = z.heightMm > 0 ? (dH / z.heightMm) * 100 : 0;
-              const maxPct = Math.max(Math.abs(pW), Math.abs(pH));
+              // paliers MÉTIER en mm absolus (la tolérance de fab ne dépend
+              // pas de la taille de la vitrine) : <10 vert, <50 ambre, sinon rouge
+              const maxMm = Math.max(Math.abs(dW), Math.abs(dH));
               const deltaCls =
-                maxPct < 2
+                maxMm < 10
                   ? "text-emerald-600 dark:text-emerald-400"
-                  : maxPct < 5
+                  : maxMm < 50
                     ? "text-amber-600 dark:text-amber-400"
                     : "text-red-600 dark:text-red-400";
               const fmt = (d: number, p: number) =>
@@ -564,24 +668,31 @@ function ProjectDetail({
           </div>
 
           <div className="space-y-2 pt-2 border-t dark:border-slate-700">
-            <Button onClick={handleSaveVt} disabled={busy} size="sm" className="w-full gap-1.5">
-              <Save className="h-4 w-4" />
-              Enregistrer les cotes VT
-            </Button>
             <Button
-              onClick={handleSvg}
+              onClick={openRecaleDialog}
               disabled={busy}
               size="sm"
               className="w-full gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-              title="Les zones sans cote réelle (champs vidés) gardent leur cote provisoire, marquée ≈ dans la maquette"
+              title="Redimensionne les vitrines de la maquette .ai OUVERTE dans Illustrator aux cotes VT — sans toucher à votre travail. Enregistre les cotes et termine le projet."
             >
-              <FileDown className="h-4 w-4" />
-              Générer la maquette VT (Illustrator)
+              <Wand2 className="h-4 w-4" />
+              Recaler la maquette ouverte (cotes VT)
             </Button>
             <p className="text-[11px] text-gray-400 dark:text-slate-500">
-              💡 Zone non mesurée par le poseur (ex : façade entière) : vide ses champs — elle
-              gardera sa cote provisoire, marquée « ≈ provisoire » dans la maquette.
+              💡 Enregistre aussi les cotes VT (stats d'écart) et passe le projet en « Terminé ».
+              Zone non mesurée par le poseur : vide ses champs, elle restera provisoire.
             </p>
+            <Button
+              onClick={handleSvg}
+              disabled={busy}
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400"
+              title="Repart de zéro : nouvelle maquette propre aux cotes VT (si tu n'as pas encore travaillé sur la prémaquette)"
+            >
+              <FileDown className="h-4 w-4" />
+              Générer une maquette VT vierge (Illustrator)
+            </Button>
             <Button
               onClick={() => setShowPsdDialog(true)}
               disabled={busy}
@@ -592,9 +703,75 @@ function ProjectDetail({
               <ImageIcon className="h-4 w-4" />
               Re-générer le PSD photomontage
             </Button>
+            <Button
+              onClick={handleSaveVt}
+              disabled={busy}
+              variant="ghost"
+              size="sm"
+              className="w-full gap-1.5 text-gray-500 dark:text-slate-400"
+              title="Sauvegarde intermédiaire (saisie en plusieurs fois) — le recalage enregistre déjà tout seul"
+            >
+              <Save className="h-4 w-4" />
+              Enregistrer les cotes sans générer
+            </Button>
           </div>
         </Card>
       </div>
+
+      {/* Sélection des zones à recaler dans la maquette Illustrator ouverte */}
+      <Dialog open={showRecaleDialog} onOpenChange={setShowRecaleDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 pr-8">
+              <Wand2 className="h-5 w-5 text-emerald-500" />
+              Zones à recaler aux cotes VT
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-gray-500 dark:text-slate-400">
+            Agit sur la maquette <strong>ouverte dans Illustrator</strong> (celle issue de la
+            prémaquette de ce projet). Seuls les blocs générés par GraphiDesk sont
+            redimensionnés, centre conservé — jamais vos éléments.
+          </p>
+          <div className="space-y-1 max-h-72 overflow-y-auto">
+            {zones.map((z) => {
+              const v = vtDims[z.id];
+              const hasVt = !!v && (v.widthMm > 0 || v.heightMm > 0);
+              return (
+                <label
+                  key={z.id}
+                  className="flex items-center gap-3 rounded p-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!recaleExcluded.has(z.id)}
+                    onChange={() => toggleRecaleExcluded(z.id)}
+                    className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span className="text-sm dark:text-slate-200">{z.label}</span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400 font-mono ml-auto">
+                    {roundTo5Mm(z.widthMm)} × {roundTo5Mm(z.heightMm)}
+                    {hasVt && v
+                      ? ` → ${v.widthMm > 0 ? v.widthMm : "?"} × ${v.heightMm > 0 ? v.heightMm : "?"}`
+                      : " (pas de cote VT)"}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <p className="text-xs text-gray-400 dark:text-slate-500">
+            ⚠ Les blocs dégroupés gardent leur nom et restent recalables ; un bloc renommé ou
+            supprimé sera signalé « introuvable » dans le rapport Illustrator.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRecaleDialog(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleRecale} className="bg-emerald-600 hover:bg-emerald-700">
+              Recaler dans Illustrator
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Sélection des zones pour le PSD */}
       <Dialog open={showPsdDialog} onOpenChange={setShowPsdDialog}>

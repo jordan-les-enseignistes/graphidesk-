@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 5,
+  "id": "com.izy.cotesbat",
+  "name": "Cotes BAT",
+  "version": "0.5.3",
+  "main": "index.html",
+  "host": {
+    "app": "ID",
+    "minVersion": "21.0.0"
+  },
+  "requiredPermissions": {
+    "localFileSystem": "fullAccess"
+  },
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "cotesPanel",
+      "label": { "default": "Cotes BAT" },
+      "minimumSize": { "width": 220, "height": 320 },
+      "maximumSize": { "width": 800, "height": 1000 },
+      "preferredDockedSize": { "width": 260, "height": 420 },
+      "preferredFloatingSize": { "width": 280, "height": 440 }
+    }
+  ]
+}

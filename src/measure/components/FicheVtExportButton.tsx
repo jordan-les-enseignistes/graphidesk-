@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,9 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { ClipboardList } from "lucide-react";
 import { useMeasureDoc, useMeasureImage } from "../state/store";
-import { getOffscreenCanvas } from "../engine/offscreen";
 import { formatDims } from "../engine/zones";
-import { toBase64 } from "../engine/psdExport";
+import { exportFicheVt } from "../engine/ficheVt";
 
 /**
  * Export "Fiche VT" pour le gabarit InDesign (plugin Cotes BAT UXP).
@@ -46,56 +44,12 @@ export function FicheVtExportButton() {
       toast.error("Aucune zone sélectionnée");
       return;
     }
-    const photo = getOffscreenCanvas();
-    if (!photo) {
-      toast.error("Photo non disponible");
-      return;
-    }
-
     setShowDialog(false);
     setBusy(true);
     try {
-      // photo JPEG (qualité 0.9, résolution de travail actuelle)
-      const blob = await new Promise<Blob | null>((resolve) =>
-        photo.toBlob((b) => resolve(b), "image/jpeg", 0.9)
-      );
-      if (!blob) throw new Error("Échec de la génération JPEG");
-      const photoB64 = toBase64(new Uint8Array(await blob.arrayBuffer()));
-
       const imageName = useMeasureImage.getState().image?.name ?? "photo";
       const projet = ficheName.trim() || imageName.replace(/\.[^.]+$/, "");
-      // les lettres suivent l'ordre de la liste (Zone A → A, etc.)
-      const fiche = {
-        version: 1,
-        source: "GraphiDesk Mesure photo",
-        projet,
-        photoFile: "fiche_vt.jpg",
-        photoWidth: photo.width,
-        photoHeight: photo.height,
-        zones: selected.map((z) => ({
-          letter: z.label.replace(/^Zone\s+/i, ""),
-          label: z.label,
-          corners: z.corners,
-          widthMm: Math.round(z.widthMm),
-          heightMm: Math.round(z.heightMm),
-        })),
-      };
-
-      // dossier horodaté : trié par nom = trié par date (le plugin prend le plus récent)
-      const now = new Date();
-      const pad = (n: number) => String(n).padStart(2, "0");
-      const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
-      const slug = projet
-        .replace(/[^a-zA-Z0-9à-ÿÀ-Ÿ _-]/g, "")
-        .trim()
-        .replace(/\s+/g, "-")
-        .slice(0, 40) || "projet";
-
-      await invoke<string>("save_fiche_vt", {
-        folderName: `${ts}_${slug}`,
-        jsonContent: JSON.stringify(fiche, null, 2),
-        photoBase64: photoB64,
-      });
+      await exportFicheVt(selected, projet);
       toast.success(
         `Fiche VT exportée (${selected.length} zone(s)) — dans InDesign : panneau Cotes BAT → « Importer depuis GraphiDesk »`,
         { duration: 9000 }

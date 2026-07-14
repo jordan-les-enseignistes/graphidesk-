@@ -80,6 +80,35 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/**
+ * Nom stable d'une zone pour le recalage VT dans Illustrator :
+ * "Zone A" -> "GD_ZONE_A". Les id SVG deviennent les noms d'objets dans
+ * Illustrator et SURVIVENT à l'enregistrement .ai (vérifié) — c'est la
+ * métadonnée qui permet de recaler les cadres aux cotes définitives.
+ * NB : Illustrator convertit les "_" en espaces à l'ouverture ; le script
+ * de recalage (recale_vt.jsx) normalise les deux formes avant comparaison.
+ */
+export function gdZoneName(label: string): string {
+  return "GD_ZONE_" + label.replace(/^Zone\s+/i, "").replace(/[^A-Za-z0-9]+/g, "_").toUpperCase();
+}
+
+/**
+ * Marqueur d'identité projet gravé dans la maquette (objet invisible nommé).
+ * Permet au recalage VT de vérifier que la maquette ouverte correspond bien
+ * au projet — vérification SOUPLE : absent → avertissement, différent →
+ * confirmation dans Illustrator. Jamais bloquant.
+ */
+export function gdProjetKey(imageName: string): string {
+  return (
+    "GD_PROJET_" +
+    imageName
+      .replace(/\.[^.]+$/, "")
+      .replace(/[^A-Za-z0-9]+/g, "_")
+      .toUpperCase()
+      .slice(0, 40)
+  );
+}
+
 export interface SvgExportOptions {
   /** true = maquette définitive avec cotes réelles de visite technique */
   vt?: boolean;
@@ -231,6 +260,11 @@ export function buildPremaquetteSvg(
 
   // ---- Groupe 1 : les CADRES seuls (destiné à devenir la maquette) ----
   parts.push(`<g id="CADRES">`);
+  // marqueur d'identité projet : invisible (fill/stroke none), son NOM
+  // survit au .ai et permet au recalage de vérifier la bonne maquette
+  parts.push(
+    `<rect id="${esc(gdProjetKey(imageName))}" x="0" y="0" width="0.1" height="0.1" fill="none" stroke="none"/>`
+  );
   {
     // bloc FOND en premier (donc derrière), débordant légèrement des zones
     const fx = u(minX + ox - FOND_MARGIN_MM);
@@ -247,36 +281,36 @@ export function buildPremaquetteSvg(
     const y = u(r.y + oy);
     const w = u(r.w);
     const h = u(r.h);
-    const idAttr = esc(r.label.replace(/\s+/g, "_"));
+    const base = esc(gdZoneName(r.label));
     if (containerFlags[ri] && !r.vitrage) {
       // zone conteneur (façade) : couleur du mur échantillonnée → les
       // montants apparaissent naturellement entre les zones posées dessus
       parts.push(
-        `<rect id="${idAttr}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="${fondColor}" stroke="#000000" stroke-width="0.3"/>`
+        `<rect id="${base}__FOND" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="${fondColor}" stroke="#000000" stroke-width="0.3"/>`
       );
     } else if (r.vitrage) {
-      parts.push(`<g id="${idAttr}">`);
+      parts.push(`<g id="${base}">`);
       // cadre de menuiserie AUTOUR du vitrage mesuré (la mesure = le verre,
       // le cadre s'ajoute à l'extérieur)
       const cw = u(CADRE_VITRINE_MM);
       parts.push(
-        `<rect x="${(x - cw).toFixed(2)}" y="${(y - cw).toFixed(2)}" width="${(w + 2 * cw).toFixed(2)}" height="${(h + 2 * cw).toFixed(2)}" fill="${CADRE_VITRINE_COLOR}" stroke="#000000" stroke-width="0.3"/>`
+        `<rect id="${base}__CADRE" x="${(x - cw).toFixed(2)}" y="${(y - cw).toFixed(2)}" width="${(w + 2 * cw).toFixed(2)}" height="${(h + 2 * cw).toFixed(2)}" fill="${CADRE_VITRINE_COLOR}" stroke="#000000" stroke-width="0.3"/>`
       );
       // vitrage aux cotes exactes : dégradé bleu + reflet diagonal
       parts.push(
-        `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="url(#gradVitrage)" stroke="#000000" stroke-width="0.3"/>`
+        `<rect id="${base}__VERRE" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="url(#gradVitrage)" stroke="#000000" stroke-width="0.3"/>`
       );
       // polygone de reflet : fractions du modèle 497.5² → (0.343,1) (0,1) (0,0) (0.749,0)
       const px = (fx: number) => (x + w * fx).toFixed(2);
       const py = (fy: number) => (y + h * fy).toFixed(2);
       parts.push(
-        `<polygon points="${px(0.343)},${py(1)} ${px(0)},${py(1)} ${px(0)},${py(0)} ${px(0.749)},${py(0)}" fill="url(#gradReflet)"/>`
+        `<polygon id="${base}__REFLET" points="${px(0.343)},${py(1)} ${px(0)},${py(1)} ${px(0)},${py(0)} ${px(0.749)},${py(0)}" fill="url(#gradReflet)"/>`
       );
       parts.push(`</g>`);
     } else {
       // blanc OPAQUE (le bloc FOND est derrière : un fill "none" le laisserait voir)
       parts.push(
-        `<rect id="${idAttr}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="#ffffff" stroke="#000000" stroke-width="0.3"/>`
+        `<rect id="${base}__BANDEAU" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="#ffffff" stroke="#000000" stroke-width="0.3"/>`
       );
     }
   }
@@ -305,7 +339,7 @@ export function buildPremaquetteSvg(
     const h = u(r.h);
     const fontSize = Math.min(u(140), Math.max(u(60), h * 0.25));
     parts.push(
-      `<text x="${(x + w / 2).toFixed(2)}" y="${(y + h / 2).toFixed(2)}" font-size="${fontSize.toFixed(2)}" fill="#6b7280" text-anchor="middle" dominant-baseline="middle">${esc(r.label)} ${esc(r.dims)}</text>`
+      `<text id="${esc(gdZoneName(r.label))}__COTE" x="${(x + w / 2).toFixed(2)}" y="${(y + h / 2).toFixed(2)}" font-size="${fontSize.toFixed(2)}" fill="#6b7280" text-anchor="middle" dominant-baseline="middle">${esc(r.label)} ${esc(r.dims)}</text>`
     );
   }
   parts.push(`</g>`);

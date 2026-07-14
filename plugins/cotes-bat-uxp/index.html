@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <div class="section">
+      <div class="section-title">Cotes manuelles</div>
+      <p class="hint">Sélectionne tes blocs sur la photo, puis génère.</p>
+      <div class="letter-row">
+        <label for="nextLetter">Prochaine lettre</label>
+        <input id="nextLetter" type="text" value="A" maxlength="2" />
+      </div>
+      <button id="btnGenerate" class="btn primary">＋ Cotes</button>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="section">
+      <div class="section-title">Import GraphiDesk</div>
+      <p class="hint">Photo + cotes + tableau sur la page 2, automatiquement.</p>
+      <div class="fiche-row">
+        <select id="ficheSelect"></select>
+        <button id="btnRefresh" class="btn icon" title="Rafraîchir la liste">↻</button>
+      </div>
+      <button id="btnImport" class="btn primary">⇩ Importer la fiche</button>
+    </div>
+
+    <p id="status" class="status"></p>
+
+    <p class="footer" id="version"></p>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>
