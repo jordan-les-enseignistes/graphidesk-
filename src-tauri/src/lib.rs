@@ -46,6 +46,109 @@ fn check_illustrator_exists(path: String) -> bool {
     std::path::Path::new(&path).exists()
 }
 
+// Écrit un fichier BINAIRE (base64) dans le dossier temp et retourne son chemin
+// (utilisé pour le PSD photomontage du module Mesure)
+#[tauri::command]
+fn save_temp_binary(file_name: String, content_base64: String) -> Result<String, String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&content_base64)
+        .map_err(|e| format!("Erreur décodage base64 : {}", e))?;
+    let temp_dir = env::temp_dir();
+    let file_path = temp_dir.join(&file_name);
+    if let Some(parent) = file_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    fs::write(&file_path, &bytes)
+        .map_err(|e| format!("Erreur écriture fichier : {}", e))?;
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+// Écrit une fiche VT (json + photo) dans Documents\GraphiDesk\fiches_vt\{dossier}
+// Le plugin InDesign "Cotes BAT" scanne ce dossier et charge la fiche la plus récente.
+// On passe par USERPROFILE\Documents pour matcher os.homedir() côté UXP.
+#[tauri::command]
+fn save_fiche_vt(
+    folder_name: String,
+    json_content: String,
+    photo_base64: String,
+) -> Result<String, String> {
+    use base64::Engine;
+    let userprofile =
+        env::var("USERPROFILE").map_err(|_| "Variable USERPROFILE introuvable".to_string())?;
+    let dir = std::path::Path::new(&userprofile)
+        .join("Documents")
+        .join("GraphiDesk")
+        .join("fiches_vt")
+        .join(&folder_name);
+    fs::create_dir_all(&dir).map_err(|e| format!("Erreur création dossier : {}", e))?;
+    fs::write(dir.join("fiche_vt.json"), &json_content)
+        .map_err(|e| format!("Erreur écriture JSON : {}", e))?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&photo_base64)
+        .map_err(|e| format!("Erreur décodage base64 : {}", e))?;
+    fs::write(dir.join("fiche_vt.jpg"), &bytes)
+        .map_err(|e| format!("Erreur écriture photo : {}", e))?;
+    Ok(dir.to_string_lossy().replace('\\', "/"))
+}
+
+// Ouvre un fichier avec une application donnée (Photoshop, etc.)
+#[tauri::command]
+fn open_file_with(app_path: String, file_path: String) -> Result<(), String> {
+    if !std::path::Path::new(&app_path).exists() {
+        return Err(format!("Application non trouvée : {}", app_path));
+    }
+    if !std::path::Path::new(&file_path).exists() {
+        return Err(format!("Fichier non trouvé : {}", file_path));
+    }
+    Command::new(&app_path)
+        .arg(&file_path)
+        .spawn()
+        .map_err(|e| format!("Erreur lancement : {}", e))?;
+    Ok(())
+}
+
+// Écrit un fichier dans le dossier temp et retourne son chemin
+// (utilisé pour préparer un fichier avant de le traiter via script Illustrator)
+#[tauri::command]
+fn save_temp_file(file_name: String, content: String) -> Result<String, String> {
+    let temp_dir = env::temp_dir();
+    let file_path = temp_dir.join(&file_name);
+    if let Some(parent) = file_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    fs::write(&file_path, &content)
+        .map_err(|e| format!("Erreur écriture fichier temporaire : {}", e))?;
+    // forward slashes pour utilisation directe dans un script JSX
+    Ok(file_path.to_string_lossy().replace('\\', "/"))
+}
+
+// Écrit un fichier (SVG de prémaquette, etc.) dans le dossier temp
+// et l'ouvre directement dans Illustrator
+#[tauri::command]
+fn save_and_open_in_illustrator(
+    illustrator_path: String,
+    file_name: String,
+    content: String,
+) -> Result<String, String> {
+    if !std::path::Path::new(&illustrator_path).exists() {
+        return Err(format!("Illustrator non trouvé : {}", illustrator_path));
+    }
+
+    let temp_dir = env::temp_dir();
+    let file_path = temp_dir.join(&file_name);
+
+    fs::write(&file_path, &content)
+        .map_err(|e| format!("Erreur écriture fichier temporaire : {}", e))?;
+
+    Command::new(&illustrator_path)
+        .arg(&file_path)
+        .spawn()
+        .map_err(|e| format!("Erreur lancement Illustrator : {}", e))?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
 // Exécuter un script JSX dans Illustrator
 #[tauri::command]
 async fn run_illustrator_script(
@@ -171,6 +274,167 @@ var params = {};
     }
 }
 
+// ===== PLUGIN INDESIGN COTES BAT =====
+
+// Résout le dossier assets (dev : relatif à l'exe ; release : resource_dir)
+fn resolve_assets_dir(app: &tauri::AppHandle, sub: &str) -> Result<std::path::PathBuf, String> {
+    if cfg!(debug_assertions) {
+        let exe_dir = env::current_exe().map_err(|e| format!("Erreur chemin exe: {}", e))?;
+        let src_tauri = exe_dir
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .ok_or("Impossible de remonter jusqu'à src-tauri")?;
+        Ok(src_tauri.join("assets").join(sub))
+    } else {
+        let resource_path = app
+            .path()
+            .resource_dir()
+            .map_err(|e| format!("Erreur chemin ressources: {}", e))?;
+        Ok(resource_path.join("assets").join(sub))
+    }
+}
+
+const UPIA_PATH: &str = r"C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe";
+const COTES_BAT_PLUGIN_ID: &str = "com.izy.cotesbat";
+
+fn uxp_registry_path() -> Result<std::path::PathBuf, String> {
+    let appdata = env::var("APPDATA").map_err(|_| "Variable APPDATA introuvable".to_string())?;
+    Ok(std::path::Path::new(&appdata)
+        .join("Adobe")
+        .join("UXP")
+        .join("PluginsInfo")
+        .join("v1")
+        .join("ID.json"))
+}
+
+// Versions du plugin Cotes BAT enregistrées dans le registre UXP d'InDesign
+fn installed_plugin_versions() -> Vec<String> {
+    let mut out = Vec::new();
+    let Ok(reg) = uxp_registry_path() else { return out };
+    let Ok(txt) = fs::read_to_string(&reg) else { return out };
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&txt) else { return out };
+    if let Some(plugins) = json.get("plugins").and_then(|p| p.as_array()) {
+        for p in plugins {
+            if p.get("pluginId").and_then(|v| v.as_str()) == Some(COTES_BAT_PLUGIN_ID) {
+                if let Some(v) = p.get("versionString").and_then(|v| v.as_str()) {
+                    out.push(v.to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
+fn indesign_is_running() -> bool {
+    Command::new("tasklist")
+        .args(["/FI", "IMAGENAME eq InDesign.exe", "/NH"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains("InDesign.exe"))
+        .unwrap_or(false)
+}
+
+#[derive(serde::Serialize)]
+struct IndesignPluginStatus {
+    embedded_version: String,
+    installed_versions: Vec<String>,
+    indesign_running: bool,
+    upia_available: bool,
+}
+
+// État du plugin : version livrée avec GraphiDesk vs versions installées
+#[tauri::command]
+fn get_indesign_plugin_status(app: tauri::AppHandle) -> Result<IndesignPluginStatus, String> {
+    let assets = resolve_assets_dir(&app, "indesign")?;
+    let embedded_version = fs::read_to_string(assets.join("version.txt"))
+        .map_err(|e| format!("version.txt du plugin introuvable : {}", e))?
+        .trim()
+        .to_string();
+    Ok(IndesignPluginStatus {
+        embedded_version,
+        installed_versions: installed_plugin_versions(),
+        indesign_running: indesign_is_running(),
+        upia_available: std::path::Path::new(UPIA_PATH).exists(),
+    })
+}
+
+// Installe (ou met à jour) le plugin via UPIA puis purge les anciennes
+// versions du registre UXP (UPIA laisse les doublons -> InDesign charge
+// la plus ancienne et les mises à jour semblent ne jamais prendre).
+#[tauri::command]
+fn install_indesign_plugin(app: tauri::AppHandle) -> Result<String, String> {
+    if indesign_is_running() {
+        return Err("Ferme InDesign avant d'installer le plugin (sinon l'ancienne version resterait chargée).".into());
+    }
+    if !std::path::Path::new(UPIA_PATH).exists() {
+        return Err("Installateur Adobe (UPIA) introuvable — Creative Cloud est-il installé ?".into());
+    }
+    let assets = resolve_assets_dir(&app, "indesign")?;
+    let ccx = assets.join("Cotes-BAT.ccx");
+    if !ccx.exists() {
+        return Err(format!("Plugin introuvable : {}", ccx.display()));
+    }
+    let embedded = fs::read_to_string(assets.join("version.txt"))
+        .map_err(|e| format!("version.txt introuvable : {}", e))?
+        .trim()
+        .to_string();
+
+    let output = Command::new(UPIA_PATH)
+        .arg("/install")
+        .arg(&ccx)
+        .output()
+        .map_err(|e| format!("Erreur lancement UPIA : {}", e))?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if !stdout.contains("Successful") {
+        return Err(format!(
+            "Échec de l'installation : {}",
+            if stdout.trim().is_empty() {
+                String::from_utf8_lossy(&output.stderr).to_string()
+            } else {
+                stdout.to_string()
+            }
+        ));
+    }
+
+    // purge des anciennes versions (registre + dossiers)
+    if let Ok(reg) = uxp_registry_path() {
+        if let Ok(txt) = fs::read_to_string(&reg) {
+            if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&txt) {
+                if let Some(plugins) = json.get_mut("plugins").and_then(|p| p.as_array_mut()) {
+                    plugins.retain(|p| {
+                        let is_old = p.get("pluginId").and_then(|v| v.as_str())
+                            == Some(COTES_BAT_PLUGIN_ID)
+                            && p.get("versionString").and_then(|v| v.as_str())
+                                != Some(embedded.as_str());
+                        if is_old {
+                            // supprimer le dossier de la vieille version
+                            if let Some(v) = p.get("versionString").and_then(|v| v.as_str()) {
+                                if let Some(ext_dir) = reg
+                                    .parent() // v1
+                                    .and_then(|p| p.parent()) // PluginsInfo
+                                    .and_then(|p| p.parent()) // UXP
+                                {
+                                    let folder = ext_dir
+                                        .join("Plugins")
+                                        .join("External")
+                                        .join(format!("{}_{}", COTES_BAT_PLUGIN_ID, v));
+                                    let _ = fs::remove_dir_all(folder);
+                                }
+                            }
+                        }
+                        !is_old
+                    });
+                    if let Ok(new_txt) = serde_json::to_string_pretty(&json) {
+                        let _ = fs::write(&reg, new_txt);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(embedded)
+}
+
 // Obtenir le chemin des assets FabRik
 #[tauri::command]
 fn get_fabrik_assets_path(app: tauri::AppHandle) -> Result<String, String> {
@@ -206,7 +470,14 @@ pub fn run() {
             get_illustrator_path,
             check_illustrator_exists,
             run_illustrator_script,
-            get_fabrik_assets_path
+            get_fabrik_assets_path,
+            save_and_open_in_illustrator,
+            save_temp_file,
+            save_temp_binary,
+            save_fiche_vt,
+            get_indesign_plugin_status,
+            install_indesign_plugin,
+            open_file_with
         ])
         .setup(|app| {
             // Créer le menu du tray

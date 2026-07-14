@@ -110,6 +110,19 @@ export const PERMISSIONS: PermissionDefinition[] = [
     category: "access",
   },
   {
+    key: "access:mesure",
+    label: "Module Mesure photo",
+    description: "Accès à l'outil de mesure provisoire par photo (vitrines, façades).",
+    category: "access",
+  },
+  {
+    key: "access:maquette_vt",
+    label: "Module Maquette suite VT",
+    description:
+      "Accès aux projets de mesure sauvegardés : saisie des cotes réelles après visite technique et génération de la maquette définitive.",
+    category: "access",
+  },
+  {
     key: "access:nuancier",
     label: "Module Nuancier",
     description: "Accès au convertisseur RAL.",

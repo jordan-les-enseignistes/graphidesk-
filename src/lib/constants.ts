@@ -70,6 +70,8 @@ export const ROUTES = {
   REUNIONS: "/reunions",
   RAL_CONVERTER: "/ral-converter",
   CALCULATRICE: "/calculatrice",
+  MESURE: "/mesure",
+  MAQUETTE_VT: "/maquette-vt",
   FEEDBACKS: "/feedbacks",
   MON_PROFIL: "/mon-profil",
   ANNUAIRE: "/annuaire",
