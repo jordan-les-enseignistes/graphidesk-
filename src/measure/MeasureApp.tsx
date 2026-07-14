@@ -51,6 +51,16 @@ export function MeasureApp() {
   const [dragOver, setDragOver] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // true tant que la page est montée : le décodage d'image est asynchrone,
+  // si l'utilisateur quitte la page avant la fin on abandonne (sinon toast
+  // "Session restaurée" sur une AUTRE page + image fantôme dans le store)
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
 
   // ----- Chargement d'un blob image (fichier utilisateur OU restauration) -----
   const loadBlob = useCallback(
@@ -58,6 +68,10 @@ export function MeasureApp() {
       const url = URL.createObjectURL(blob);
       const img = new window.Image();
       img.onload = () => {
+        if (!aliveRef.current) {
+          URL.revokeObjectURL(url);
+          return;
+        }
         // libérer l'ancienne URL objet si présente
         const prev = useMeasureImage.getState().image;
         if (prev) URL.revokeObjectURL(prev.url);

@@ -326,8 +326,23 @@ fn installed_plugin_versions() -> Vec<String> {
     out
 }
 
+// CREATE_NO_WINDOW : sans ce flag, lancer un programme console (tasklist,
+// UPIA...) depuis une appli graphique fait FLASHER une fenêtre de terminal
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+fn hidden_command(program: &str) -> Command {
+    #[allow(unused_mut)]
+    let mut cmd = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
 fn indesign_is_running() -> bool {
-    Command::new("tasklist")
+    hidden_command("tasklist")
         .args(["/FI", "IMAGENAME eq InDesign.exe", "/NH"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).contains("InDesign.exe"))
@@ -382,7 +397,7 @@ async fn install_indesign_plugin(app: tauri::AppHandle) -> Result<String, String
         .trim()
         .to_string();
 
-    let output = Command::new(UPIA_PATH)
+    let output = hidden_command(UPIA_PATH)
         .arg("/install")
         .arg(&ccx)
         .output()
