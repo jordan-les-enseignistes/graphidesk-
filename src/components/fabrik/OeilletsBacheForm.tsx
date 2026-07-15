@@ -127,11 +127,33 @@ export function OeilletsBacheForm({ onMaquette, onFab, isProcessing }: Props) {
           équidistants, entraxe ≤ {pasMaxMm} mm — posés sur un calque « OEILLETS ».
         </p>
         <p>
-          <strong>2. FAB</strong> : sur le fichier maquette ouvert (avec ses œillets) — passage à
-          l'échelle 1:1, plan de travail adapté, chaque œillet remplacé depuis son centre par un
-          marqueur Ø{diamFabMm} mm : blanc sur fond sombre / noir sur fond clair (détection
-          automatique), croix de centrage + liseré en couleur opposée.
+          <strong>2. FAB</strong> : crée un <strong>nouveau document à l'échelle 1:1</strong>, plan de
+          travail aux dimensions exactes de la bâche <strong>quelle que soit sa taille</strong> — la
+          maquette d'origine n'est jamais modifiée. Chaque œillet devient un marqueur Ø{diamFabMm} mm
+          : blanc sur fond sombre / noir sur fond clair (détection auto), croix de centrage + liseré
+          opposé.
         </p>
+      </div>
+
+      <div className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-3 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+        <p className="font-semibold">⚙️ Mise en place UNIQUE par poste (bâches de plus de 5,7 m)</p>
+        <p>
+          Illustrator a besoin d'un gabarit « grand canevas » que son API ne sait pas créer seule.
+          Une fois pour toutes :
+        </p>
+        <ol className="list-decimal ml-4 space-y-0.5">
+          <li>
+            Illustrator → <strong>Fichier → Nouveau</strong> : unités <strong>mm</strong>, largeur{" "}
+            <strong>7000</strong>, hauteur <strong>7000</strong> → Créer (le grand canevas s'active
+            tout seul)
+          </li>
+          <li>
+            Sans rien dessiner : <strong>Enregistrer sous</strong> →{" "}
+            <code>Documents\GraphiDesk\templates\grand_canevas.ai</code>
+          </li>
+          <li>Fermer. C'est tout — le bouton FAB l'utilisera automatiquement (via une copie : le gabarit reste vide).</li>
+        </ol>
+        <p>Sans ce gabarit, le bouton FAB te réaffichera ces instructions au moment voulu.</p>
       </div>
     </Card>
   );

@@ -37,13 +37,13 @@
                     app.unloadAction("Ensemble 4", "");
                 }
             }
-            
+
             if (contourItems.length > 0) {
                 doc.selection = null;
                 for (var c = 0; c < contourItems.length; c++) {
                     contourItems[c].selected = true;
                 }
-                
+
                 var vectoContourFile = new File(params.vectoContourActionPath);
                 if (vectoContourFile.exists) {
                     app.loadAction(vectoContourFile);

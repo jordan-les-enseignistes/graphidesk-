@@ -1,0 +1,49 @@
+# Remplit le cache Rust sur la branche main.
+# POURQUOI : le build de release ne tourne que sur les tags, or GitHub
+# n'autorise un tag qu'à lire les caches de la branche par défaut. Sans ce
+# workflow, le cache de swatinem/rust-cache n'est JAMAIS retrouvé et chaque
+# release recompile les ~450 dépendances à froid (~10 min au lieu de ~4).
+name: Warm Rust cache
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/warm-cache.yml'
+
+concurrency:
+  group: warm-cache-main
+  cancel-in-progress: true
+
+jobs:
+  warm:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # le front doit exister : tauri l'embarque à la compilation
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Rust (remplit le cache)
+        working-directory: src-tauri
+        run: cargo build --release

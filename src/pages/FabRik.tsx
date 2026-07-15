@@ -19,7 +19,9 @@ import {
   IconLettresBoitiers,
   IconLettresRelief,
   IconBache,
+  IconNeonFlex,
 } from "@/components/fabrik/FabIcons";
+import { NeonFlexForm, type NeonFlexParams } from "@/components/fabrik/NeonFlexForm";
 
 import { CaissonSimpleForm } from "@/components/fabrik/CaissonSimpleForm";
 import { CaissonMultiForm } from "@/components/fabrik/CaissonMultiForm";
@@ -95,6 +97,14 @@ const FAB_CATEGORIES: Array<{ nom: string; tools: FabTool[] }> = [
         desc: "PVC sur entretoises",
         activeCls: "border-orange-500 bg-orange-50 dark:bg-orange-900/30",
       },
+      {
+        id: "neon",
+        icon: IconNeonFlex,
+        color: "text-pink-500",
+        label: "Néon Flex",
+        desc: "Texte → maquette néon",
+        activeCls: "border-pink-500 bg-pink-50 dark:bg-pink-900/30",
+      },
     ],
   },
   {
@@ -168,16 +178,17 @@ export default function FabRik() {
     setIsProcessing(true);
 
     try {
-      await invoke<string>("run_illustrator_script", {
+      // le script Illustrator retourne son compte-rendu (via le pont CEP)
+      const retour = await invoke<string>("run_illustrator_script", {
         illustratorPath,
         scriptName,
         params: JSON.stringify(params),
       });
 
-      toast.success("Script exécuté avec succès !");
+      toast.success(retour?.trim() || "Script exécuté avec succès !", { duration: 6000 });
     } catch (error) {
       const errorMsg = String(error);
-      toast.error(`Erreur : ${errorMsg}`);
+      toast.error(errorMsg, { duration: 8000 });
     } finally {
       setIsProcessing(false);
     }
@@ -214,6 +225,12 @@ export default function FabRik() {
 
   const handleOeilletsFab = (params: OeilletsParams) => {
     runScript("oeillets_fab.jsx", params);
+  };
+
+  const handleNeonGenerate = (params: NeonFlexParams) => {
+    // contour = texte/logo vectorisé ; simple = la sélection EST le tracé
+    // (lignes à la plume ou police monoligne) — le script gère les deux
+    runScript("neon_flex.jsx", params);
   };
 
   return (
@@ -397,6 +414,10 @@ export default function FabRik() {
               onGenerate={handleLettresReliefGenerate}
               isProcessing={isProcessing}
             />
+          )}
+
+          {fabType === "neon" && (
+            <NeonFlexForm onGenerate={handleNeonGenerate} isProcessing={isProcessing} />
           )}
 
           {fabType === "" && (

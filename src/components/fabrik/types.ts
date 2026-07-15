@@ -1,6 +1,6 @@
 // Types pour FabRik
 
-export type FabType = "adhesif" | "caisson" | "lettres-boitiers" | "lettres-relief" | "bache" | "";
+export type FabType = "adhesif" | "caisson" | "lettres-boitiers" | "lettres-relief" | "bache" | "neon" | "";
 export type CaissonType = "simple" | "multi" | "double";
 export type LightingType = "lumineux" | "non-lumineux";
 export type PartType = "left" | "center" | "right";

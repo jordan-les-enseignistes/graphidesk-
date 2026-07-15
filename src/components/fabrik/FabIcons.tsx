@@ -67,6 +67,16 @@ export function IconLettresRelief({ className }: IconProps) {
   );
 }
 
+/** Néon flex : tube en "n" avec rayons de lueur */
+export function IconNeonFlex({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M6 19v-7a5 5 0 0 1 10 0v7" strokeWidth="2.2" />
+      <path d="M3.5 8l-1.8-1.8M20.5 8l1.8-1.8M12 3.6V1.6" strokeWidth="1.4" opacity="0.7" />
+    </Svg>
+  );
+}
+
 /** Bâche : toile avec œillets aux 4 coins */
 export function IconBache({ className }: IconProps) {
   return (
