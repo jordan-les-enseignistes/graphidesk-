@@ -36,6 +36,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
+          shared-key: 'graphidesk-build' # doit matcher release.yml
 
       - name: Install frontend dependencies
         run: npm ci

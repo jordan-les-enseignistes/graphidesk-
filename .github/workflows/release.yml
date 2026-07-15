@@ -35,6 +35,10 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
+          # même clé que le workflow warm-cache : sans elle, chaque job a sa
+          # propre clé (nom du job inclus) et la release ne voit JAMAIS le
+          # cache préparé sur main
+          shared-key: 'graphidesk-build'
 
       - name: Install frontend dependencies
         run: npm ci
@@ -51,11 +55,17 @@ jobs:
         run: |
           PREV_TAG="${{ steps.prev_tag.outputs.tag }}"
           if [ -z "$PREV_TAG" ]; then
-            # Premier tag, prendre tous les commits
             COMMITS=$(git log --pretty=format:"- %s" -10)
           else
-            # Commits depuis le tag précédent
             COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s")
+          fi
+
+          # Ne montrer aux collaborateurs QUE les commits de release
+          # (ceux qui commencent par "vX.Y.Z - ...") : les commits techniques
+          # internes n'apparaissent pas dans la popup de mise à jour
+          COMMITS=$(echo "$COMMITS" | grep -E "^- v[0-9]" || true)
+          if [ -z "$COMMITS" ]; then
+            COMMITS="- Mise à jour ${GITHUB_REF_NAME}"
           fi
 
           # Échapper les caractères spéciaux pour GitHub Actions
