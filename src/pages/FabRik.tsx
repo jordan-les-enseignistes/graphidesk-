@@ -3,7 +3,23 @@ import { invoke } from "@tauri-apps/api/core";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Settings, Box, Layers, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Settings,
+  Box,
+  Layers,
+  RotateCcw,
+  ChevronDown,
+  ChevronUp,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
+import {
+  IconAdhesif,
+  IconCaisson,
+  IconLettresBoitiers,
+  IconLettresRelief,
+  IconBache,
+} from "@/components/fabrik/FabIcons";
 
 import { CaissonSimpleForm } from "@/components/fabrik/CaissonSimpleForm";
 import { CaissonMultiForm } from "@/components/fabrik/CaissonMultiForm";
@@ -11,6 +27,7 @@ import { CaissonDoubleForm } from "@/components/fabrik/CaissonDoubleForm";
 import { AdhesifForm } from "@/components/fabrik/AdhesifForm";
 import { LettresBoitiersForm } from "@/components/fabrik/LettresBoitiersForm";
 import { LettresReliefForm } from "@/components/fabrik/LettresReliefForm";
+import { OeilletsBacheForm, type OeilletsParams } from "@/components/fabrik/OeilletsBacheForm";
 import { IllustratorSettings } from "@/components/fabrik/IllustratorSettings";
 
 import type {
@@ -27,9 +44,89 @@ import { DEFAULT_ILLUSTRATOR_PATH } from "@/components/fabrik/types";
 // Clé localStorage pour le chemin Illustrator
 const ILLUSTRATOR_PATH_KEY = "fabrik_illustrator_path";
 
+// Catalogue des outils FabRik, groupé par catégorie métier.
+// Ajouter un outil = une entrée ici (l'UI suit toute seule).
+interface FabTool {
+  id: FabType;
+  icon: (props: { className?: string }) => React.ReactElement;
+  color: string;
+  label: string;
+  desc: string;
+  activeCls: string;
+}
+const FAB_CATEGORIES: Array<{ nom: string; tools: FabTool[] }> = [
+  {
+    nom: "Adhésif",
+    tools: [
+      {
+        id: "adhesif",
+        icon: IconAdhesif,
+        color: "text-cyan-500",
+        label: "Adhésif",
+        desc: "Découpe vinyle",
+        activeCls: "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/30",
+      },
+    ],
+  },
+  {
+    nom: "Enseignes",
+    tools: [
+      {
+        id: "caisson",
+        icon: IconCaisson,
+        color: "text-indigo-500",
+        label: "Caisson",
+        desc: "Caissons aluminium",
+        activeCls: "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30",
+      },
+      {
+        id: "lettres-boitiers",
+        icon: IconLettresBoitiers,
+        color: "text-emerald-500",
+        label: "Lettres Boîtiers",
+        desc: "Tranches, semelles, plexi",
+        activeCls: "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30",
+      },
+      {
+        id: "lettres-relief",
+        icon: IconLettresRelief,
+        color: "text-orange-500",
+        label: "Lettres Relief",
+        desc: "PVC sur entretoises",
+        activeCls: "border-orange-500 bg-orange-50 dark:bg-orange-900/30",
+      },
+    ],
+  },
+  {
+    nom: "Autres",
+    tools: [
+      {
+        id: "bache",
+        icon: IconBache,
+        color: "text-teal-500",
+        label: "Bâche & œillets",
+        desc: "Maquette 1:10 + FAB",
+        activeCls: "border-teal-500 bg-teal-50 dark:bg-teal-900/30",
+      },
+    ],
+  },
+];
+
+// état replié du panneau d'outils, mémorisé par poste
+const FAB_NAV_COLLAPSED_KEY = "fabrik_nav_collapsed";
+
 export default function FabRik() {
   const [fabType, setFabType] = useState<FabType>("");
   const [caissonType, setCaissonType] = useState<CaissonType>("simple");
+  const [navCollapsed, setNavCollapsed] = useState(
+    () => localStorage.getItem(FAB_NAV_COLLAPSED_KEY) === "1"
+  );
+  const toggleNav = () => {
+    setNavCollapsed((c) => {
+      localStorage.setItem(FAB_NAV_COLLAPSED_KEY, c ? "0" : "1");
+      return !c;
+    });
+  };
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -111,6 +208,14 @@ export default function FabRik() {
     runScript("entretoises_automation.jsx", params);
   };
 
+  const handleOeilletsMaquette = (params: OeilletsParams) => {
+    runScript("oeillets_maquette.jsx", params);
+  };
+
+  const handleOeilletsFab = (params: OeilletsParams) => {
+    runScript("oeillets_fab.jsx", params);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -144,190 +249,169 @@ export default function FabRik() {
         />
       )}
 
-      {/* Sélection du type de fab */}
-      <Card className="p-4">
-        <h3 className="font-medium mb-4 dark:text-slate-200">Type de fichier à générer</h3>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Navigation latérale (outils par catégorie) + formulaire à droite :
+          plus aucun empilement vertical de sélecteurs */}
+      <div className="flex gap-4 items-start">
+        {/* Colonne outils (repliable en rail d'icônes) */}
+        <Card
+          className={`${navCollapsed ? "w-14" : "w-52"} shrink-0 p-2 space-y-2.5 sticky top-4 transition-all`}
+        >
           <button
             type="button"
-            onClick={() => setFabType("adhesif")}
-            className={`p-6 rounded-xl border-2 transition-all text-left ${
-              fabType === "adhesif"
-                ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/30 shadow-lg"
-                : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
-            }`}
+            onClick={toggleNav}
+            title={navCollapsed ? "Déplier le panneau" : "Replier le panneau"}
+            className={`w-full flex items-center ${navCollapsed ? "justify-center" : "justify-end"} text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 py-0.5`}
           >
-            <div className="flex items-center gap-4">
-              <div className="text-4xl">🎨</div>
-              <div>
-                <div className="font-semibold text-lg dark:text-slate-200">Adhésif</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400">
-                  Automatisation pour découpe vinyle
-                </div>
+            {navCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+          </button>
+          {FAB_CATEGORIES.map((cat) => (
+            <div key={cat.nom}>
+              {navCollapsed ? (
+                <div className="mx-1.5 mb-1 border-t border-slate-200 dark:border-slate-700" />
+              ) : (
+                <p className="px-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+                  {cat.nom}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {cat.tools.map((tool) => {
+                  const Icon = tool.icon;
+                  return (
+                    <button
+                      key={tool.id}
+                      type="button"
+                      onClick={() => setFabType(tool.id)}
+                      title={`${tool.label} — ${tool.desc}`}
+                      className={`w-full rounded-md border transition-all flex items-center ${
+                        navCollapsed ? "justify-center px-0 py-2" : "gap-2 px-2 py-1.5 text-left"
+                      } text-sm ${
+                        fabType === tool.id
+                          ? `${tool.activeCls} font-medium`
+                          : "border-transparent hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-300"
+                      }`}
+                    >
+                      <Icon className={`${navCollapsed ? "h-6 w-6" : "h-5 w-5"} shrink-0 ${tool.color}`} />
+                      {!navCollapsed && (
+                        <span className="truncate dark:text-slate-200">{tool.label}</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          </button>
-          <button
-            type="button"
-            onClick={() => setFabType("caisson")}
-            className={`p-6 rounded-xl border-2 transition-all text-left ${
-              fabType === "caisson"
-                ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 shadow-lg"
-                : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <div className="text-4xl">📦</div>
-              <div>
-                <div className="font-semibold text-lg dark:text-slate-200">Caisson</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400">
-                  Génération de caissons aluminium
-                </div>
-              </div>
-            </div>
-          </button>
-          <button
-            type="button"
-            onClick={() => setFabType("lettres-boitiers")}
-            className={`p-6 rounded-xl border-2 transition-all text-left ${
-              fabType === "lettres-boitiers"
-                ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-lg"
-                : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <div className="text-4xl">🔤</div>
-              <div>
-                <div className="font-semibold text-lg dark:text-slate-200">Lettres Boîtiers</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400">
-                  Tranches, semelles et plexi
-                </div>
-              </div>
-            </div>
-          </button>
-          <button
-            type="button"
-            onClick={() => setFabType("lettres-relief")}
-            className={`p-6 rounded-xl border-2 transition-all text-left ${
-              fabType === "lettres-relief"
-                ? "border-orange-500 bg-orange-50 dark:bg-orange-900/30 shadow-lg"
-                : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <div className="text-4xl">💡</div>
-              <div>
-                <div className="font-semibold text-lg dark:text-slate-200">Lettres Relief</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400">
-                  PVC rétroéclairé sur entretoises
-                </div>
-              </div>
-            </div>
-          </button>
-        </div>
-      </Card>
-
-      {/* Contenu selon le type */}
-      {fabType === "adhesif" && (
-        <AdhesifForm onGenerate={handleAdhesifGenerate} isProcessing={isProcessing} />
-      )}
-
-      {fabType === "caisson" && (
-        <div className="space-y-6">
-          {/* Sélection type de caisson */}
-          <Card className="p-4">
-            <h3 className="font-medium mb-4 dark:text-slate-200">Type de caisson</h3>
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => setCaissonType("simple")}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  caissonType === "simple"
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
-                    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
-                }`}
-              >
-                <Box className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                <div className="font-medium text-sm dark:text-slate-200">Simple</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">Caisson rectangulaire</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCaissonType("multi")}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  caissonType === "multi"
-                    ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30"
-                    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
-                }`}
-              >
-                <Layers className="h-8 w-8 mx-auto mb-2 text-purple-600" />
-                <div className="font-medium text-sm dark:text-slate-200">Multi-parties</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">2 à 5 parties</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCaissonType("double")}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  caissonType === "double"
-                    ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30"
-                    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
-                }`}
-              >
-                <RotateCcw className="h-8 w-8 mx-auto mb-2 text-amber-600" />
-                <div className="font-medium text-sm dark:text-slate-200">Double face</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">Enseigne drapeau</div>
-              </button>
-            </div>
-          </Card>
-
-          {/* Formulaire selon le type de caisson */}
-          {caissonType === "simple" && (
-            <CaissonSimpleForm
-              onGenerate={handleCaissonSimpleGenerate}
-              isProcessing={isProcessing}
-            />
-          )}
-          {caissonType === "multi" && (
-            <CaissonMultiForm
-              onGenerate={handleCaissonMultiGenerate}
-              isProcessing={isProcessing}
-            />
-          )}
-          {caissonType === "double" && (
-            <CaissonDoubleForm
-              onGenerate={handleCaissonDoubleGenerate}
-              isProcessing={isProcessing}
-            />
-          )}
-        </div>
-      )}
-
-      {fabType === "lettres-boitiers" && (
-        <LettresBoitiersForm
-          onGenerate={handleLettresBoitiersGenerate}
-          isProcessing={isProcessing}
-        />
-      )}
-
-      {fabType === "lettres-relief" && (
-        <LettresReliefForm
-          onGenerate={handleLettresReliefGenerate}
-          isProcessing={isProcessing}
-        />
-      )}
-
-      {/* Placeholder si rien sélectionné */}
-      {fabType === "" && (
-        <Card className="p-12 text-center border-2 border-dashed">
-          <div className="text-6xl mb-4">🛠️</div>
-          <h3 className="text-xl font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Sélectionnez un type de fabrication
-          </h3>
-          <p className="text-slate-500 dark:text-slate-400">
-            Choisissez "Adhésif" pour l'automatisation vinyle, "Caisson" pour générer des caissons aluminium, ou "Lettres Boîtiers" pour les fichiers de fabrication de lettres.
-          </p>
+          ))}
         </Card>
-      )}
+
+        {/* Contenu de l'outil sélectionné */}
+        <div className="flex-1 min-w-0 space-y-4">
+          {fabType === "adhesif" && (
+            <AdhesifForm onGenerate={handleAdhesifGenerate} isProcessing={isProcessing} />
+          )}
+
+          {fabType === "bache" && (
+            <OeilletsBacheForm
+              onMaquette={handleOeilletsMaquette}
+              onFab={handleOeilletsFab}
+              isProcessing={isProcessing}
+            />
+          )}
+
+          {fabType === "caisson" && (
+            <div className="space-y-4">
+              {/* Type de caisson : segments compacts sur une ligne */}
+              <Card className="p-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium dark:text-slate-200 mr-1">
+                    Type de caisson :
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCaissonType("simple")}
+                    className={`px-3 py-1.5 rounded-md border text-sm flex items-center gap-1.5 transition-all ${
+                      caissonType === "simple"
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 font-medium"
+                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                    }`}
+                  >
+                    <Box className="h-4 w-4 text-blue-600" />
+                    <span className="dark:text-slate-200">Simple</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCaissonType("multi")}
+                    className={`px-3 py-1.5 rounded-md border text-sm flex items-center gap-1.5 transition-all ${
+                      caissonType === "multi"
+                        ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30 font-medium"
+                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                    }`}
+                  >
+                    <Layers className="h-4 w-4 text-purple-600" />
+                    <span className="dark:text-slate-200">Multi-parties</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCaissonType("double")}
+                    className={`px-3 py-1.5 rounded-md border text-sm flex items-center gap-1.5 transition-all ${
+                      caissonType === "double"
+                        ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30 font-medium"
+                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                    }`}
+                  >
+                    <RotateCcw className="h-4 w-4 text-amber-600" />
+                    <span className="dark:text-slate-200">Double face (drapeau)</span>
+                  </button>
+                </div>
+              </Card>
+
+              {/* Formulaire selon le type de caisson */}
+              {caissonType === "simple" && (
+                <CaissonSimpleForm
+                  onGenerate={handleCaissonSimpleGenerate}
+                  isProcessing={isProcessing}
+                />
+              )}
+              {caissonType === "multi" && (
+                <CaissonMultiForm
+                  onGenerate={handleCaissonMultiGenerate}
+                  isProcessing={isProcessing}
+                />
+              )}
+              {caissonType === "double" && (
+                <CaissonDoubleForm
+                  onGenerate={handleCaissonDoubleGenerate}
+                  isProcessing={isProcessing}
+                />
+              )}
+            </div>
+          )}
+
+          {fabType === "lettres-boitiers" && (
+            <LettresBoitiersForm
+              onGenerate={handleLettresBoitiersGenerate}
+              isProcessing={isProcessing}
+            />
+          )}
+
+          {fabType === "lettres-relief" && (
+            <LettresReliefForm
+              onGenerate={handleLettresReliefGenerate}
+              isProcessing={isProcessing}
+            />
+          )}
+
+          {fabType === "" && (
+            <Card className="p-12 text-center border-2 border-dashed">
+              <div className="text-5xl mb-3">🛠️</div>
+              <h3 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Choisis un outil dans la colonne de gauche
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Le formulaire de l'outil s'affichera ici, sans scroll inutile.
+              </p>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
