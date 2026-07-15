@@ -64,8 +64,8 @@ export function UpdateModal({
         <div className="p-6 space-y-4">
           {/* Version info */}
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">Version actuelle :</span>
-            <span className="font-mono bg-slate-100 px-2 py-1 rounded">
+            <span className="text-slate-500 dark:text-slate-400">Version actuelle :</span>
+            <span className="font-mono bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200 px-2 py-1 rounded">
               {updateInfo.currentVersion}
             </span>
           </div>
@@ -79,8 +79,8 @@ export function UpdateModal({
           {/* Changelog */}
           {updateInfo.changelog && (
             <div className="space-y-2">
-              <h3 className="font-medium text-sm text-slate-700">Nouveautés :</h3>
-              <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600 max-h-40 overflow-y-auto">
+              <h3 className="font-medium text-sm text-slate-700 dark:text-slate-300">Nouveautés :</h3>
+              <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 text-sm text-slate-600 dark:text-slate-300 max-h-40 overflow-y-auto">
                 <pre className="whitespace-pre-wrap font-sans">{updateInfo.changelog}</pre>
               </div>
             </div>

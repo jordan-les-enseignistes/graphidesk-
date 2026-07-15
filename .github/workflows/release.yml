@@ -76,12 +76,7 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'GraphiDesk v__VERSION__'
           releaseBody: |
-            ## Nouveautés
-
             ${{ steps.changelog.outputs.commits }}
-
-            ---
-            *Les utilisateurs de GraphiDesk recevront automatiquement une notification de mise à jour au lancement de l'application.*
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
