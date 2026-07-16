@@ -29,6 +29,7 @@ import { StatsVt } from "@/measure/components/StatsVt";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useMeasureDoc, useMeasureImage, clearDocHistory } from "@/measure/state/store";
 import { savePhotoBlob } from "@/measure/engine/imageStore";
+import { zoneNom } from "@/measure/engine/zones";
 import { clearOffscreen } from "@/measure/engine/offscreen";
 import { ROUTES } from "@/lib/constants";
 import {
@@ -371,7 +372,7 @@ function ProjectDetail({
               // label sur fond sombre au centre
               const cx = (z.corners[0].x + z.corners[1].x + z.corners[2].x + z.corners[3].x) / 4;
               const cy = (z.corners[0].y + z.corners[1].y + z.corners[2].y + z.corners[3].y) / 4;
-              const text = z.label;
+              const text = zoneNom(z);
               const tw = ctx.measureText(text).width;
               const pad = fontSize * 0.4;
               ctx.fillStyle = "rgba(15,23,42,0.82)";
@@ -705,7 +706,7 @@ function ProjectDetail({
                   className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded border dark:border-slate-700 px-2.5 py-1.5"
                 >
                   <div className="min-w-0">
-                    <span className="text-sm font-medium dark:text-slate-200">{z.label}</span>
+                    <span className="text-sm font-medium dark:text-slate-200">{zoneNom(z)}</span>
                     <p className="text-[11px] text-gray-400 dark:text-slate-500 font-mono">
                       provisoire : ≈ {Math.round(z.widthMm)} × {Math.round(z.heightMm)} mm
                       {z.fill === "vitrage" ? " · vitrage" : ""}
@@ -819,7 +820,7 @@ function ProjectDetail({
                     onChange={() => toggleRecaleExcluded(z.id)}
                     className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500"
                   />
-                  <span className="text-sm dark:text-slate-200">{z.label}</span>
+                  <span className="text-sm dark:text-slate-200">{zoneNom(z)}</span>
                   <span className="text-xs text-gray-500 dark:text-slate-400 font-mono ml-auto">
                     {roundTo5Mm(z.widthMm)} × {roundTo5Mm(z.heightMm)}
                     {hasVt && v
@@ -872,7 +873,7 @@ function ProjectDetail({
                     onChange={() => togglePsdExcluded(z.id)}
                     className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span className="text-sm dark:text-slate-200">{z.label}</span>
+                  <span className="text-sm dark:text-slate-200">{zoneNom(z)}</span>
                   <span className="text-xs text-gray-500 dark:text-slate-400 font-mono ml-auto">
                     {dims}
                   </span>

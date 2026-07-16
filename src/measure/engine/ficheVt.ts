@@ -9,6 +9,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getOffscreenCanvas } from "./offscreen";
 import { toBase64 } from "./psdExport";
+import { zoneNom } from "./zones";
 import type { Zone } from "../state/types";
 
 /**
@@ -35,8 +36,10 @@ export async function exportFicheVt(selected: Zone[], projet: string): Promise<v
     photoWidth: photo.width,
     photoHeight: photo.height,
     zones: selected.map((z) => ({
+      // la LETTRE technique ne change jamais (croix lettrées du plugin InDesign)
       letter: z.label.replace(/^Zone\s+/i, ""),
-      label: z.label,
+      // le label affiché dans le tableau de la fiche = nom libre du graphiste
+      label: zoneNom(z),
       corners: z.corners,
       widthMm: Math.round(z.widthMm),
       heightMm: Math.round(z.heightMm),

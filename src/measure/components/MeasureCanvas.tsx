@@ -20,7 +20,7 @@ import {
 } from "../state/store";
 import { getOffscreenImageData, getOffscreenSize, getOffscreenCanvas } from "../engine/offscreen";
 import { magicWand } from "../engine/floodfill";
-import { formatDims } from "../engine/zones";
+import { formatDims, zoneNom } from "../engine/zones";
 import { ZOOM_MIN, ZOOM_MAX } from "../state/types";
 import type { Pt, Zone } from "../state/types";
 
@@ -60,7 +60,7 @@ function flatten(pts: Pt[]): number[] {
 /** Affichage d'une zone validée — label sur fond sombre pour la lisibilité */
 function ZoneOverlay({ zone, invScale }: { zone: Zone; invScale: number }) {
   const c = centroid(zone.corners);
-  const label = `${zone.label} — ${formatDims(zone.widthMm, zone.heightMm)}`;
+  const label = `${zoneNom(zone)} — ${zone.manuel ? `${Math.round(zone.widthMm)} × ${Math.round(zone.heightMm)} mm` : formatDims(zone.widthMm, zone.heightMm)}`;
   const fontSize = 13 * invScale;
   return (
     <Group>

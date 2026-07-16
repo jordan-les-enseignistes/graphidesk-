@@ -15,7 +15,7 @@ import { useMeasureDoc } from "../state/store";
 import { getOffscreenCanvas } from "../engine/offscreen";
 import { saveProject } from "../persistence/projects";
 import { exportFicheVt } from "../engine/ficheVt";
-import { formatDims } from "../engine/zones";
+import { formatDims, zoneNom } from "../engine/zones";
 
 interface SaveProjectButtonProps {
   /** Appelé après une sauvegarde réussie ; reset=true si l'utilisateur veut vider la page */
@@ -155,7 +155,7 @@ export function SaveProjectButton({ onSaved }: SaveProjectButtonProps) {
                       onChange={() => toggleFicheExcluded(z.id)}
                       className="h-3.5 w-3.5 rounded border-gray-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500"
                     />
-                    <span className="text-xs dark:text-slate-200">{z.label}</span>
+                    <span className="text-xs dark:text-slate-200">{zoneNom(z)}</span>
                     <span className="text-[11px] text-gray-500 dark:text-slate-400 font-mono ml-auto">
                       {formatDims(z.widthMm, z.heightMm)}
                     </span>

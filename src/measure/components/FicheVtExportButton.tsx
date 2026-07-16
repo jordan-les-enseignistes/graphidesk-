@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { ClipboardList } from "lucide-react";
 import { useMeasureDoc, useMeasureImage } from "../state/store";
-import { formatDims } from "../engine/zones";
+import { formatDims, zoneNom } from "../engine/zones";
 import { exportFicheVt } from "../engine/ficheVt";
 
 /**
@@ -116,7 +116,7 @@ export function FicheVtExportButton() {
                   onChange={() => toggleExcluded(z.id)}
                   className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-sky-600 focus:ring-sky-500"
                 />
-                <span className="text-sm dark:text-slate-200">{z.label}</span>
+                <span className="text-sm dark:text-slate-200">{zoneNom(z)}</span>
                 <span className="text-xs text-gray-500 dark:text-slate-400 font-mono ml-auto">
                   {formatDims(z.widthMm, z.heightMm)}
                 </span>

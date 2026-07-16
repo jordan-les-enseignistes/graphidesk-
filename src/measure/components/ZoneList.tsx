@@ -15,9 +15,12 @@ import {
   FileDown,
   AppWindow,
   ImageIcon,
+  Check,
+  RotateCcw,
 } from "lucide-react";
 import { useMeasureDoc, useMeasureUi, useMeasureImage } from "../state/store";
-import { formatDims } from "../engine/zones";
+import { formatDims, zoneNom } from "../engine/zones";
+import type { Zone } from "../state/types";
 import { buildPremaquetteSvg, downloadSvg } from "../engine/svgExport";
 import { buildPhotomontagePsd, toBase64 } from "../engine/psdExport";
 import { getOffscreenCanvas } from "../engine/offscreen";
@@ -30,6 +33,14 @@ const ILLUSTRATOR_PATH_KEY = "fabrik_illustrator_path";
 const PHOTOSHOP_PATH_KEY = "measure_photoshop_path";
 const DEFAULT_PHOTOSHOP_PATH =
   "C:\\Program Files\\Adobe\\Adobe Photoshop 2026\\Photoshop.exe";
+
+/** Affichage des cotes : "≈ arrondi 5 mm" pour une estimation photo,
+ *  valeur EXACTE pour une cote réelle saisie à la main */
+function afficheDims(z: Zone): string {
+  return z.manuel
+    ? `${Math.round(z.widthMm)} × ${Math.round(z.heightMm)} mm`
+    : formatDims(z.widthMm, z.heightMm);
+}
 
 // NOTE : la baguette magique (flood fill couleur) a été retirée de l'UI :
 // le vitrage réfléchissant est fondamentalement hostile à la sélection par
@@ -130,9 +141,9 @@ function PsdExportButton() {
                   onChange={() => toggleExcluded(z.id)}
                   className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
                 />
-                <span className="text-sm dark:text-slate-200">{z.label}</span>
+                <span className="text-sm dark:text-slate-200">{zoneNom(z)}</span>
                 <span className="text-xs text-gray-500 dark:text-slate-400 font-mono ml-auto">
-                  {formatDims(z.widthMm, z.heightMm)}
+                  {afficheDims(z)}
                 </span>
               </label>
             ))}
@@ -161,9 +172,34 @@ export function ZoneList() {
   const draftZonePts = useMeasureDoc((s) => s.draftZonePts);
   const deleteZone = useMeasureDoc((s) => s.deleteZone);
   const toggleZoneVitrage = useMeasureDoc((s) => s.toggleZoneVitrage);
+  const setZoneDims = useMeasureDoc((s) => s.setZoneDims);
+  const resetZoneDims = useMeasureDoc((s) => s.resetZoneDims);
   const planes = useMeasureDoc((s) => s.planes);
   const activePlaneId = useMeasureDoc((s) => s.activePlaneId);
   const calibrated = !!planes.find((p) => p.id === activePlaneId)?.H;
+
+  // édition manuelle des cotes (une zone à la fois)
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editW, setEditW] = useState("");
+  const [editH, setEditH] = useState("");
+  const validerEdition = (id: string) => {
+    const w = parseFloat(editW);
+    const h = parseFloat(editH);
+    if (w > 0 && h > 0) {
+      setZoneDims(id, w, h);
+      toast.success("Cote réelle enregistrée — les estimations photo sont recalées");
+    }
+    setEditId(null);
+  };
+
+  // renommage (nom d'affichage libre — la lettre technique ne change jamais)
+  const setZoneNom = useMeasureDoc((s) => s.setZoneNom);
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [renameVal, setRenameVal] = useState("");
+  const validerNom = (id: string) => {
+    setZoneNom(id, renameVal);
+    setRenameId(null);
+  };
 
   return (
     <Card className="p-4 space-y-3">
@@ -251,6 +287,13 @@ export function ZoneList() {
             </span>
           </div>
           <div className="flex items-center gap-1.5">
+            <Check className="h-3 w-3 shrink-0 text-emerald-500" />
+            <span>
+              <strong>Cote réelle</strong> : clique sur une dimension pour saisir la mesure
+              connue — les estimations photo des autres zones se recalent dessus
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <Trash2 className="h-3 w-3 shrink-0 text-red-400" />
             <span>
               <strong>Supprimer</strong> la zone (annulable Ctrl+Z)
@@ -266,13 +309,110 @@ export function ZoneList() {
               key={z.id}
               className="flex items-center justify-between rounded border border-slate-200 dark:border-slate-700 px-2.5 py-1.5"
             >
-              <div>
-                <span className="text-sm font-medium dark:text-slate-200">{z.label}</span>
-                <span className="ml-2 text-sm text-gray-500 dark:text-slate-400 font-mono">
-                  {formatDims(z.widthMm, z.heightMm)}
-                </span>
+              <div className="flex items-center min-w-0">
+                {renameId === z.id ? (
+                  <input
+                    type="text"
+                    value={renameVal}
+                    autoFocus
+                    placeholder={z.label}
+                    onChange={(e) => setRenameVal(e.target.value)}
+                    onBlur={() => validerNom(z.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") validerNom(z.id);
+                      if (e.key === "Escape") setRenameId(null);
+                    }}
+                    className="w-28 h-6 px-1 text-sm rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-slate-200"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRenameId(z.id);
+                      setRenameVal(z.nom ?? "");
+                    }}
+                    className="text-sm font-medium dark:text-slate-200 rounded px-1 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-left"
+                    title={`Cliquer pour renommer (lettre ${z.label.replace(/^Zone\s+/i, "")} conservée pour la VT)`}
+                  >
+                    {zoneNom(z)}
+                    {z.nom && (
+                      <span className="ml-1 text-[10px] text-gray-400 font-normal">
+                        ({z.label.replace(/^Zone\s+/i, "")})
+                      </span>
+                    )}
+                  </button>
+                )}
+                {editId === z.id ? (
+                  <span className="ml-2 inline-flex items-center gap-1 text-sm font-mono">
+                    <input
+                      type="number"
+                      value={editW}
+                      autoFocus
+                      onChange={(e) => setEditW(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") validerEdition(z.id);
+                        if (e.key === "Escape") setEditId(null);
+                      }}
+                      className="w-16 h-6 px-1 text-xs font-mono rounded border border-emerald-400 bg-white dark:bg-slate-800 dark:text-slate-200"
+                    />
+                    ×
+                    <input
+                      type="number"
+                      value={editH}
+                      onChange={(e) => setEditH(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") validerEdition(z.id);
+                        if (e.key === "Escape") setEditId(null);
+                      }}
+                      className="w-16 h-6 px-1 text-xs font-mono rounded border border-emerald-400 bg-white dark:bg-slate-800 dark:text-slate-200"
+                    />
+                    <span className="text-xs text-gray-400">mm</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                      onClick={() => validerEdition(z.id)}
+                      title="Valider (Entrée)"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </Button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditId(z.id);
+                      setEditW(String(Math.round(z.widthMm)));
+                      setEditH(String(Math.round(z.heightMm)));
+                    }}
+                    className={`ml-2 text-sm font-mono rounded px-1 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 ${
+                      z.manuel
+                        ? "text-emerald-700 dark:text-emerald-400 font-medium"
+                        : "text-gray-500 dark:text-slate-400"
+                    }`}
+                    title="Cliquer pour saisir les cotes réelles (mesure connue)"
+                  >
+                    {afficheDims(z)}
+                  </button>
+                )}
+                {z.manuel && editId !== z.id && (
+                  <span className="ml-1 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 text-[10px] px-1 py-0.5 font-medium">
+                    réel
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-0.5">
+                {z.manuel && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30"
+                    onClick={() => resetZoneDims(z.id)}
+                    title="Revenir à l'estimation photo"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

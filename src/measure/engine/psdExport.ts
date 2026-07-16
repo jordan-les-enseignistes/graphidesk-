@@ -13,7 +13,7 @@
 // perspective sur la photo. BAT provisoire photo-réaliste.
 
 import { writePsdUint8Array, type Psd, type Layer } from "ag-psd";
-import { roundTo5Mm, orderQuadInImage } from "./zones";
+import { roundTo5Mm, orderQuadInImage, zoneNom } from "./zones";
 import type { Zone } from "../state/types";
 
 /** Rendu du contenu embarqué d'une zone (1 px = 1 mm) */
@@ -53,15 +53,6 @@ function renderZoneContent(wMm: number, hMm: number, vitrage: boolean): HTMLCanv
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
   return canvas;
-}
-
-/** PNG bytes d'un canvas */
-async function canvasToPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob((b) => resolve(b), "image/png")
-  );
-  if (!blob) throw new Error("Échec de génération PNG");
-  return new Uint8Array(await blob.arrayBuffer());
 }
 
 /** Aperçu du calque dans le document photo : quad rempli (approximation) */
@@ -131,13 +122,24 @@ export async function buildPhotomontagePsd(
     const wMm = roundTo5Mm(zone.widthMm);
     const hMm = roundTo5Mm(zone.heightMm);
 
-    // Contenu embarqué 1:1 (1 px = 1 mm)
+    // Contenu embarqué 1:1 (1 px = 1 mm) — en PSB, PAS en PNG : un contenu
+    // PNG est un format PLAT, dès que le graphiste ajoute ses calques dedans
+    // Photoshop refuse le Ctrl+S ("aplatissez les calques..."). Le PSB (le
+    // format que Photoshop utilise lui-même pour ses objets dynamiques)
+    // accepte les calques : enregistrement direct, objet mis à jour.
     const content = renderZoneContent(wMm, hMm, vitrage);
-    const pngData = await canvasToPng(content);
+    const contenuPsb = writePsdUint8Array(
+      {
+        width: content.width,
+        height: content.height,
+        children: [{ name: "Fond", canvas: content }],
+      },
+      { psb: true }
+    );
     // ⚠️ ag-psd exige un GUID pur pour les placed layers (zone.id est déjà un UUID)
     const fileId = /^[0-9a-f-]{36}$/i.test(zone.id) ? zone.id : crypto.randomUUID();
-    const fileName = `${zone.label.replace(/\s+/g, "_")}_${Math.round(wMm)}x${Math.round(hMm)}mm.png`;
-    linkedFiles.push({ id: fileId, name: fileName, data: pngData });
+    const fileName = `${zoneNom(zone).replace(/\s+/g, "_")}_${Math.round(wMm)}x${Math.round(hMm)}mm.psb`;
+    linkedFiles.push({ id: fileId, name: fileName, data: contenuPsb });
 
     // Aperçu dans le document (quad rempli, approximation du rendu)
     const preview = renderPreview(zone, vitrage);
@@ -155,7 +157,7 @@ export async function buildPhotomontagePsd(
     ];
 
     children.push({
-      name: `${zone.label} (≈ ${wMm} × ${hMm} mm)`,
+      name: `${zoneNom(zone)} (≈ ${wMm} × ${hMm} mm)`,
       canvas: preview.canvas,
       left: preview.left,
       top: preview.top,

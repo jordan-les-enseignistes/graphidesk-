@@ -109,8 +109,15 @@
 
   var fab = null;
 
-  // unités MILLIMÈTRES pour tout document créé par ce script
+  // unités MILLIMÈTRES pour les documents créés par ce script — la préférence
+  // est GLOBALE : on mémorise celle du graphiste et on la RESTAURE à la fin
+  // (règle absolue : un script ne modifie JAMAIS les unités de l'utilisateur)
+  var oldRuler = null;
+  try { oldRuler = app.preferences.getIntegerPreference("rulerType"); } catch (e0) {}
   try { app.preferences.setIntegerPreference("rulerType", 1); } catch (e) {}
+  function restaurerUnites() {
+    try { if (oldRuler !== null) app.preferences.setIntegerPreference("rulerType", oldRuler); } catch (eR) {}
+  }
 
   // 1. création directe (suffit si <= 5,77 m — et fonctionne aussi en
   //    grand canevas quand un document grand canevas est déjà ouvert)
@@ -148,8 +155,10 @@
       "3. Relance ce bouton — le script utilisera ce gabarit à chaque fois\n" +
       "   (il ouvre une copie : ton gabarit reste vide et intouchable)."
     );
+    restaurerUnites();
     return;
   }
+  restaurerUnites();
 
   var SF = sfOf(fab);           // 1 (classique) ou 10 (grand canevas)
   var FACT = S / SF;            // facteur de resize des duplicatas

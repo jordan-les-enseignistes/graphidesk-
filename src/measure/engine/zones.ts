@@ -67,6 +67,20 @@ export function formatDims(widthMm: number, heightMm: number): string {
   return `≈ ${roundTo5Mm(widthMm)} × ${roundTo5Mm(heightMm)} mm`;
 }
 
+/** Lettre technique d'une zone ("A", "B"...) — extraite du label immuable */
+export function zoneLettre(z: { label: string }): string {
+  return z.label.replace(/^Zone\s+/i, "");
+}
+
+/** Nom d'AFFICHAGE d'une zone : nom saisi par le graphiste, sinon
+ *  "Vitrine X" si marquée vitrage, sinon le label "Zone X".
+ *  Purement cosmétique : l'identité technique reste z.label. */
+export function zoneNom(z: { label: string; nom?: string; fill?: string }): string {
+  if (z.nom && z.nom.trim()) return z.nom.trim();
+  if (z.fill === "vitrage") return `Vitrine ${zoneLettre(z)}`;
+  return z.label;
+}
+
 /** Échelle indicative au point donné : mm réels par pixel image */
 export function mmPerPixelAt(h: H, x: number, y: number): number {
   const p0 = applyHomography(h, x, y);

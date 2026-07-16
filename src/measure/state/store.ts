@@ -29,6 +29,37 @@ function makeInitialDoc(): MeasureDoc {
   };
 }
 
+// ============================================================
+// Recalage des estimations à partir des cotes RÉELLES saisies
+// ============================================================
+// Ratio moyen (réel / estimation d'origine) des zones éditées du plan,
+// appliqué aux estimations des zones NON éditées. Toujours recalculé
+// depuis autoWidthMm/autoHeightMm (valeurs d'origine figées) : pas de
+// dérive cumulative. Garde-fou : une saisie très éloignée de l'estimation
+// (ratio hors 0,5–2) ne déforme pas les autres zones.
+function appliquerCorrection(zones: Zone[], planeId: string): Zone[] {
+  const editees = zones.filter(
+    (z) => z.planeId === planeId && z.manuel && z.autoWidthMm && z.autoHeightMm
+  );
+  let r = 1;
+  if (editees.length) {
+    let somme = 0;
+    let n = 0;
+    for (const z of editees) {
+      if ((z.autoWidthMm as number) > 1) { somme += z.widthMm / (z.autoWidthMm as number); n++; }
+      if ((z.autoHeightMm as number) > 1) { somme += z.heightMm / (z.autoHeightMm as number); n++; }
+    }
+    if (n) r = somme / n;
+    if (r < 0.5 || r > 2) r = 1;
+  }
+  return zones.map((z) => {
+    if (z.planeId !== planeId || z.manuel) return z;
+    const aw = z.autoWidthMm ?? z.widthMm;
+    const ah = z.autoHeightMm ?? z.heightMm;
+    return { ...z, autoWidthMm: aw, autoHeightMm: ah, widthMm: aw * r, heightMm: ah * r };
+  });
+}
+
 interface DocActions {
   /** Réinitialise tout le document (nouvelle image) */
   resetDoc: () => void;
@@ -54,6 +85,12 @@ interface DocActions {
   toggleZoneVitrage: (id: string) => void;
   /** Crée une zone depuis la baguette magique — undoable */
   addWandZone: (corners: [Pt, Pt, Pt, Pt]) => void;
+  /** Renomme une zone (nom d'affichage libre ; vide = retour au nom auto) — undoable */
+  setZoneNom: (id: string, nom: string) => void;
+  /** Remplace les dimensions d'une zone par des cotes RÉELLES saisies — undoable */
+  setZoneDims: (id: string, wMm: number, hMm: number) => void;
+  /** Revient à l'estimation photo d'origine d'une zone — undoable */
+  resetZoneDims: (id: string) => void;
 }
 
 export const useMeasureDoc = create<MeasureDoc & DocActions>()(
@@ -124,7 +161,8 @@ export const useMeasureDoc = create<MeasureDoc & DocActions>()(
           };
           return {
             draftZonePts: [],
-            zones: [...s.zones, zone],
+            // la nouvelle zone profite du recalage si des cotes réelles existent
+            zones: appliquerCorrection([...s.zones, zone], plane.id),
             zoneCounter: s.zoneCounter + 1,
           };
         }),
@@ -155,7 +193,50 @@ export const useMeasureDoc = create<MeasureDoc & DocActions>()(
             widthMm,
             heightMm,
           };
-          return { zones: [...s.zones, zone], zoneCounter: s.zoneCounter + 1 };
+          // la nouvelle zone profite du recalage si des cotes réelles existent
+          return {
+            zones: appliquerCorrection([...s.zones, zone], plane.id),
+            zoneCounter: s.zoneCounter + 1,
+          };
+        }),
+
+      setZoneNom: (id, nom) =>
+        set((s) => ({
+          zones: s.zones.map((z) =>
+            z.id === id ? { ...z, nom: nom.trim() ? nom.trim() : undefined } : z
+          ),
+        })),
+
+      setZoneDims: (id, wMm, hMm) =>
+        set((s) => {
+          if (!(wMm > 0) || !(hMm > 0)) return s;
+          const cible = s.zones.find((z) => z.id === id);
+          if (!cible) return s;
+          const zones = s.zones.map((z) =>
+            z.id === id
+              ? {
+                  ...z,
+                  autoWidthMm: z.autoWidthMm ?? z.widthMm,
+                  autoHeightMm: z.autoHeightMm ?? z.heightMm,
+                  widthMm: wMm,
+                  heightMm: hMm,
+                  manuel: true,
+                }
+              : z
+          );
+          return { zones: appliquerCorrection(zones, cible.planeId) };
+        }),
+
+      resetZoneDims: (id) =>
+        set((s) => {
+          const cible = s.zones.find((z) => z.id === id);
+          if (!cible) return s;
+          const zones = s.zones.map((z) =>
+            z.id === id && z.autoWidthMm !== undefined && z.autoHeightMm !== undefined
+              ? { ...z, widthMm: z.autoWidthMm, heightMm: z.autoHeightMm, manuel: false }
+              : z
+          );
+          return { zones: appliquerCorrection(zones, cible.planeId) };
         }),
     }),
       {

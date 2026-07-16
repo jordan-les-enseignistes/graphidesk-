@@ -37,7 +37,13 @@ export interface Plane {
 /** Zone mesurée */
 export interface Zone {
   id: string;
-  label: string; // "Zone A", "Zone B"...
+  /** Identifiant TECHNIQUE immuable ("Zone A", "Zone B"...) : pilote les noms
+   *  GD_ZONE_* du recalage Illustrator, les croix lettrées du plugin InDesign
+   *  et la reprise de session — ne JAMAIS le modifier après création */
+  label: string;
+  /** Nom d'affichage libre saisi par le graphiste ("Enseigne", "Bandeau"...) —
+   *  purement cosmétique, la lettre reste l'identité */
+  nom?: string;
   planeId: string;
   method: "manual" | "wand";
   corners: [Pt, Pt, Pt, Pt]; // en px image
@@ -47,6 +53,12 @@ export interface Zone {
   fill?: "blanc" | "vitrage";
   /** Export VT : false = cote restée provisoire (non mesurée par le poseur) */
   vtConfirmed?: boolean;
+  /** true = dimensions RÉELLES saisies à la main (remplacent l'estimation photo) */
+  manuel?: boolean;
+  /** Estimation photo d'ORIGINE (figée à la 1re édition/correction : sert au
+   *  retour arrière et au recalage des autres zones, sans dérive cumulative) */
+  autoWidthMm?: number;
+  autoHeightMm?: number;
 }
 
 /** Document de mesure (état UNDOABLE, persisté en localStorage) */

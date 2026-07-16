@@ -10,7 +10,7 @@
 // bonne taille papier)
 
 import { applyHomography, invertHomography } from "./homography";
-import { roundTo5Mm } from "./zones";
+import { roundTo5Mm, zoneNom } from "./zones";
 import type { Zone, Plane } from "../state/types";
 
 const SCALE = 10; // 1:10
@@ -154,7 +154,10 @@ export function buildPremaquetteSvg(
     y: number;
     w: number;
     h: number;
+    /** identifiant technique (Zone A...) — pilote les ids GD_ZONE_* du recalage */
     label: string;
+    /** nom d'affichage libre du graphiste (cosmétique, texte de cote) */
+    nomAffiche: string;
     dims: string;
     vitrage: boolean;
   }
@@ -165,17 +168,20 @@ export function buildPremaquetteSvg(
     const y = Math.min(pts[0].y, pts[1].y, pts[2].y, pts[3].y);
     // provisoire : dimensions ARRONDIES au 5mm — VT : cotes réelles exactes
     // (en mode VT, une zone non confirmée par le poseur garde sa cote
-    // provisoire, arrondie et marquée ≈)
+    // provisoire, arrondie et marquée ≈). Une cote saisie MANUELLEMENT
+    // (mesure connue) est exacte, mais reste "à confirmer" en VT : prudence.
     const confirmed = isVt && z.vtConfirmed !== false;
-    const wR = confirmed ? z.widthMm : roundTo5Mm(z.widthMm);
-    const hR = confirmed ? z.heightMm : roundTo5Mm(z.heightMm);
+    const exact = confirmed || z.manuel === true;
+    const wR = exact ? Math.round(z.widthMm) : roundTo5Mm(z.widthMm);
+    const hR = exact ? Math.round(z.heightMm) : roundTo5Mm(z.heightMm);
     rects.push({
       x,
       y,
       w: wR,
       h: hR,
       label: z.label,
-      dims: confirmed
+      nomAffiche: zoneNom(z),
+      dims: exact
         ? `${wR} × ${hR} mm`
         : isVt
           ? `≈ ${wR} × ${hR} mm (provisoire)`
@@ -339,7 +345,7 @@ export function buildPremaquetteSvg(
     const h = u(r.h);
     const fontSize = Math.min(u(140), Math.max(u(60), h * 0.25));
     parts.push(
-      `<text id="${esc(gdZoneName(r.label))}__COTE" x="${(x + w / 2).toFixed(2)}" y="${(y + h / 2).toFixed(2)}" font-size="${fontSize.toFixed(2)}" fill="#6b7280" text-anchor="middle" dominant-baseline="middle">${esc(r.label)} ${esc(r.dims)}</text>`
+      `<text id="${esc(gdZoneName(r.label))}__COTE" x="${(x + w / 2).toFixed(2)}" y="${(y + h / 2).toFixed(2)}" font-size="${fontSize.toFixed(2)}" fill="#6b7280" text-anchor="middle" dominant-baseline="middle">${esc(r.nomAffiche)} ${esc(r.dims)}</text>`
     );
   }
   parts.push(`</g>`);
