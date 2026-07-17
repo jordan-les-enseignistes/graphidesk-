@@ -32,6 +32,7 @@ import {
   Calculator,
   Ruler,
   PencilRuler,
+  Library,
 } from "lucide-react";
 
 interface NavItem {
@@ -95,6 +96,7 @@ const navGroups: NavGroup[] = [
       { label: "Calculatrice", icon: Calculator, path: ROUTES.CALCULATRICE, permission: "access:calculatrice" },
       { label: "Mesure photo", icon: Ruler, path: ROUTES.MESURE, permission: "access:mesure" },
       { label: "Maquette suite VT", icon: PencilRuler, path: ROUTES.MAQUETTE_VT, permission: "access:maquette_vt" },
+      { label: "Bibliothèque", icon: Library, path: ROUTES.BIBLIOTHEQUE, permission: "access:bibliotheque" },
       // --- ANNUAIRE : MASQUÉ DEPUIS v1.1.12 ---
       // Désormais géré via Tiimizy. Pour restaurer, décommenter la ligne ci-dessous :
       // { label: "Annuaire", icon: Contact, path: ROUTES.ANNUAIRE },

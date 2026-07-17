@@ -123,6 +123,13 @@ export const PERMISSIONS: PermissionDefinition[] = [
     category: "access",
   },
   {
+    key: "access:bibliotheque",
+    label: "Module Bibliothèque",
+    description:
+      "Accès à la bibliothèque de visuels récurrents (injection dans Illustrator, ajout depuis la sélection).",
+    category: "access",
+  },
+  {
     key: "access:nuancier",
     label: "Module Nuancier",
     description: "Accès au convertisseur RAL.",

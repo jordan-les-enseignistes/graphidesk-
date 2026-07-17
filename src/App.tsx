@@ -37,6 +37,7 @@ import FabRik from "@/pages/FabRik";
 import Calculatrice from "@/pages/Calculatrice";
 import Mesure from "@/pages/Mesure";
 import MaquetteVT from "@/pages/MaquetteVT";
+import Bibliotheque from "@/pages/Bibliotheque";
 
 // Query Client
 const queryClient = new QueryClient({
@@ -222,6 +223,7 @@ function App() {
               <Route path={ROUTES.CALCULATRICE} element={<Calculatrice />} />
               <Route path={ROUTES.MESURE} element={<Mesure />} />
               <Route path={ROUTES.MAQUETTE_VT} element={<MaquetteVT />} />
+              <Route path={ROUTES.BIBLIOTHEQUE} element={<Bibliotheque />} />
               <Route path={ROUTES.FEEDBACKS} element={<Feedbacks />} />
               <Route path={ROUTES.ANNUAIRE} element={<Annuaire />} />
               <Route path={ROUTES.MON_PROFIL} element={<MonProfil />} />

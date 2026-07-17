@@ -92,6 +92,19 @@ fn save_fiche_vt(
     Ok(dir.to_string_lossy().replace('\\', "/"))
 }
 
+// Lit un fichier du dossier temp et le retourne en base64
+// (canal de retour des scripts Illustrator : export de sélection biblio...)
+#[tauri::command]
+fn read_temp_binary(file_name: String) -> Result<String, String> {
+    use base64::Engine;
+    if file_name.contains("..") {
+        return Err("Chemin invalide".into());
+    }
+    let path = env::temp_dir().join(&file_name);
+    let bytes = fs::read(&path).map_err(|e| format!("Lecture impossible : {}", e))?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
+}
+
 // Ouvre un fichier avec une application donnée (Photoshop, etc.)
 #[tauri::command]
 fn open_file_with(app_path: String, file_path: String) -> Result<(), String> {
@@ -492,6 +505,7 @@ pub fn run() {
             save_and_open_in_illustrator,
             save_temp_file,
             save_temp_binary,
+            read_temp_binary,
             save_fiche_vt,
             get_indesign_plugin_status,
             install_indesign_plugin,

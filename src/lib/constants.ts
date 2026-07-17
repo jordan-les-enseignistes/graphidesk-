@@ -72,6 +72,7 @@ export const ROUTES = {
   CALCULATRICE: "/calculatrice",
   MESURE: "/mesure",
   MAQUETTE_VT: "/maquette-vt",
+  BIBLIOTHEQUE: "/bibliotheque",
   FEEDBACKS: "/feedbacks",
   MON_PROFIL: "/mon-profil",
   ANNUAIRE: "/annuaire",
