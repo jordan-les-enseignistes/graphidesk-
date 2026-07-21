@@ -369,7 +369,7 @@ interface CaissonDoublePreviewProps {
   hauteur: number;
   epaisseur: number;
   drillingHoles?: boolean;
-  entraxePotences?: number | null; // null = automatique aux extrémités
+  entraxePotences?: number | null; // null = auto aux extrémités, 0 = monopotence centrée
 }
 
 export function CaissonDoublePreview({
@@ -465,10 +465,16 @@ export function CaissonDoublePreview({
     const encocheHauteurMm = 34; // Hauteur de l'encoche en mm
     const margeEncocheMm = 10; // Marge standard entre encoche et bord face visible
 
+    const mono = entraxePotences === 0; // Monopotence : encoche unique centrée
+
     let encoche1Y: number; // Position Y de l'encoche haute (depuis le haut du SVG)
     let encoche2Y: number; // Position Y de l'encoche basse (depuis le haut du SVG)
 
-    if (entraxePotences !== null && entraxePotences > 0) {
+    if (mono) {
+      // Monopotence centrée : une seule encoche au milieu du panneau
+      encoche1Y = h / 2 - (encocheHauteurMm * scale) / 2;
+      encoche2Y = encoche1Y;
+    } else if (entraxePotences !== null && entraxePotences > 0) {
       // Mode personnalisé : centrer les encoches avec l'entraxe spécifié
       const centreY = h / 2;
       const demiEntraxe = (entraxePotences * scale) / 2;
@@ -481,6 +487,7 @@ export function CaissonDoublePreview({
     }
 
     return {
+      mono,
       svgWidth,
       svgHeight,
       w,
@@ -519,6 +526,27 @@ export function CaissonDoublePreview({
   // Générer les trous pour les deux faces
   const holesRecto = drillingHoles ? generateHoles(offsetX1, offsetY) : [];
   const holesVerso = drillingHoles ? generateHoles(offsetX2, offsetY) : [];
+
+  // Segments d'encoches (1 seule en monopotence, 2 sinon)
+  const encochesY = preview.mono ? [encoche1Y] : [encoche1Y, encoche2Y];
+  const segEncochesRecto = encochesY
+    .map(
+      (ey) =>
+        `L ${offsetX1 + preview.w} ${offsetY + ey}
+         L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + ey}
+         L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + ey + encocheHauteur}
+         L ${offsetX1 + preview.w} ${offsetY + ey + encocheHauteur}`
+    )
+    .join("\n");
+  const segEncochesVerso = encochesY
+    .map(
+      (ey) =>
+        `L ${offsetX2} ${offsetY + ey}
+         L ${offsetX2 + encocheLargeur} ${offsetY + ey}
+         L ${offsetX2 + encocheLargeur} ${offsetY + ey + encocheHauteur}
+         L ${offsetX2} ${offsetY + ey + encocheHauteur}`
+    )
+    .join("\n");
 
   return (
     <div className="space-y-3">
@@ -577,14 +605,7 @@ export function CaissonDoublePreview({
                 L ${offsetX1 + preview.w - decoupe} ${offsetY}
                 L ${offsetX1 + preview.w - decoupe} ${offsetY + decoupe}
                 L ${offsetX1 + preview.w} ${offsetY + decoupe}
-                L ${offsetX1 + preview.w} ${offsetY + encoche1Y}
-                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + encoche1Y}
-                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + encoche1Y + encocheHauteur}
-                L ${offsetX1 + preview.w} ${offsetY + encoche1Y + encocheHauteur}
-                L ${offsetX1 + preview.w} ${offsetY + encoche2Y}
-                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + encoche2Y}
-                L ${offsetX1 + preview.w - encocheLargeur} ${offsetY + encoche2Y + encocheHauteur}
-                L ${offsetX1 + preview.w} ${offsetY + encoche2Y + encocheHauteur}
+                ${segEncochesRecto}
                 L ${offsetX1 + preview.w} ${offsetY + preview.h - decoupe}
                 L ${offsetX1 + preview.w - decoupe} ${offsetY + preview.h - decoupe}
                 L ${offsetX1 + preview.w - decoupe} ${offsetY + preview.h}
@@ -652,14 +673,7 @@ export function CaissonDoublePreview({
                 L ${offsetX2 + decoupe} ${offsetY}
                 L ${offsetX2 + decoupe} ${offsetY + decoupe}
                 L ${offsetX2} ${offsetY + decoupe}
-                L ${offsetX2} ${offsetY + encoche1Y}
-                L ${offsetX2 + encocheLargeur} ${offsetY + encoche1Y}
-                L ${offsetX2 + encocheLargeur} ${offsetY + encoche1Y + encocheHauteur}
-                L ${offsetX2} ${offsetY + encoche1Y + encocheHauteur}
-                L ${offsetX2} ${offsetY + encoche2Y}
-                L ${offsetX2 + encocheLargeur} ${offsetY + encoche2Y}
-                L ${offsetX2 + encocheLargeur} ${offsetY + encoche2Y + encocheHauteur}
-                L ${offsetX2} ${offsetY + encoche2Y + encocheHauteur}
+                ${segEncochesVerso}
                 L ${offsetX2} ${offsetY + preview.h - decoupe}
                 L ${offsetX2 + decoupe} ${offsetY + preview.h - decoupe}
                 L ${offsetX2 + decoupe} ${offsetY + preview.h}

@@ -7,7 +7,8 @@
         var largeur = parseFloat(params.largeur) || 0;
         var hauteur = parseFloat(params.hauteur) || 0;
         var epaisseurTotale = parseFloat(params.epaisseur) || 60;
-        // Entraxe personnalisé : null = automatique (aux extrémités), sinon valeur en mm
+        // Entraxe potences : null = automatique (aux extrémités),
+        // 0 = monopotence centrée (encoche unique), >0 = entraxe personnalisé en mm
         var entraxePotences = params.entraxePotences !== null && params.entraxePotences !== undefined
             ? parseFloat(params.entraxePotences)
             : null;
@@ -60,9 +61,14 @@
         
         app.redraw();
         
-        var entraxeInfo = entraxePotences !== null
-            ? "Personnalisé : " + entraxePotences + " mm"
-            : "Automatique (aux extrémités)";
+        var entraxeInfo;
+        if (entraxePotences === null) {
+            entraxeInfo = "Automatique (aux extrémités)";
+        } else if (entraxePotences === 0) {
+            entraxeInfo = "Monopotence centrée (encoche unique)";
+        } else {
+            entraxeInfo = "Personnalisé : " + entraxePotences + " mm";
+        }
 
         var message = "✅ CAISSON DOUBLE FACE GÉNÉRÉ !\n\n" +
                      "📄 Configuration :\n" +
@@ -128,13 +134,16 @@
         var limitAngleHaut = hauteurFinalePoints/2 - decoupeStandard;
         var limitAngleBas = -hauteurFinalePoints/2 + decoupeStandard;
 
-        if (entraxePotences !== null && entraxePotences > 0) {
-            // ===== MODE PERSONNALISÉ : encoches centrées qui creusent vers l'intérieur =====
+        if (entraxePotences !== null && entraxePotences >= 0) {
+            // ===== MODE PERSONNALISÉ / MONOPOTENCE : encoches centrées qui creusent vers l'intérieur =====
             var entraxePoints = mmToPoints(entraxePotences);
             var encocheHauteTop = (entraxePoints / 2) + (encocheHauteur / 2);
             var encocheHauteBottom = (entraxePoints / 2) - (encocheHauteur / 2);
             var encocheBasseTop = -(entraxePoints / 2) + (encocheHauteur / 2);
             var encocheBasseBottom = -(entraxePoints / 2) - (encocheHauteur / 2);
+            // Si l'entraxe est plus petit que la hauteur d'encoche, les deux
+            // encoches se chevauchent : on creuse une encoche unique (monopotence)
+            var encocheUnique = entraxePoints < encocheHauteur;
 
             // Départ coin haut-gauche
             pathPoints.push(applyMirror(bordGauche + decoupeStandard, hauteurFinalePoints/2));
@@ -144,21 +153,29 @@
             pathPoints.push(applyMirror(bordDroit - decoupeStandard, limitAngleHaut));
             pathPoints.push(applyMirror(bordDroit, limitAngleHaut));
 
-            // Descente sur le bord droit jusqu'à l'encoche haute
-            pathPoints.push(applyMirror(bordDroit, encocheHauteTop));
+            if (encocheUnique) {
+                // Encoche unique centrée (de encocheHauteTop à encocheBasseBottom)
+                pathPoints.push(applyMirror(bordDroit, encocheHauteTop));
+                pathPoints.push(applyMirror(bordDroit - encocheLargeur, encocheHauteTop));
+                pathPoints.push(applyMirror(bordDroit - encocheLargeur, encocheBasseBottom));
+                pathPoints.push(applyMirror(bordDroit, encocheBasseBottom));
+            } else {
+                // Descente sur le bord droit jusqu'à l'encoche haute
+                pathPoints.push(applyMirror(bordDroit, encocheHauteTop));
 
-            // Encoche haute : creuser vers l'intérieur
-            pathPoints.push(applyMirror(bordDroit - encocheLargeur, encocheHauteTop));
-            pathPoints.push(applyMirror(bordDroit - encocheLargeur, encocheHauteBottom));
-            pathPoints.push(applyMirror(bordDroit, encocheHauteBottom));
+                // Encoche haute : creuser vers l'intérieur
+                pathPoints.push(applyMirror(bordDroit - encocheLargeur, encocheHauteTop));
+                pathPoints.push(applyMirror(bordDroit - encocheLargeur, encocheHauteBottom));
+                pathPoints.push(applyMirror(bordDroit, encocheHauteBottom));
 
-            // Descente sur le bord droit jusqu'à l'encoche basse
-            pathPoints.push(applyMirror(bordDroit, encocheBasseTop));
+                // Descente sur le bord droit jusqu'à l'encoche basse
+                pathPoints.push(applyMirror(bordDroit, encocheBasseTop));
 
-            // Encoche basse : creuser vers l'intérieur
-            pathPoints.push(applyMirror(bordDroit - encocheLargeur, encocheBasseTop));
-            pathPoints.push(applyMirror(bordDroit - encocheLargeur, encocheBasseBottom));
-            pathPoints.push(applyMirror(bordDroit, encocheBasseBottom));
+                // Encoche basse : creuser vers l'intérieur
+                pathPoints.push(applyMirror(bordDroit - encocheLargeur, encocheBasseTop));
+                pathPoints.push(applyMirror(bordDroit - encocheLargeur, encocheBasseBottom));
+                pathPoints.push(applyMirror(bordDroit, encocheBasseBottom));
+            }
 
             // Descente sur le bord droit jusqu'au coin bas
             pathPoints.push(applyMirror(bordDroit, limitAngleBas));
@@ -269,8 +286,8 @@
         // En mode personnalisé, les rainures vont jusqu'au bout (pas d'encoche aux extrémités)
         // En mode auto, elles s'arrêtent avant l'encoche
         var limiteRainureDroite;
-        if (entraxePotences !== null && entraxePotences > 0) {
-            // Mode personnalisé : rainures jusqu'au bord droit
+        if (entraxePotences !== null && entraxePotences >= 0) {
+            // Mode personnalisé / monopotence : rainures jusqu'au bord droit
             limiteRainureDroite = offsetX + (largeurFinalePoints / 2);
         } else {
             // Mode auto : s'arrêter avant l'encoche

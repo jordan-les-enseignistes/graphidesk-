@@ -41,7 +41,8 @@ export interface CaissonDoubleParams {
   hauteur: number;
   epaisseur: number;
   drillingHoles: boolean;
-  // Entraxe personnalisé pour les potences (null = automatique aux extrémités)
+  // Entraxe potences : null = automatique aux extrémités,
+  // 0 = monopotence centrée (encoche unique), >0 = entraxe personnalisé
   entraxePotences: number | null;
 }
 

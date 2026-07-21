@@ -22,8 +22,9 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
   const [drillingHoles, setDrillingHoles] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Mode entraxe potences : "auto" = aux extrémités, "custom" = personnalisé
-  const [entraxeMode, setEntraxeMode] = useState<"auto" | "custom">("auto");
+  // Mode entraxe potences : "auto" = aux extrémités, "custom" = personnalisé,
+  // "mono" = une seule potence centrée (encoche unique)
+  const [entraxeMode, setEntraxeMode] = useState<"auto" | "custom" | "mono">("auto");
   // L'utilisateur entre l'espace de fixation disponible (entraxe + 34mm)
   const [espaceFix, setEspaceFix] = useState<number>(0);
 
@@ -52,12 +53,13 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
   // Calcul de l'entraxe à partir de l'espace de fixation (entraxe = espaceFix - 34)
   const entraxeFromEspaceFix = espaceFix > 34 ? espaceFix - 34 : 0;
 
-  // Entraxe effectif à utiliser (null = mode auto)
-  const entraxeEffectif = entraxeMode === "auto" ? null : entraxeFromEspaceFix;
+  // Entraxe effectif à utiliser (null = mode auto, 0 = monopotence centrée)
+  const entraxeEffectif =
+    entraxeMode === "auto" ? null : entraxeMode === "mono" ? 0 : entraxeFromEspaceFix;
 
   // Validation
   const isValid = largeur > 0 && hauteur > 0 && epaisseur > 0 &&
-    (entraxeMode === "auto" || (espaceFix >= espaceFixMin && espaceFix <= espaceFixMax));
+    (entraxeMode !== "custom" || (espaceFix >= espaceFixMin && espaceFix <= espaceFixMax));
 
   const handleGenerate = () => {
     if (!isValid) return;
@@ -221,7 +223,7 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
           Position des potences
         </h4>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <button
             type="button"
             onClick={() => setEntraxeMode("auto")}
@@ -250,7 +252,31 @@ export function CaissonDoubleForm({ onGenerate, isProcessing }: CaissonDoubleFor
               Entraxe réduit (espace limité)
             </div>
           </button>
+          <button
+            type="button"
+            onClick={() => setEntraxeMode("mono")}
+            className={`p-3 rounded-lg border-2 transition-all text-left ${
+              entraxeMode === "mono"
+                ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-400"
+                : "border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500"
+            }`}
+          >
+            <div className="font-medium text-sm dark:text-slate-200">Monopotence centrée</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Une seule potence au centre
+            </div>
+          </button>
         </div>
+
+        {entraxeMode === "mono" && (
+          <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
+            <p>
+              <span className="text-amber-600 dark:text-amber-400">ℹ️</span> Une encoche unique de{" "}
+              <strong className="dark:text-slate-200">16 × 34 mm</strong> sera centrée verticalement
+              sur le panneau pour la potence.
+            </p>
+          </div>
+        )}
 
         {entraxeMode === "custom" && (
           <div className="space-y-3 pt-2">
