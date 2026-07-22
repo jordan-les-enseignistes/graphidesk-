@@ -98,6 +98,8 @@ const DialogContent = React.forwardRef<
       <DialogOverlay />
       <div
         ref={ref}
+        role="dialog"
+        aria-modal="true"
         className={cn(
           "fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-lg animate-slide-in",
           className

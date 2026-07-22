@@ -201,6 +201,11 @@ export function MeasureApp() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
+      // un dialogue (ex : Mesure satellite) est ouvert : il gère ses propres
+      // raccourcis, on ne touche pas à l'undo du document. Détection par le
+      // DOM (pas par e.target : notre Dialog maison ne piège pas le focus,
+      // la cible peut donc être <body> même dialogue ouvert)
+      if (document.querySelector('[role="dialog"]')) return;
       const key = e.key.toLowerCase();
       if (key === "z" && !e.shiftKey) {
         e.preventDefault();

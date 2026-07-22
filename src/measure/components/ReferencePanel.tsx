@@ -4,7 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Crosshair, RotateCcw, CheckCircle2, DoorOpen } from "lucide-react";
+import { Crosshair, RotateCcw, CheckCircle2, DoorOpen, Satellite } from "lucide-react";
+import { SatelliteMeasureDialog } from "./SatelliteMeasureDialog";
 import { useMeasureDoc, useMeasureUi, useMeasureImage } from "../state/store";
 import { computeHomography } from "../engine/homography";
 import { mmPerPixelAt, orderQuadInImage } from "../engine/zones";
@@ -24,6 +25,7 @@ export function ReferencePanel() {
 
   const [widthStr, setWidthStr] = useState("");
   const [heightStr, setHeightStr] = useState("");
+  const [satelliteOpen, setSatelliteOpen] = useState(false);
 
   const plane = planes.find((p) => p.id === activePlaneId);
   const calibrated = !!plane?.H && !!plane.reference;
@@ -196,6 +198,17 @@ export function ReferencePanel() {
             </div>
           </div>
 
+          {/* Mesure satellite : largeur de façade depuis les orthophotos IGN */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSatelliteOpen(true)}
+            className="w-full gap-1.5 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+            title="Mesurer la largeur de la façade sur la vue aérienne IGN (gratuit)"
+          >
+            <Satellite className="h-4 w-4" />
+            Mesure satellite (aucune cote connue)
+          </Button>
           {/* Préréglages d'objets standard */}
           <div className="space-y-1">
             <Label className="text-xs text-gray-500 dark:text-slate-400">
@@ -231,6 +244,21 @@ export function ReferencePanel() {
           </p>
         </div>
       )}
+
+      {/* Monté hors du bloc conditionnel : un changement d'état de calibration
+          (ex : undo) ne doit jamais démonter le dialogue en pleine mesure */}
+      <SatelliteMeasureDialog
+        open={satelliteOpen}
+        onOpenChange={setSatelliteOpen}
+        onUseMeasure={(mm) => {
+          setWidthStr(String(mm));
+          setHeightStr("");
+          toast.info(
+            "Place les 4 points sur la façade ENTIÈRE (le rectangle mesuré au satellite) — la hauteur sera déduite de la perspective",
+            { duration: 8000 }
+          );
+        }}
+      />
     </Card>
   );
 }
