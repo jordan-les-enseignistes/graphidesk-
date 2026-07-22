@@ -24,7 +24,7 @@
 
     // ---------- paramètres avec défauts ----------
     var MODE = (params && params.mode) ? String(params.mode) : "placer";
-    var OFFSET_MM = num(params.offsetMm, 5);
+    var OFFSET_MM = num(params.offsetMm, 6);
     var DIAM_MM = num(params.diamMm, 9);
     var RADIUS_MM = DIAM_MM / 2;
     var COVERAGE_MM = num(params.coverageMm, 150);
@@ -106,8 +106,13 @@
             } catch (e) {}
         }
 
-        // Offset paramétrable via Live Effect puis décomposition
-        var offsetPt = -mmToPt(OFFSET_MM);
+        // Offset paramétrable via Live Effect puis décomposition.
+        // ⚠️ Contour "intérieur" émulé : l'API Illustrator ne sait pas aligner
+        // un contour vers l'intérieur, on décale donc le TRACÉ d'une demi-
+        // épaisseur de trait (0.5pt) en plus — le bord du trait vert côté
+        // découpe tombe ainsi EXACTEMENT à OFFSET_MM du bord extérieur
+        // (l'atelier mesurait un peu moins avec le trait centré sur le tracé).
+        var offsetPt = -(mmToPt(OFFSET_MM) + 0.5);
         var fx = '<LiveEffect name="Adobe Offset Path"><Dict data="I jntp 2 R mlim 4 R ofst ' + offsetPt + ' "/></LiveEffect>';
         for (var o = 0; o < offsetLayer.pageItems.length; o++) {
             try { offsetLayer.pageItems[o].applyEffect(fx); } catch (e) {}

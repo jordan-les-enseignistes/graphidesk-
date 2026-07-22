@@ -76,8 +76,13 @@
 
     // document autonome : la taille de création n'a AUCUNE importance,
     // le plan de travail sera recalé sur l'objet après collage.
-    // CMJN comme les maquettes de l'atelier.
-    var out = app.documents.add(DocumentColorSpace.CMYK, 1000, 1000);
+    // CMJN comme les maquettes de l'atelier. Preset units=mm : sans preset,
+    // documents.add crée un document en POINTS (le .ai de bibliothèque
+    // s'ouvrirait en pts chez les graphistes).
+    var outPreset = new DocumentPreset();
+    outPreset.units = RulerUnits.Millimeters;
+    outPreset.colorMode = DocumentColorSpace.CMYK;
+    var out = app.documents.addDocument(DocumentColorSpace.CMYK, outPreset);
     app.executeMenuCommand("paste");
 
     // bounds RÉELS de ce qui a été collé (le collage sélectionne les items)

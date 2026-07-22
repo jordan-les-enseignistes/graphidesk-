@@ -51,6 +51,9 @@
     for (var ci = 0; ci < src.pageItems.length; ci++) {
       try {
         if (src.pageItems[ci].hidden || src.pageItems[ci].guides) continue;
+        // le calque COTES (annotations générées) ne fait pas partie de la
+        // bâche : ni dans les bounds, ni dans le fichier de FAB
+        if (String(src.pageItems[ci].layer.name).toUpperCase() === "COTES") continue;
         unionB(src.pageItems[ci].geometricBounds);
       } catch (e) {}
     }
@@ -121,10 +124,19 @@
 
   // 1. création directe (suffit si <= 5,77 m — et fonctionne aussi en
   //    grand canevas quand un document grand canevas est déjà ouvert)
+  // ⚠️ documents.add() SANS preset crée un document en POINTS quelle que
+  //    soit la préférence globale : l'unité du DOCUMENT vient du preset
+  //    (units = Millimeters), comme pour les caissons — c'était la cause
+  //    du "logiciel passé en pts" côté graphistes.
   try {
-    fab = app.documents.add(DocumentColorSpace.CMYK, W, H);
+    var preset = new DocumentPreset();
+    preset.units = RulerUnits.Millimeters;
+    preset.colorMode = DocumentColorSpace.CMYK;
+    fab = app.documents.addDocument(DocumentColorSpace.CMYK, preset);
+    // ne jamais faire confiance à la taille initiale : caler l'artboard explicitement
+    fab.artboards[0].artboardRect = [0, 0, W, -H];
     if (!physOk(fab)) { fermer(fab); fab = null; }
-  } catch (e) { fab = null; }
+  } catch (e) { fermer(fab); fab = null; }
 
   // 2. gabarit grand canevas : COPIE temporaire ouverte + plan de travail
   //    redimensionné (en unités script = physiques / scaleFactor)
@@ -169,6 +181,7 @@
   var dups = [];
   for (var li = src.layers.length - 1; li >= 0; li--) {
     var lay = src.layers[li];
+    if (String(lay.name).toUpperCase() === "COTES") continue; // annotations : pas en FAB
     var wasLocked = lay.locked, wasVisible = lay.visible;
     lay.locked = false; lay.visible = true;
     for (var k = lay.pageItems.length - 1; k >= 0; k--) {

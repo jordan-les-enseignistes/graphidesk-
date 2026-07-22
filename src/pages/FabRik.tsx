@@ -29,7 +29,11 @@ import { CaissonDoubleForm } from "@/components/fabrik/CaissonDoubleForm";
 import { AdhesifForm } from "@/components/fabrik/AdhesifForm";
 import { LettresBoitiersForm } from "@/components/fabrik/LettresBoitiersForm";
 import { LettresReliefForm } from "@/components/fabrik/LettresReliefForm";
-import { OeilletsBacheForm, type OeilletsParams } from "@/components/fabrik/OeilletsBacheForm";
+import {
+  OeilletsBacheForm,
+  type OeilletsParams,
+  type BacheCreationParams,
+} from "@/components/fabrik/OeilletsBacheForm";
 import { IllustratorSettings } from "@/components/fabrik/IllustratorSettings";
 
 import type {
@@ -94,7 +98,7 @@ const FAB_CATEGORIES: Array<{ nom: string; tools: FabTool[] }> = [
         icon: IconLettresRelief,
         color: "text-orange-500",
         label: "Lettres Relief",
-        desc: "PVC sur entretoises",
+        desc: "PVC rétroéclairé sur entretoises",
         activeCls: "border-orange-500 bg-orange-50 dark:bg-orange-900/30",
       },
       {
@@ -219,6 +223,10 @@ export default function FabRik() {
     runScript("entretoises_automation.jsx", params);
   };
 
+  const handleBacheCreation = (params: BacheCreationParams) => {
+    runScript("bache_creation.jsx", params);
+  };
+
   const handleOeilletsMaquette = (params: OeilletsParams) => {
     runScript("oeillets_maquette.jsx", params);
   };
@@ -327,6 +335,7 @@ export default function FabRik() {
 
           {fabType === "bache" && (
             <OeilletsBacheForm
+              onCreation={handleBacheCreation}
               onMaquette={handleOeilletsMaquette}
               onFab={handleOeilletsFab}
               isProcessing={isProcessing}

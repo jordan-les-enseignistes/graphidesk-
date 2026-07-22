@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Circle, Factory } from "lucide-react";
+import { Check, Circle, Factory, FilePlus2 } from "lucide-react";
 
 export interface OeilletsParams {
   /** échelle de la maquette (10 = 1:10) */
@@ -20,7 +20,16 @@ export interface OeilletsParams {
   diamFabMm: number;
 }
 
+/** Création directe du fichier bâche : dimensions réelles + réglages œillets */
+export interface BacheCreationParams extends OeilletsParams {
+  largeurMm: number;
+  hauteurMm: number;
+  /** génère les cotes fléchées (calque COTES — exclu du fichier de FAB) */
+  avecCotes: boolean;
+}
+
 interface Props {
+  onCreation: (params: BacheCreationParams) => void;
   onMaquette: (params: OeilletsParams) => void;
   onFab: (params: OeilletsParams) => void;
   isProcessing: boolean;
@@ -33,7 +42,10 @@ interface Props {
  *   2. FAB — passe le fichier ouvert à l'échelle 1:1 et remplace chaque
  *      œillet (depuis son centre) par un marqueur Ø5 contrasté avec croix.
  */
-export function OeilletsBacheForm({ onMaquette, onFab, isProcessing }: Props) {
+export function OeilletsBacheForm({ onCreation, onMaquette, onFab, isProcessing }: Props) {
+  const [largeurMm, setLargeurMm] = useState(0);
+  const [hauteurMm, setHauteurMm] = useState(0);
+  const [avecCotes, setAvecCotes] = useState(true);
   const [margeMm, setMargeMm] = useState(25);
   const [pasMm, setPasMm] = useState(500);
   const [pasMaxMm, setPasMaxMm] = useState(520);
@@ -54,8 +66,58 @@ export function OeilletsBacheForm({ onMaquette, onFab, isProcessing }: Props) {
       <div>
         <h3 className="font-semibold text-lg dark:text-slate-200">Bâche & œillets</h3>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Dans Illustrator, <strong>sélectionne le rectangle de ta bâche</strong> (maquette à 1:10)
-          puis clique — sans sélection, le plan de travail actif fait foi.
+          Crée le fichier directement depuis les dimensions, ou pose les œillets sur une
+          maquette 1:10 déjà ouverte dans Illustrator.
+        </p>
+      </div>
+
+      {/* Création directe : dimensions réelles → fichier prêt à l'emploi */}
+      <div className="rounded-lg border border-cyan-300 dark:border-cyan-800 bg-cyan-50/50 dark:bg-cyan-900/10 p-4 space-y-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label htmlFor="ba-largeur" className="text-xs">Largeur réelle (mm)</Label>
+            <Input
+              id="ba-largeur" type="number" min="100" step="10" className="h-9 w-36"
+              placeholder="ex: 3000"
+              value={largeurMm || ""}
+              onChange={(e) => setLargeurMm(parseFloat(e.target.value) || 0)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="ba-hauteur" className="text-xs">Hauteur réelle (mm)</Label>
+            <Input
+              id="ba-hauteur" type="number" min="100" step="10" className="h-9 w-36"
+              placeholder="ex: 1500"
+              value={hauteurMm || ""}
+              onChange={(e) => setHauteurMm(parseFloat(e.target.value) || 0)}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setAvecCotes(!avecCotes)}
+            className={`flex items-center gap-1.5 px-3 h-9 rounded-md border text-xs font-medium transition-colors ${
+              avecCotes
+                ? "bg-teal-600 border-teal-600 text-white"
+                : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+            }`}
+            title="Cotes fléchées (valeurs réelles) sur un calque COTES — automatiquement exclu du fichier de FAB"
+          >
+            {avecCotes && <Check className="h-3.5 w-3.5" />}
+            Avec dimensions
+          </button>
+          <Button
+            disabled={isProcessing || largeurMm <= 0 || hauteurMm <= 0}
+            onClick={() => onCreation({ ...params(), largeurMm, hauteurMm, avecCotes })}
+            className="gap-2 bg-cyan-600 hover:bg-cyan-700 h-9"
+          >
+            <FilePlus2 className="h-4 w-4" />
+            Créer le fichier bâche (1:10)
+          </Button>
+        </div>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+          Crée un document en <strong>mm</strong> avec deux calques : <strong>OEILLETS</strong>{" "}
+          (dessus, déjà posés) et <strong>VISUEL</strong> (dessous, avec le rectangle de la bâche)
+          — dépose ta créa dans VISUEL puis passe directement à l'étape 2.
         </p>
       </div>
 

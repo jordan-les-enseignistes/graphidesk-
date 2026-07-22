@@ -12,7 +12,7 @@ interface LettresReliefFormProps {
 }
 
 export function LettresReliefForm({ onGenerate, isProcessing }: LettresReliefFormProps) {
-  const [offsetMm, setOffsetMm] = useState("5");
+  const [offsetMm, setOffsetMm] = useState("6");
   const [diamMm, setDiamMm] = useState("9");
   const [coverageMm, setCoverageMm] = useState("150");
   const [clearanceMm, setClearanceMm] = useState("2");
@@ -20,7 +20,7 @@ export function LettresReliefForm({ onGenerate, isProcessing }: LettresReliefFor
 
   const buildParams = (mode: "placer" | "finaliser"): LettresReliefParams => ({
     mode,
-    offsetMm: parseFloat(offsetMm) || 5,
+    offsetMm: parseFloat(offsetMm) || 6,
     diamMm: parseFloat(diamMm) || 9,
     coverageMm: parseFloat(coverageMm) || 150,
     clearanceMm: parseFloat(clearanceMm) || 2,
@@ -78,7 +78,10 @@ export function LettresReliefForm({ onGenerate, isProcessing }: LettresReliefFor
               value={offsetMm}
               onChange={(e) => setOffsetMm(e.target.value)}
             />
-            <p className="text-xs text-gray-400 dark:text-slate-500">Tracé vert — 5mm par défaut</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500">
+              Tracé vert — 6mm par défaut, trait aligné côté intérieur (la distance bord →
+              trait est exacte)
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="lr-diam">Diamètre entretoise (mm)</Label>

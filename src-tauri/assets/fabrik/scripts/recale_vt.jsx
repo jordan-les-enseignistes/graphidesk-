@@ -73,8 +73,10 @@
       }
     }
   }
-  var vtGreen = new RGBColor();
-  vtGreen.red = 21; vtGreen.green = 128; vtGreen.blue = 61;
+  // CMJN obligatoire (jamais de RVB dans les maquettes d'impression) —
+  // équivalent du vert VT rgb(21,128,61)
+  var vtGreen = new CMYKColor();
+  vtGreen.cyan = 84; vtGreen.magenta = 0; vtGreen.yellow = 52; vtGreen.black = 50;
 
   var report = [];
   var totalOk = 0;

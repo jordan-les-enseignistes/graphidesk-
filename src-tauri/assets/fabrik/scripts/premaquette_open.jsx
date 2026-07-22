@@ -22,6 +22,11 @@
 
         var doc = app.open(f);
 
+        // ⚠️ L'ouverture d'un SVG crée TOUJOURS un document RVB — l'atelier
+        // travaille pour l'impression : conversion CMJN immédiate et
+        // systématique (règle absolue : jamais de RVB).
+        try { app.executeMenuCommand("doc-color-cmyk"); } catch (eC) {}
+
         // Calque d'origine (import SVG) → "Artwork"
         var artLayer = doc.layers[0];
         artLayer.name = "Artwork";

@@ -18,7 +18,9 @@
   // ⚠️ la marge = distance bord de bâche → EXTRÉMITÉ de l'œillet.
   // Le centre est donc à marge + Ø/2 du bord.
   var MARGE = (params.margeMm || 25) / S + DIAM / 2;
-  var PASMAX = (params.pasMaxMm || 520) / S;
+  // entraxe plafond : le nominal PRIME s'il dépasse le maxi — sinon le champ
+  // "Entraxe nominal" du formulaire serait ignoré (retour Jordan 22/07/2026)
+  var PASMAX = Math.max(params.pasMm || 500, params.pasMaxMm || 520) / S;
   var MM = 2.834645669;
 
   // bâche = l'objet SÉLECTIONNÉ (union des sélections) ;

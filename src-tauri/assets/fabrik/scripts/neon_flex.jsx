@@ -41,8 +41,18 @@
   var ECH = params.echelle || 10;
   var MODE_SIMPLE = params.trace === "simple";
 
+  // CMJN obligatoire (jamais de RVB dans les maquettes d'impression) :
+  // conversion naïve RVB→CMJN — suffisante pour des couleurs d'habillage néon
   function rgb(r, g, b) {
-    var c = new RGBColor(); c.red = r; c.green = g; c.blue = b; return c;
+    var rr = r / 255, gg = g / 255, bb = b / 255;
+    var k = 1 - Math.max(rr, Math.max(gg, bb));
+    var c = new CMYKColor();
+    if (k >= 0.999) { c.black = 100; return c; }
+    c.cyan = Math.round(((1 - rr - k) / (1 - k)) * 100);
+    c.magenta = Math.round(((1 - gg - k) / (1 - k)) * 100);
+    c.yellow = Math.round(((1 - bb - k) / (1 - k)) * 100);
+    c.black = Math.round(k * 100);
+    return c;
   }
   function mix(a, b, t) { return Math.round(a * (1 - t) + b * t); }
   var cTube = rgb(mix(C.r, 255, 0.6), mix(C.g, 255, 0.6), mix(C.b, 255, 0.6));

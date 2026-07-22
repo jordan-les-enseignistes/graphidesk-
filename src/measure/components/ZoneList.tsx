@@ -91,8 +91,25 @@ function PsdExportButton() {
       const photoshopPath =
         localStorage.getItem(PHOTOSHOP_PATH_KEY) ?? DEFAULT_PHOTOSHOP_PATH;
       try {
-        await invoke("open_file_with", { appPath: photoshopPath, filePath: psdPath });
-        toast.success("PSD photomontage ouvert dans Photoshop");
+        // Ouverture via un mini-script Photoshop plutôt qu'en direct : le PSD
+        // généré (ag-psd) est nativement RVB, or l'atelier imprime — le script
+        // ouvre PUIS convertit en CMJN (règle absolue : jamais de RVB).
+        const psdFwd = psdPath.replace(/\\/g, "/");
+        const jsxCmjn = [
+          "var _d0 = app.displayDialogs;",
+          "app.displayDialogs = DialogModes.NO;",
+          "try {",
+          `  var d = app.open(new File("${psdFwd}"));`,
+          "  if (d.mode !== DocumentMode.CMYK) d.changeMode(ChangeMode.CMYK);",
+          "} catch (e) {}",
+          "app.displayDialogs = _d0;",
+        ].join("\n");
+        const jsxPath = await invoke<string>("save_temp_file", {
+          fileName: "photomontage_ouvre_cmjn.jsx",
+          content: jsxCmjn,
+        });
+        await invoke("open_file_with", { appPath: photoshopPath, filePath: jsxPath });
+        toast.success("PSD photomontage ouvert dans Photoshop (converti en CMJN)");
       } catch {
         toast.info(`PSD généré : ${psdPath} — ouvre-le manuellement (Photoshop non trouvé à "${photoshopPath}")`);
       }
