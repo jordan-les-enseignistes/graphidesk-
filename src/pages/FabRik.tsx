@@ -26,7 +26,7 @@ import { NeonFlexForm, type NeonFlexParams } from "@/components/fabrik/NeonFlexF
 import { CaissonSimpleForm } from "@/components/fabrik/CaissonSimpleForm";
 import { CaissonMultiForm } from "@/components/fabrik/CaissonMultiForm";
 import { CaissonDoubleForm } from "@/components/fabrik/CaissonDoubleForm";
-import { AdhesifForm } from "@/components/fabrik/AdhesifForm";
+import { AdhesifForm, type AdhesifParams } from "@/components/fabrik/AdhesifForm";
 import { LettresBoitiersForm } from "@/components/fabrik/LettresBoitiersForm";
 import { LettresReliefForm } from "@/components/fabrik/LettresReliefForm";
 import {
@@ -199,8 +199,8 @@ export default function FabRik() {
   };
 
   // Handlers pour chaque type
-  const handleAdhesifGenerate = () => {
-    runScript("full_automation.jsx", {});
+  const handleAdhesifGenerate = (params: AdhesifParams) => {
+    runScript("full_automation.jsx", params);
   };
 
   const handleCaissonSimpleGenerate = (params: CaissonSimpleParams) => {

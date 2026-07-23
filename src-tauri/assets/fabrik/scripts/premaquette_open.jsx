@@ -23,9 +23,13 @@
         var doc = app.open(f);
 
         // ⚠️ L'ouverture d'un SVG crée TOUJOURS un document RVB — l'atelier
-        // travaille pour l'impression : conversion CMJN immédiate et
-        // systématique (règle absolue : jamais de RVB).
+        // travaille pour l'impression : conversion CMJN systématique (règle
+        // absolue : jamais de RVB). La commande de menu peut INVALIDER la
+        // référence au document ("there is no document" sur tout ce qui
+        // suit) : on resynchronise doc sur le document actif juste après.
         try { app.executeMenuCommand("doc-color-cmyk"); } catch (eC) {}
+        try { doc = app.activeDocument; } catch (eD) {}
+        if (!doc) throw new Error("Document introuvable après conversion CMJN");
 
         // Calque d'origine (import SVG) → "Artwork"
         var artLayer = doc.layers[0];

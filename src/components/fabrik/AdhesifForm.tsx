@@ -1,13 +1,21 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Rocket, AlertCircle, X } from "lucide-react";
+import { Rocket, AlertCircle, Check, X } from "lucide-react";
+
+export interface AdhesifParams {
+  /** true = le fichier est déjà à l'échelle 1:1, pas de mise à l'échelle x10 */
+  dejaEchelle: boolean;
+}
 
 interface AdhesifFormProps {
-  onGenerate: () => void;
+  onGenerate: (params: AdhesifParams) => void;
   isProcessing: boolean;
 }
 
 export function AdhesifForm({ onGenerate, isProcessing }: AdhesifFormProps) {
+  const [dejaEchelle, setDejaEchelle] = useState(false);
+
   return (
     <div className="space-y-6">
       {/* Prérequis */}
@@ -38,11 +46,25 @@ export function AdhesifForm({ onGenerate, isProcessing }: AdhesifFormProps) {
         </div>
       </Card>
 
-      {/* Bouton générer */}
+      {/* Échelle + bouton générer */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setDejaEchelle(!dejaEchelle)}
+          className={`flex items-center gap-1.5 px-3 h-14 shrink-0 rounded-md border text-xs font-medium transition-colors ${
+            dejaEchelle
+              ? "bg-teal-600 border-teal-600 text-white"
+              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+          }`}
+          title="Coché : le fichier est déjà à l'échelle 1:1, le script ne fait pas la mise à l'échelle x10"
+        >
+          {dejaEchelle && <Check className="h-3.5 w-3.5" />}
+          Mon fichier est déjà à l'échelle 1:1
+        </button>
       <Button
-        onClick={onGenerate}
+        onClick={() => onGenerate({ dejaEchelle })}
         disabled={isProcessing}
-        className="w-full py-6 text-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700"
+        className="flex-1 py-6 text-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700"
       >
         {isProcessing ? (
           <>
@@ -56,6 +78,7 @@ export function AdhesifForm({ onGenerate, isProcessing }: AdhesifFormProps) {
           </>
         )}
       </Button>
+      </div>
 
       {/* Ce que fait l'automatisation */}
       <Card className="p-4 bg-slate-50">

@@ -60,7 +60,7 @@
 
         // ===== ÉTAPE 2: PHASE 1 =====
         prepareLayersStructure(doc);
-        processArtworkLayer(doc);
+        processArtworkLayer(doc, params.dejaEchelle === true);
         duplicateToCutContour(doc);
 
         // ===== ÉTAPE 3: PHASE 2 =====
@@ -134,7 +134,7 @@
         return mm * 2.83465;
     }
 
-    function processArtworkLayer(doc) {
+    function processArtworkLayer(doc, dejaEchelle) {
         try {
             var artworkLayer = doc.layers.getByName("Artwork");
 
@@ -152,9 +152,12 @@
                 } catch (e) {}
             }
 
-            try {
-                group.resize(1000, 1000);
-            } catch (e) {}
+            // fichier déjà à l'échelle 1:1 : pas de mise à l'échelle x10
+            if (!dejaEchelle) {
+                try {
+                    group.resize(1000, 1000);
+                } catch (e) {}
+            }
 
             var margin = mmToPoints(20);
             var ab = doc.artboards[0];
