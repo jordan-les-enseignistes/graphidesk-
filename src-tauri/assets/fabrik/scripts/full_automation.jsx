@@ -69,18 +69,31 @@
         // ===== ÉTAPE 4: FINALISATION CUTCONTOUR =====
         finalizeCutContour(doc, params);
 
+        // ===== ÉTAPE 5: BLANC DE SOUTIEN (pose en intérieur / vitrophanie) =====
+        var blancOk = false;
+        if (params.poseInterieur === true) {
+            blancOk = executeWHITE(doc, params);
+        }
+
         app.redraw();
 
-        alert("🎉 AUTOMATISATION TERMINÉE ! 🎉\n\n" +
+        var msgFin = "🎉 AUTOMATISATION TERMINÉE ! 🎉\n\n" +
               "═══════════════════════════════════\n" +
               "📋 ACTION MANUELLE REQUISE :\n" +
               "• Appliquer la nuance \"CutContour\"\n" +
-              "  du nuancier \"Colorado\"\n\n" +
-              "⚠️  VÉRIFICATIONS IMPORTANTES :\n" +
+              "  du nuancier \"Colorado\"\n";
+        if (params.poseInterieur === true) {
+            msgFin += blancOk
+                ? "• Appliquer la vraie nuance \"White\" sur le calque WHITE\n" +
+                  "  (surimpression du fond déjà cochée)\n"
+                : "• ⚠️ Blanc de soutien : ÉCHEC de la génération, à faire à la main\n";
+        }
+        msgFin += "\n⚠️  VÉRIFICATIONS IMPORTANTES :\n" +
               "• Contrôler les fonds perdus\n" +
               "• Vérifier les tracés\n" +
               "• Valider la laize de votre adhésif\n\n" +
-              "✅ Votre fichier de fabrication est prêt !");
+              "✅ Votre fichier de fabrication est prêt !";
+        alert(msgFin);
 
         return { success: true, message: "Automatisation terminée" };
 
@@ -358,8 +371,103 @@
             
             doc.selection = null;
             cutContourLayer.locked = false;
-            
+
         } catch (e) {}
+    }
+
+    // ===== BLANC DE SOUTIEN (vitrophanie, pose en intérieur) =====
+    // Duplique TOUT l'Artwork sur un calque "WHITE" placé TOUT AU
+    // DESSUS (même au-dessus du CutContour), fusionne le tout (action
+    // Pathfinder de prod), applique un blanc repère (l'utilisateur pose la
+    // vraie nuance "White" à la main, comme pour le CutContour) et coche
+    // "Surimp. fond" (fillOverprint) sur l'ensemble de CE calque uniquement.
+    function executeWHITE(doc, params) {
+        try {
+            var artworkLayer = doc.layers.getByName("Artwork");
+
+            // ⚠️ états de verrouillage : à ce stade du script l'Artwork est
+            // VERROUILLÉ (phase 2) — on le déverrouille le temps de la copie
+            // et on RESTAURE son état exact ensuite
+            var artWasLocked = artworkLayer.locked;
+            var artWasVisible = artworkLayer.visible;
+            artworkLayer.locked = false;
+            artworkLayer.visible = true;
+
+            // calque WHITE : purgé s'il existe (relance), créé sinon
+            var blancLayer = null;
+            for (var l = 0; l < doc.layers.length; l++) {
+                if (doc.layers[l].name === "WHITE") { blancLayer = doc.layers[l]; break; }
+            }
+            if (blancLayer) {
+                blancLayer.locked = false;
+                blancLayer.visible = true;
+                for (var d = blancLayer.pageItems.length - 1; d >= 0; d--) {
+                    try { blancLayer.pageItems[d].remove(); } catch (e) {}
+                }
+            } else {
+                blancLayer = doc.layers.add();
+                blancLayer.name = "WHITE";
+            }
+
+            // copie de TOUS les éléments de l'Artwork
+            for (var i = 0; i < artworkLayer.pageItems.length; i++) {
+                try {
+                    artworkLayer.pageItems[i].duplicate(blancLayer, ElementPlacement.PLACEATBEGINNING);
+                } catch (e) {}
+            }
+
+            // restaurer l'état du calque Artwork
+            artworkLayer.locked = artWasLocked;
+            artworkLayer.visible = artWasVisible;
+
+            if (blancLayer.pageItems.length === 0) return false;
+
+            // fusion en une seule forme (même action Pathfinder que le CutContour)
+            doc.selection = null;
+            for (var s = 0; s < blancLayer.pageItems.length; s++) {
+                try { blancLayer.pageItems[s].selected = true; } catch (e) {}
+            }
+            if (params.pathfinderUnionActionPath && doc.selection.length > 0) {
+                var unionFile = new File(params.pathfinderUnionActionPath);
+                if (unionFile.exists) {
+                    app.loadAction(unionFile);
+                    app.doScript("PathfinderUnion", "Ensemble 6");
+                    app.unloadAction("Ensemble 6", "");
+                }
+            }
+            doc.selection = null;
+
+            // blanc repère + Surimp. fond sur tout le calque (et RIEN d'autre)
+            var blanc = new CMYKColor(); // 0/0/0/0 — la vraie nuance "White" est posée à la main
+            function appliquerBlanc(item) {
+                if (item.typename === "GroupItem") {
+                    for (var g = 0; g < item.pageItems.length; g++) appliquerBlanc(item.pageItems[g]);
+                } else if (item.typename === "CompoundPathItem") {
+                    for (var p = 0; p < item.pathItems.length; p++) appliquerBlanc(item.pathItems[p]);
+                } else {
+                    try {
+                        item.stroked = false;
+                        item.filled = true;
+                        item.fillColor = blanc;
+                        item.fillOverprint = true; // = case "Surimp. fond" (Options d'objet)
+                    } catch (e) {}
+                }
+            }
+            for (var a = blancLayer.pageItems.length - 1; a >= 0; a--) {
+                appliquerBlanc(blancLayer.pageItems[a]);
+            }
+
+            // TOUT AU DESSUS — même au-dessus du CutContour
+            try { blancLayer.zOrder(ZOrderMethod.SENDTOFRONT); } catch (e) {}
+
+            // états finaux : SEUL le calque WHITE reste déverrouillé (et actif),
+            // le CutContour est verrouillé comme le reste
+            try { doc.layers.getByName("CutContour").locked = true; } catch (e) {}
+            blancLayer.locked = false;
+            try { doc.activeLayer = blancLayer; } catch (e) {}
+
+            return true;
+        } catch (e) { return false; }
     }
 
 })(params);
