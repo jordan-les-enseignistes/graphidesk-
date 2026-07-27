@@ -12,6 +12,16 @@ import { toBase64 } from "./psdExport";
 import { zoneNom } from "./zones";
 import type { Zone } from "../state/types";
 
+/** Index → lettre (A..Z, AA, AB...) — même convention que le plugin InDesign */
+function lettreAffichage(n: number): string {
+  let s = "";
+  do {
+    s = String.fromCharCode(65 + (n % 26)) + s;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return s;
+}
+
 /**
  * Exporte la fiche VT. Lève une erreur si la photo n'est pas disponible.
  * @param selected zones à faire mesurer par le poseur
@@ -35,9 +45,13 @@ export async function exportFicheVt(selected: Zone[], projet: string): Promise<v
     photoFile: "fiche_vt.jpg",
     photoWidth: photo.width,
     photoHeight: photo.height,
-    zones: selected.map((z) => ({
-      // la LETTRE technique ne change jamais (croix lettrées du plugin InDesign)
+    zones: selected.map((z, i) => ({
+      // la LETTRE technique ne change jamais (GD_ZONE_*, recalage, saisie)
       letter: z.label.replace(/^Zone\s+/i, ""),
+      // lettre d'AFFICHAGE : séquentielle sur les zones cochées (A, B, C...)
+      // — le poseur voit une suite propre même si des zones sont décochées.
+      // Ne concerne QUE la fiche VT (croix + tableau), rien d'autre.
+      displayLetter: lettreAffichage(i),
       // le label affiché dans le tableau de la fiche = nom libre du graphiste
       label: zoneNom(z),
       corners: z.corners,

@@ -18,8 +18,11 @@ InDesign — Cotes BAT »).
 2. Packager en `.ccx` (zip standard — ⚠️ PAS `Compress-Archive` qui produit
    des `\` invalides ; utiliser le tar de Windows) :
    ```
-   C:\Windows\System32\tar.exe -a -c -f Cotes-BAT.ccx manifest.json index.html index.js styles.css lib
+   C:\Windows\System32\tar.exe -a -c -f plugin.zip manifest.json index.html index.js styles.css lib
+   ren plugin.zip Cotes-BAT.ccx
    ```
+   ⚠️ Passer par un nom **.zip** PUIS renommer : avec `-f xxx.ccx`, `tar -a`
+   ne reconnaît pas l'extension et produit un **TAR** (UPIA échoue en -204).
 3. Copier dans les assets GraphiDesk + synchroniser la version :
    - `src-tauri/assets/indesign/Cotes-BAT.ccx`
    - `src-tauri/assets/indesign/version.txt`

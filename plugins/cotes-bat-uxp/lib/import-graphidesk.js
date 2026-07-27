@@ -258,7 +258,9 @@ async function importFiche(selectedJsonPath) {
       const ys = corners.map(function (p) { return p.y; });
       return {
         item: null,
-        letter: z.letter,
+        // lettre d'AFFICHAGE (suite propre A,B,C même avec zones décochées) ;
+        // repli sur la lettre technique pour les anciennes fiches
+        letter: z.displayLetter || z.letter,
         corners: corners.length === 4 ? corners : null,
         bounds: [
           Math.min.apply(null, ys), Math.min.apply(null, xs),
@@ -275,7 +277,7 @@ async function importFiche(selectedJsonPath) {
 
     // tableau : en une seule étape d'annulation elle aussi
     let tableErr = null;
-    const letters = fiche.zones.map(function (z) { return z.letter; });
+    const letters = fiche.zones.map(function (z) { return z.displayLetter || z.letter; });
     const tfn = function () { tableErr = updateTables(page, letters); };
     try {
       indesign.app.doScript(

@@ -6,7 +6,7 @@
 const { entrypoints } = require("uxp");
 
 // repli si l'API manifest est indisponible — synchronisé au packaging
-const PANEL_VERSION = "0.5.3";
+const PANEL_VERSION = "0.6.1";
 const geom = require("./lib/geometry");
 const draw = require("./lib/indesign-draw");
 const importer = require("./lib/import-graphidesk");

@@ -248,11 +248,18 @@ function makeOne(doc, spread, layer, blk, letter, colors, opts) {
     if (blk.item) clearBlock(blk.item, colors.none);
 
     const items = [];
-    s.shafts.forEach(function (seg) {
-      items.push(drawLine(spread, layer, seg, colors.white, colors.none, s.strokeWeight));
-    });
-    s.heads.forEach(function (tri) {
-      items.push(drawPolygon(spread, layer, tri, colors.white, colors.none, 0));
+    // VRAIES flèches (embouts natifs de l'outil contour) : un seul tracé par
+    // bimédiane, éditable normalement — fini les triangles dessinés à part
+    // qu'il fallait retoucher un par un (retour Jordan 27/07/2026).
+    s.lines.forEach(function (seg) {
+      const gl = drawLine(spread, layer, seg, colors.white, colors.none, s.strokeWeight);
+      try {
+        gl.leftLineEnd = indesign.ArrowHead.CURVED_ARROW_HEAD;
+        gl.rightLineEnd = indesign.ArrowHead.CURVED_ARROW_HEAD;
+      } catch (e) {}
+      // pointe alignée sur le bout du trait (pas au-delà)
+      try { gl.arrowHeadAlignment = indesign.ArrowHeadAlignmentEnum.INSIDE_STROKE; } catch (e) {}
+      items.push(gl);
     });
     // Losange bleu + fin liseré blanc (lisible sur tous les fonds).
     const outline = Math.min(Math.max(s.badge * 0.04, 0.3), 1.0);
