@@ -1,0 +1,86 @@
+diff --git a/node_modules/ag-psd/dist-es/psdWriter.js b/node_modules/ag-psd/dist-es/psdWriter.js
+index c57f679..2c90cde 100644
+--- a/node_modules/ag-psd/dist-es/psdWriter.js
++++ b/node_modules/ag-psd/dist-es/psdWriter.js
+@@ -222,17 +222,18 @@ function writePsd(writer, psd, options = {}) {
+     if (imageData && (psd.width !== imageData.width || psd.height !== imageData.height))
+         throw new Error('Document canvas must have the same size as document');
+     const globalAlpha = !!imageData && (0, helpers_1.hasAlpha)(imageData);
++    const cmykMode = psd.colorMode === 4;
+     const maxBufferSize = Math.max(getLargestLayerSize(psd.children), 4 * 2 * psd.width * psd.height + 2 * psd.height);
+     writer.tempBuffer = new Uint8Array(maxBufferSize);
+     // header
+     writeSignature(writer, '8BPS');
+     writeUint16(writer, options.psb ? 2 : 1); // version
+     writeZeros(writer, 6);
+-    writeUint16(writer, globalAlpha ? 4 : 3); // channels
++    writeUint16(writer, cmykMode ? 4 : (globalAlpha ? 4 : 3)); // channels
+     writeUint32(writer, psd.height);
+     writeUint32(writer, psd.width);
+     writeUint16(writer, bitsPerChannel); // bits per channel
+-    writeUint16(writer, 3 /* ColorMode.RGB */); // we only support saving RGB right now
++    writeUint16(writer, cmykMode ? 4 : 3); // RGB ou CMYK (patch GraphiDesk)
+     // color mode data
+     writeSection(writer, 1, () => {
+         var _a, _b, _c;
+@@ -272,7 +273,7 @@ function writePsd(writer, psd, options = {}) {
+         writeAdditionalLayerInfo(writer, psd, psd, opt);
+     }, undefined, !!opt.psb);
+     // image data
+-    const channels = globalAlpha ? [0, 1, 2, 3] : [0, 1, 2];
++    const channels = cmykMode ? [0, 1, 2, 3] : (globalAlpha ? [0, 1, 2, 3] : [0, 1, 2]);
+     const width = imageData ? imageData.width : psd.width;
+     const height = imageData ? imageData.height : psd.height;
+     const data = { data: new Uint8Array(width * height * 4), width, height };
+@@ -285,7 +286,7 @@ function writePsd(writer, psd, options = {}) {
+         if (imageData)
+             data.data.set(new Uint8Array(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength));
+         // add weird white matte
+-        if (globalAlpha) {
++        if (globalAlpha && !cmykMode) {
+             const size = data.width * data.height * 4;
+             const p = data.data;
+             for (let i = 0; i < size; i += 4) {
+diff --git a/node_modules/ag-psd/dist/psdWriter.js b/node_modules/ag-psd/dist/psdWriter.js
+index c57f679..2c90cde 100644
+--- a/node_modules/ag-psd/dist/psdWriter.js
++++ b/node_modules/ag-psd/dist/psdWriter.js
+@@ -222,17 +222,18 @@ function writePsd(writer, psd, options = {}) {
+     if (imageData && (psd.width !== imageData.width || psd.height !== imageData.height))
+         throw new Error('Document canvas must have the same size as document');
+     const globalAlpha = !!imageData && (0, helpers_1.hasAlpha)(imageData);
++    const cmykMode = psd.colorMode === 4;
+     const maxBufferSize = Math.max(getLargestLayerSize(psd.children), 4 * 2 * psd.width * psd.height + 2 * psd.height);
+     writer.tempBuffer = new Uint8Array(maxBufferSize);
+     // header
+     writeSignature(writer, '8BPS');
+     writeUint16(writer, options.psb ? 2 : 1); // version
+     writeZeros(writer, 6);
+-    writeUint16(writer, globalAlpha ? 4 : 3); // channels
++    writeUint16(writer, cmykMode ? 4 : (globalAlpha ? 4 : 3)); // channels
+     writeUint32(writer, psd.height);
+     writeUint32(writer, psd.width);
+     writeUint16(writer, bitsPerChannel); // bits per channel
+-    writeUint16(writer, 3 /* ColorMode.RGB */); // we only support saving RGB right now
++    writeUint16(writer, cmykMode ? 4 : 3); // RGB ou CMYK (patch GraphiDesk)
+     // color mode data
+     writeSection(writer, 1, () => {
+         var _a, _b, _c;
+@@ -272,7 +273,7 @@ function writePsd(writer, psd, options = {}) {
+         writeAdditionalLayerInfo(writer, psd, psd, opt);
+     }, undefined, !!opt.psb);
+     // image data
+-    const channels = globalAlpha ? [0, 1, 2, 3] : [0, 1, 2];
++    const channels = cmykMode ? [0, 1, 2, 3] : (globalAlpha ? [0, 1, 2, 3] : [0, 1, 2]);
+     const width = imageData ? imageData.width : psd.width;
+     const height = imageData ? imageData.height : psd.height;
+     const data = { data: new Uint8Array(width * height * 4), width, height };
+@@ -285,7 +286,7 @@ function writePsd(writer, psd, options = {}) {
+         if (imageData)
+             data.data.set(new Uint8Array(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength));
+         // add weird white matte
+-        if (globalAlpha) {
++        if (globalAlpha && !cmykMode) {
+             const size = data.width * data.height * 4;
+             const p = data.data;
+             for (let i = 0; i < size; i += 4) {

@@ -1,13 +1,14 @@
 {
   "name": "graphidesk",
-  "version": "1.4.18",
+  "version": "1.4.19",
   "description": "Application de suivi des dossiers graphistes - Les Enseignistes",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "postinstall": "patch-package"
   },
   "keywords": [],
   "author": "Les Enseignistes",
@@ -53,6 +54,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
     "autoprefixer": "^10.4.23",
+    "patch-package": "^8.0.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
