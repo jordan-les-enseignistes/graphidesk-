@@ -18,7 +18,7 @@ import {
   Check,
   RotateCcw,
 } from "lucide-react";
-import { useMeasureDoc, useMeasureUi, useMeasureImage } from "../state/store";
+import { useMeasureDoc, useMeasureUi } from "../state/store";
 import { formatDims, zoneNom } from "../engine/zones";
 import type { Zone } from "../state/types";
 import { buildPremaquetteSvg, downloadSvg } from "../engine/svgExport";
@@ -52,7 +52,20 @@ function PsdExportButton() {
   const [busy, setBusy] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
-  const zones = useMeasureDoc((s) => s.zones);
+  const allZones = useMeasureDoc((s) => s.zones);
+  const planes = useMeasureDoc((s) => s.planes);
+  const photos = useMeasureDoc((s) => s.photos);
+  // règle multi-faces validée : UN PSD par PHOTO (toutes ses faces réunies),
+  // X photos → X PSD ouverts dans Photoshop
+  const photoOfZone = (z: Zone) =>
+    planes.find((p) => p.id === z.planeId)?.photoId ?? null;
+  const zones = photos.length > 1
+    ? [...allZones].sort((a, b) => {
+        const ia = photos.findIndex((p) => p.id === photoOfZone(a));
+        const ib = photos.findIndex((p) => p.id === photoOfZone(b));
+        return ia - ib;
+      })
+    : allZones;
 
   const toggleExcluded = (id: string) => {
     setExcluded((prev) => {
@@ -64,39 +77,68 @@ function PsdExportButton() {
   };
 
   const handleExport = async () => {
-    const s = useMeasureDoc.getState();
-    const plane = s.planes.find((p) => p.id === s.activePlaneId);
-    const planeZones = s.zones.filter(
-      (z) => z.planeId === plane?.id && !excluded.has(z.id)
-    );
-    if (planeZones.length === 0) {
+    const selection = zones.filter((z) => !excluded.has(z.id));
+    if (selection.length === 0) {
       toast.error("Aucune zone sélectionnée pour l'export");
       return;
     }
-    const photo = getOffscreenCanvas();
-    if (!photo) {
-      toast.error("Photo non disponible — recharge l'image");
+    // groupement par photo : un PSD par photo ayant des zones sélectionnées
+    const parPhoto: { photoId: string; nom: string; zones: Zone[] }[] = [];
+    for (const photo of photos) {
+      const zs = selection.filter((z) => photoOfZone(z) === photo.id);
+      if (zs.length > 0) parPhoto.push({ photoId: photo.id, nom: photo.name, zones: zs });
+    }
+    if (parPhoto.length === 0) {
+      toast.error("Aucune zone sélectionnée pour l'export");
       return;
     }
 
     setShowDialog(false);
     setBusy(true);
     try {
-      toast.info("Génération du PSD en cours...", { duration: 3000 });
-      const psdBytes = await buildPhotomontagePsd(planeZones, photo);
-      const psdPath = await invoke<string>("save_temp_binary", {
-        fileName: "photomontage_provisoire.psd",
-        contentBase64: toBase64(psdBytes),
-      });
+      toast.info(
+        parPhoto.length > 1
+          ? `Génération de ${parPhoto.length} PSD en cours...`
+          : "Génération du PSD en cours...",
+        { duration: 3000 }
+      );
       const photoshopPath =
         localStorage.getItem(PHOTOSHOP_PATH_KEY) ?? DEFAULT_PHOTOSHOP_PATH;
-      try {
-        // Le PSD est désormais écrit NATIVEMENT en CMJN (contenus des objets
-        // dynamiques compris) — ouverture directe, aucun script, aucun flash.
-        await invoke("open_file_with", { appPath: photoshopPath, filePath: psdPath });
-        toast.success("PSD photomontage ouvert dans Photoshop (CMJN natif, mockups éditables)");
-      } catch {
-        toast.info(`PSD généré : ${psdPath} — ouvre-le manuellement (Photoshop non trouvé à "${photoshopPath}")`);
+      let ouverts = 0;
+      const chemins: string[] = [];
+      for (let i = 0; i < parPhoto.length; i++) {
+        const grp = parPhoto[i];
+        const canvas = getOffscreenCanvas(grp.photoId);
+        if (!canvas) {
+          toast.error(`Photo « ${grp.nom} » non disponible — recharge la page`);
+          continue;
+        }
+        const psdBytes = await buildPhotomontagePsd(grp.zones, canvas);
+        const suffix = parPhoto.length > 1 ? `_${i + 1}` : "";
+        const psdPath = await invoke<string>("save_temp_binary", {
+          fileName: `photomontage_provisoire${suffix}.psd`,
+          contentBase64: toBase64(psdBytes),
+        });
+        chemins.push(psdPath);
+        try {
+          // Le PSD est écrit NATIVEMENT en CMJN (contenus des objets
+          // dynamiques compris) — ouverture directe, aucun script, aucun flash.
+          await invoke("open_file_with", { appPath: photoshopPath, filePath: psdPath });
+          ouverts++;
+        } catch {
+          // ouverture échouée : le chemin est signalé plus bas
+        }
+      }
+      if (ouverts === chemins.length && ouverts > 0) {
+        toast.success(
+          ouverts > 1
+            ? `${ouverts} PSD photomontage ouverts dans Photoshop (un par photo, CMJN natif)`
+            : "PSD photomontage ouvert dans Photoshop (CMJN natif, mockups éditables)"
+        );
+      } else if (chemins.length > 0) {
+        toast.info(
+          `PSD généré(s) : ${chemins.join(" • ")} — ouvre-les manuellement (Photoshop non trouvé à "${photoshopPath}")`
+        );
       }
     } catch (err) {
       toast.error(`Erreur génération PSD : ${String(err)}`);
@@ -144,6 +186,11 @@ function PsdExportButton() {
                   className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
                 />
                 <span className="text-sm dark:text-slate-200">{zoneNom(z)}</span>
+                {photos.length > 1 && (
+                  <span className="text-[10px] text-gray-400 dark:text-slate-500 truncate max-w-[110px]">
+                    {photos.find((p) => p.id === photoOfZone(z))?.name}
+                  </span>
+                )}
                 <span className="text-xs text-gray-500 dark:text-slate-400 font-mono ml-auto">
                   {afficheDims(z)}
                 </span>
@@ -151,7 +198,9 @@ function PsdExportButton() {
             ))}
           </div>
           <p className="text-xs text-gray-400 dark:text-slate-500">
-            Décoche par exemple le fond de devanture si tu ne veux que les vitrines.
+            {photos.length > 1
+              ? "Un PSD est généré par photo (toutes ses faces réunies)."
+              : "Décoche par exemple le fond de devanture si tu ne veux que les vitrines."}
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDialog(false)}>
@@ -170,7 +219,7 @@ function PsdExportButton() {
 export function ZoneList() {
   const tool = useMeasureUi((s) => s.tool);
   const setTool = useMeasureUi((s) => s.setTool);
-  const zones = useMeasureDoc((s) => s.zones);
+  const allZones = useMeasureDoc((s) => s.zones);
   const draftZonePts = useMeasureDoc((s) => s.draftZonePts);
   const deleteZone = useMeasureDoc((s) => s.deleteZone);
   const toggleZoneVitrage = useMeasureDoc((s) => s.toggleZoneVitrage);
@@ -179,6 +228,9 @@ export function ZoneList() {
   const planes = useMeasureDoc((s) => s.planes);
   const activePlaneId = useMeasureDoc((s) => s.activePlaneId);
   const calibrated = !!planes.find((p) => p.id === activePlaneId)?.H;
+  // la liste montre les zones de la FACE active (multi-faces v1.5)
+  const zones = allZones.filter((z) => z.planeId === activePlaneId);
+  const zonesAutresFaces = allZones.length - zones.length;
 
   // édition manuelle des cotes (une zone à la fois)
   const [editId, setEditId] = useState<string | null>(null);
@@ -209,6 +261,11 @@ export function ZoneList() {
         <h4 className="font-medium flex items-center gap-2 dark:text-slate-200">
           <SquareDashedMousePointer className="h-4 w-4 text-emerald-500" />
           Zones mesurées
+          {zonesAutresFaces > 0 && (
+            <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">
+              (+{zonesAutresFaces} sur les autres faces)
+            </span>
+          )}
         </h4>
         {tool === "zone" && draftZonePts.length > 0 && (
           <span className="text-sm font-mono text-amber-500">{draftZonePts.length}/4</span>
@@ -240,35 +297,62 @@ export function ZoneList() {
           className="w-full gap-1.5 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
           onClick={async () => {
             const s = useMeasureDoc.getState();
-            const plane = s.planes.find((p) => p.id === s.activePlaneId);
-            if (!plane) return;
-            const imageName = useMeasureImage.getState().image?.name ?? "photo";
-            const svg = buildPremaquetteSvg(s.zones, plane, imageName, getOffscreenCanvas());
-            if (!svg) {
-              toast.error("Aucune zone à exporter sur ce plan");
+            // multi-faces v1.5 : UN SVG par face calibrée ayant des zones,
+            // dans l'ordre de la liste des faces → un plan de travail chacun
+            const faces: { svg: string; nom: string }[] = [];
+            for (const plane of s.planes) {
+              if (!plane.H) continue;
+              const photoMeta = s.photos.find((p) => p.id === plane.photoId);
+              const svg = buildPremaquetteSvg(
+                s.zones,
+                plane,
+                photoMeta?.name ?? "photo",
+                getOffscreenCanvas(plane.photoId)
+              );
+              if (svg) faces.push({ svg, nom: plane.name });
+            }
+            if (faces.length === 0) {
+              toast.error("Aucune zone à exporter");
               return;
             }
             const illustratorPath =
               localStorage.getItem(ILLUSTRATOR_PATH_KEY) ?? DEFAULT_ILLUSTRATOR_PATH;
             try {
-              // 1. écrire le SVG en temp
-              const svgPath = await invoke<string>("save_temp_file", {
-                fileName: "premaquette_provisoire_1-10.svg",
-                content: svg,
-              });
-              // 2. l'ouvrir via script Illustrator (création des calques Artwork / Mesures)
-              await invoke<string>("run_illustrator_script", {
-                illustratorPath,
-                scriptName: "premaquette_open.jsx",
-                params: JSON.stringify({ svgPath }),
-              });
+              // 1. écrire chaque SVG en temp
+              const facesParams: { svgPath: string; nom: string }[] = [];
+              for (let i = 0; i < faces.length; i++) {
+                const svgPath = await invoke<string>("save_temp_file", {
+                  fileName: `premaquette_face_${i + 1}.svg`,
+                  content: faces[i].svg,
+                });
+                facesParams.push({ svgPath, nom: faces[i].nom });
+              }
+              // 2. ouvrir dans Illustrator — mono-face : script historique
+              //    éprouvé ; multi-faces : un plan de travail nommé par face
+              if (facesParams.length === 1) {
+                await invoke<string>("run_illustrator_script", {
+                  illustratorPath,
+                  scriptName: "premaquette_open.jsx",
+                  params: JSON.stringify({ svgPath: facesParams[0].svgPath }),
+                });
+              } else {
+                await invoke<string>("run_illustrator_script", {
+                  illustratorPath,
+                  scriptName: "premaquette_multi_open.jsx",
+                  params: JSON.stringify({ faces: facesParams }),
+                });
+              }
               toast.success(
-                "Prémaquette ouverte dans Illustrator — calques Artwork / Mesures créés"
+                faces.length > 1
+                  ? `Prémaquette ouverte dans Illustrator — ${faces.length} plans de travail (un par face)`
+                  : "Prémaquette ouverte dans Illustrator — calques Artwork / Mesures créés"
               );
             } catch (err) {
               // fallback : téléchargement classique
-              toast.error(`${String(err)} — téléchargement du fichier à la place`);
-              downloadSvg(svg, "premaquette_provisoire_1-10.svg");
+              toast.error(`${String(err)} — téléchargement des fichiers à la place`);
+              faces.forEach((f, i) =>
+                downloadSvg(f.svg, `premaquette_face_${i + 1}_1-10.svg`)
+              );
             }
           }}
         >

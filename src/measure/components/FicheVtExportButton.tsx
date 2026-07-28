@@ -26,7 +26,14 @@ export function FicheVtExportButton() {
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [ficheName, setFicheName] = useState("");
   const [busy, setBusy] = useState(false);
-  const zones = useMeasureDoc((s) => s.zones);
+  const allZones = useMeasureDoc((s) => s.zones);
+  const planes = useMeasureDoc((s) => s.planes);
+  // fiche v2 multi-faces : TOUTES les faces du projet, une page de gabarit
+  // par face — la liste est groupée dans l'ordre des faces
+  const faceGroups = planes
+    .map((p) => ({ face: p, zones: allZones.filter((z) => z.planeId === p.id) }))
+    .filter((g) => g.zones.length > 0);
+  const zones = faceGroups.flatMap((g) => g.zones);
 
   const toggleExcluded = (id: string) => {
     setExcluded((prev) => {
@@ -38,8 +45,7 @@ export function FicheVtExportButton() {
   };
 
   const handleExport = async () => {
-    const s = useMeasureDoc.getState();
-    const selected = s.zones.filter((z) => !excluded.has(z.id));
+    const selected = zones.filter((z) => !excluded.has(z.id));
     if (selected.length === 0) {
       toast.error("Aucune zone sélectionnée");
       return;
@@ -105,27 +111,38 @@ export function FicheVtExportButton() {
             </p>
           </div>
           <div className="space-y-1 max-h-72 overflow-y-auto">
-            {zones.map((z) => (
-              <label
-                key={z.id}
-                className="flex items-center gap-3 rounded p-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50"
-              >
-                <input
-                  type="checkbox"
-                  checked={!excluded.has(z.id)}
-                  onChange={() => toggleExcluded(z.id)}
-                  className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-sky-600 focus:ring-sky-500"
-                />
-                <span className="text-sm dark:text-slate-200">{zoneNom(z)}</span>
-                <span className="text-xs text-gray-500 dark:text-slate-400 font-mono ml-auto">
-                  {formatDims(z.widthMm, z.heightMm)}
-                </span>
-              </label>
+            {faceGroups.map((g) => (
+              <div key={g.face.id}>
+                {faceGroups.length > 1 && (
+                  <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 px-2 pt-1.5">
+                    {g.face.name}
+                  </p>
+                )}
+                {g.zones.map((z) => (
+                  <label
+                    key={z.id}
+                    className="flex items-center gap-3 rounded p-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!excluded.has(z.id)}
+                      onChange={() => toggleExcluded(z.id)}
+                      className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-sky-600 focus:ring-sky-500"
+                    />
+                    <span className="text-sm dark:text-slate-200">{zoneNom(z)}</span>
+                    <span className="text-xs text-gray-500 dark:text-slate-400 font-mono ml-auto">
+                      {formatDims(z.widthMm, z.heightMm)}
+                    </span>
+                  </label>
+                ))}
+              </div>
             ))}
           </div>
           <p className="text-xs text-gray-400 dark:text-slate-500">
             Chaque zone cochée devient une flèche lettrée sur la fiche « Dimensions à prendre »
             du gabarit VT. Les lettres correspondent aux zones pour la saisie au retour.
+            {faceGroups.length > 1 &&
+              " Une page de fiche par face, dans l'ordre de la liste des faces."}
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDialog(false)}>

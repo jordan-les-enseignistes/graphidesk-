@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "com.izy.cotesbat",
   "name": "Cotes BAT",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "main": "index.html",
   "host": {
     "app": "ID",

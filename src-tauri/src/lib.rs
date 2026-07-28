@@ -64,14 +64,23 @@ fn save_temp_binary(file_name: String, content_base64: String) -> Result<String,
     Ok(file_path.to_string_lossy().to_string())
 }
 
-// Écrit une fiche VT (json + photo) dans Documents\GraphiDesk\fiches_vt\{dossier}
+// Écrit une fiche VT (json + photos) dans Documents\GraphiDesk\fiches_vt\{dossier}
 // Le plugin InDesign "Cotes BAT" scanne ce dossier et charge la fiche la plus récente.
 // On passe par USERPROFILE\Documents pour matcher os.homedir() côté UXP.
+// v2 multi-faces : extra_photos = photos supplémentaires (fiche_vt_2.jpg...).
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FichePhoto {
+    file_name: String,
+    content_base64: String,
+}
+
 #[tauri::command]
 fn save_fiche_vt(
     folder_name: String,
     json_content: String,
     photo_base64: String,
+    extra_photos: Option<Vec<FichePhoto>>,
 ) -> Result<String, String> {
     use base64::Engine;
     let userprofile =
@@ -89,7 +98,41 @@ fn save_fiche_vt(
         .map_err(|e| format!("Erreur décodage base64 : {}", e))?;
     fs::write(dir.join("fiche_vt.jpg"), &bytes)
         .map_err(|e| format!("Erreur écriture photo : {}", e))?;
+    for photo in extra_photos.unwrap_or_default() {
+        if photo.file_name.contains("..") || photo.file_name.contains('/') || photo.file_name.contains('\\') {
+            return Err("Nom de photo invalide".into());
+        }
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(&photo.content_base64)
+            .map_err(|e| format!("Erreur décodage base64 : {}", e))?;
+        fs::write(dir.join(&photo.file_name), &bytes)
+            .map_err(|e| format!("Erreur écriture photo : {}", e))?;
+    }
     Ok(dir.to_string_lossy().replace('\\', "/"))
+}
+
+// Écrit un fichier BINAIRE (base64) sous Documents\GraphiDesk\{rel_path}
+// (installation des ressources atelier : nuanciers, gabarits...)
+#[tauri::command]
+fn save_documents_file(rel_path: String, content_base64: String) -> Result<String, String> {
+    use base64::Engine;
+    if rel_path.contains("..") {
+        return Err("Chemin invalide".into());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&content_base64)
+        .map_err(|e| format!("Erreur décodage base64 : {}", e))?;
+    let userprofile =
+        env::var("USERPROFILE").map_err(|_| "Variable USERPROFILE introuvable".to_string())?;
+    let file_path = std::path::Path::new(&userprofile)
+        .join("Documents")
+        .join("GraphiDesk")
+        .join(&rel_path);
+    if let Some(parent) = file_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Erreur création dossier : {}", e))?;
+    }
+    fs::write(&file_path, &bytes).map_err(|e| format!("Erreur écriture fichier : {}", e))?;
+    Ok(file_path.to_string_lossy().replace('\\', "/"))
 }
 
 // Lit un fichier du dossier temp et le retourne en base64
@@ -505,6 +548,7 @@ pub fn run() {
             save_and_open_in_illustrator,
             save_temp_file,
             save_temp_binary,
+            save_documents_file,
             read_temp_binary,
             save_fiche_vt,
             get_indesign_plugin_status,

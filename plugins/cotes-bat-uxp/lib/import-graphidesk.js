@@ -222,44 +222,78 @@ async function importFiche(selectedJsonPath) {
     sourceLabel = jsonPath.split("/").slice(-2, -1)[0] || "fiche";
   }
 
-  if (!fiche || !fiche.zones || !fiche.zones.length) {
+  // normalisation v1/v2 : liste de pages (v1 = une seule, champs racine)
+  let pagesData = null;
+  if (fiche && fiche.pages && fiche.pages.length) {
+    pagesData = fiche.pages;
+  } else if (fiche && fiche.zones && fiche.zones.length) {
+    pagesData = [{
+      face: null,
+      photoFile: fiche.photoFile,
+      photoWidth: fiche.photoWidth,
+      photoHeight: fiche.photoHeight,
+      zones: fiche.zones
+    }];
+  }
+  if (!pagesData || !pagesData.some(function (p) { return p.zones && p.zones.length; })) {
     return { ok: false, msg: "Aucune zone dans la fiche." };
   }
-
-  // 2. chemin de la photo (à côté du json)
-  const photoPath = jsonPath.replace(/[^/]+$/, fiche.photoFile || "fiche_vt.jpg");
+  pagesData = pagesData.filter(function (p) { return p.zones && p.zones.length; });
 
   const doc = indesign.app.activeDocument;
-  const page = pageByIndex(doc, 1); // page 2 du gabarit
-  if (!page) return { ok: false, msg: "Page 2 introuvable dans le document." };
-
-  const frame = findPhotoFrame(page);
-  if (!frame) {
+  const tpl = pageByIndex(doc, 1); // page 2 du gabarit
+  if (!tpl) return { ok: false, msg: "Page 2 introuvable dans le document." };
+  if (!findPhotoFrame(tpl)) {
     return {
       ok: false,
       msg: "Bloc photo introuvable page 2. Donne le script label PHOTO_VT au bloc image."
     };
   }
 
-  // 3. placement + mapping + cotes + tableau, en une seule annulation
-  let result = { ok: false, msg: "?" };
-  const work = function () {
+  // multi-faces : dupliquer la page gabarit VIERGE (une page par face,
+  // dans l'ordre des faces) AVANT tout placement
+  const targetPages = [tpl];
+  try {
+    let ref = tpl;
+    for (let d = 1; d < pagesData.length; d++) {
+      const np = tpl.duplicate(indesign.LocationOptions.AFTER, ref);
+      targetPages.push(np);
+      ref = np;
+    }
+  } catch (e) {
+    return {
+      ok: false,
+      msg: "Duplication de la page gabarit impossible : " + (e && e.message ? e.message : e)
+    };
+  }
+
+  // 3. par page : placement + mapping + cotes + tableau
+  let total = 0, attendu = 0;
+  const warns = [];
+
+  const workPage = function (page, pdata) {
+    const photoPath = jsonPath.replace(/[^/]+$/, pdata.photoFile || "fiche_vt.jpg");
+    const frame = findPhotoFrame(page);
+    if (!frame) {
+      warns.push((pdata.face || "page") + " : bloc photo introuvable");
+      return;
+    }
     // IMPORTANT : la machinerie de dessin travaille en POINTS. On lit donc
     // les bounds de la photo placée dans la MÊME unité, sinon les cotes
     // sont mappées en mm et dessinées en pt (tout tassé en haut à gauche).
     const placed = draw.withPoints(doc, function () {
       return placePhoto(frame, photoPath);
     });
-    const map = makeMapper(placed, fiche.photoWidth, fiche.photoHeight);
+    const map = makeMapper(placed, pdata.photoWidth, pdata.photoHeight);
 
-    const blocks = fiche.zones.map(function (z) {
+    const blocks = pdata.zones.map(function (z) {
       const corners = (z.corners || []).map(map);
       const xs = corners.map(function (p) { return p.x; });
       const ys = corners.map(function (p) { return p.y; });
       return {
         item: null,
-        // lettre d'AFFICHAGE (suite propre A,B,C même avec zones décochées) ;
-        // repli sur la lettre technique pour les anciennes fiches
+        // lettre d'AFFICHAGE (suite propre A,B,C... continue sur toute la
+        // fiche) ; repli sur la lettre technique pour les anciennes fiches
         letter: z.displayLetter || z.letter,
         corners: corners.length === 4 ? corners : null,
         bounds: [
@@ -269,15 +303,18 @@ async function importFiche(selectedJsonPath) {
       };
     });
 
-    // spread de la page 2 (les cotes doivent tomber sur la bonne planche)
+    // spread de la page (les cotes doivent tomber sur la bonne planche)
     let spread = null;
     try { spread = page.parent; } catch (e) {}
 
     const res = draw.runOnBlocks(blocks, { spread: spread });
+    attendu += blocks.length;
+    total += res.count;
+    if (res.err) warns.push(res.err);
 
-    // tableau : en une seule étape d'annulation elle aussi
+    // tableau : en une seule étape d'annulation
     let tableErr = null;
-    const letters = fiche.zones.map(function (z) { return z.displayLetter || z.letter; });
+    const letters = pdata.zones.map(function (z) { return z.displayLetter || z.letter; });
     const tfn = function () { tableErr = updateTables(page, letters); };
     try {
       indesign.app.doScript(
@@ -285,15 +322,19 @@ async function importFiche(selectedJsonPath) {
         indesign.UndoModes.ENTIRE_SCRIPT, "Tableau cotes GraphiDesk"
       );
     } catch (e) { tfn(); }
-
-    let msg = res.count + "/" + blocks.length + " cotes générées — fiche : " + sourceLabel;
-    if (res.err) msg += " — ⚠ " + res.err;
-    if (tableErr) msg += " — ⚠ " + tableErr;
-    result = { ok: res.count > 0, msg: msg };
+    if (tableErr) warns.push((pdata.face ? pdata.face + " — " : "") + tableErr);
   };
 
+  let result = { ok: false, msg: "?" };
   try {
-    work();
+    for (let p = 0; p < pagesData.length; p++) {
+      workPage(targetPages[p], pagesData[p]);
+    }
+    let msg = total + "/" + attendu + " cotes générées";
+    if (pagesData.length > 1) msg += " sur " + pagesData.length + " pages (une par face)";
+    msg += " — fiche : " + sourceLabel;
+    if (warns.length) msg += " — ⚠ " + warns.join(" ; ");
+    result = { ok: total > 0, msg: msg };
   } catch (e) {
     result = { ok: false, msg: "Erreur : " + (e && e.message ? e.message : e) };
   }

@@ -28,7 +28,7 @@ import {
 import { StatsVt } from "@/measure/components/StatsVt";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useMeasureDoc, useMeasureImage, clearDocHistory } from "@/measure/state/store";
-import { savePhotoBlob } from "@/measure/engine/imageStore";
+import { savePhotoBlob, clearPhotoBlobs } from "@/measure/engine/imageStore";
 import { zoneNom } from "@/measure/engine/zones";
 import { clearOffscreen } from "@/measure/engine/offscreen";
 import { ROUTES } from "@/lib/constants";
@@ -38,9 +38,11 @@ import {
   updateProjectVt,
   setProjectStatut,
   deleteProject,
+  projectPhotos,
   type MeasureProjectRow,
   type ProjectStatut,
   type VtDims,
+  type SavedPhoto,
 } from "@/measure/persistence/projects";
 import { buildPremaquetteSvg, downloadSvg, gdZoneName, gdProjetKey } from "@/measure/engine/svgExport";
 import { roundTo5Mm } from "@/measure/engine/zones";
@@ -107,7 +109,7 @@ export default function MaquetteVT() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await deleteProject(deleteTarget.id, deleteTarget.photo_path);
+      await deleteProject(deleteTarget.id, projectPhotos(deleteTarget).map((p) => p.path));
       toast.success("Projet supprimé");
       setDeleteTarget(null);
       if (selected?.id === deleteTarget.id) setSelected(null);
@@ -298,10 +300,22 @@ function ProjectDetail({
   project: MeasureProjectRow;
   onBack: () => void;
 }) {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [photoCanvas, setPhotoCanvas] = useState<HTMLCanvasElement | null>(null);
-  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  // v2 multi-faces : une "vue" par photo du projet (annotée avec SES zones)
+  interface VuePhoto {
+    photo: SavedPhoto;
+    blob: Blob;
+    canvas: HTMLCanvasElement; // canvas PROPRE (exports PSD)
+    url: string; // rendu annoté (affichage)
+  }
+  const [vues, setVues] = useState<VuePhoto[]>([]);
   const navigate = useNavigate();
+
+  // zone → photo porteuse (via sa face ; repli photo 1 pour les projets v1)
+  const photosProjet = projectPhotos(project);
+  const photoIdOfZone = (z: Zone): string => {
+    const plane = project.doc.planes.find((p) => p.id === z.planeId);
+    return plane?.photoId ?? photosProjet[0].id;
+  };
   // Préremplissage : cotes VT déjà saisies, sinon les cotes provisoires
   // (la VT confirme souvent — il n'y a plus qu'à corriger les écarts)
   const [vtDims, setVtDims] = useState<VtDims>(() => {
@@ -331,24 +345,34 @@ function ProjectDetail({
     });
   };
 
-  // Télécharger la photo du projet + dessiner les zones dessus (affichage)
+  // Télécharger TOUTES les photos du projet + annoter chacune avec SES zones
   useEffect(() => {
-    let revoked: string | null = null;
-    downloadProjectPhoto(project.photo_path)
-      .then((blob) => {
-        setPhotoBlob(blob);
-        const url = URL.createObjectURL(blob);
-        revoked = url;
-        const img = new window.Image();
-        img.onload = () => {
-          // canvas PROPRE (pour les exports PSD / échantillonnage couleur)
+    let aborted = false;
+    (async () => {
+      const next: VuePhoto[] = [];
+      for (const photo of projectPhotos(project)) {
+        try {
+          const blob = await downloadProjectPhoto(photo.path);
+          const url = URL.createObjectURL(blob);
+          const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const im = new window.Image();
+            im.onload = () => resolve(im);
+            im.onerror = reject;
+            im.src = url;
+          });
+          URL.revokeObjectURL(url);
+          if (aborted) return;
+
+          // canvas PROPRE (exports PSD / échantillonnage couleur)
           const clean = document.createElement("canvas");
           clean.width = img.naturalWidth;
           clean.height = img.naturalHeight;
           clean.getContext("2d")?.drawImage(img, 0, 0);
-          setPhotoCanvas(clean);
 
-          // canvas ANNOTÉ (affichage : quadrilatères + labels des zones)
+          // canvas ANNOTÉ (quadrilatères + labels des zones DE CETTE photo)
+          const zonesPhoto = project.doc.zones.filter(
+            (z) => photoIdOfZone(z) === photo.id
+          );
           const annotated = document.createElement("canvas");
           annotated.width = img.naturalWidth;
           annotated.height = img.naturalHeight;
@@ -358,7 +382,7 @@ function ProjectDetail({
             const lw = Math.max(2, img.naturalWidth / 900);
             const fontSize = Math.max(14, img.naturalWidth / 70);
             ctx.font = `bold ${fontSize}px Arial`;
-            for (const z of project.doc.zones) {
+            for (const z of zonesPhoto) {
               const vitrage = z.fill === "vitrage";
               ctx.beginPath();
               ctx.moveTo(z.corners[0].x, z.corners[0].y);
@@ -369,7 +393,6 @@ function ProjectDetail({
               ctx.strokeStyle = vitrage ? "#4376ba" : "#10b981";
               ctx.lineWidth = lw;
               ctx.stroke();
-              // label sur fond sombre au centre
               const cx = (z.corners[0].x + z.corners[1].x + z.corners[2].x + z.corners[3].x) / 4;
               const cy = (z.corners[0].y + z.corners[1].y + z.corners[2].y + z.corners[3].y) / 4;
               const text = zoneNom(z);
@@ -383,20 +406,30 @@ function ProjectDetail({
               ctx.fillText(text, cx, cy);
             }
           }
-          setPhotoUrl(annotated.toDataURL("image/jpeg", 0.9));
-          URL.revokeObjectURL(url);
-          revoked = null;
-        };
-        img.src = url;
-      })
-      .catch((err) => toast.error(`Photo : ${String(err)}`));
+          next.push({
+            photo,
+            blob,
+            canvas: clean,
+            url: annotated.toDataURL("image/jpeg", 0.9),
+          });
+        } catch (err) {
+          toast.error(`Photo « ${photo.name} » : ${String(err)}`);
+        }
+      }
+      if (!aborted) setVues(next);
+    })();
     return () => {
-      if (revoked) URL.revokeObjectURL(revoked);
+      aborted = true;
     };
-  }, [project.photo_path, project.doc.zones]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id, project.doc.zones]);
+
+  // compat lecture : première photo (mono-photo v1, SVG de la face active...)
+  const photoCanvas = vues[0]?.canvas ?? null;
+  const photoBlob = vues[0]?.blob ?? null;
+  const photoUrl = vues[0]?.url ?? null;
 
   const zones = project.doc.zones;
-  const plane = project.doc.planes.find((p) => p.id === project.doc.activePlaneId);
 
   const getVt = (z: Zone) => vtDims[z.id] ?? { widthMm: 0, heightMm: 0 };
   const setVt = (zoneId: string, field: "widthMm" | "heightMm", value: number) => {
@@ -434,36 +467,63 @@ function ProjectDetail({
   };
 
   const handleSvg = async () => {
-    if (!plane) return;
     setBusy(true);
     try {
-      const svg = buildPremaquetteSvg(
-        zonesWithVt(),
-        plane,
-        project.doc.imageName ?? project.nom,
-        photoCanvas,
-        { vt: true }
-      );
-      if (!svg) {
+      // multi-faces v2 : UN SVG par face calibrée ayant des zones (cotes VT
+      // substituées) → un plan de travail par face dans le même .ai
+      const zonesVt = zonesWithVt();
+      const faces: { svg: string; nom: string }[] = [];
+      for (const p of project.doc.planes) {
+        if (!p.H) continue;
+        const planePhotoId = p.photoId ?? photosProjet[0].id;
+        const vue = vues.find((v) => v.photo.id === planePhotoId);
+        const svg = buildPremaquetteSvg(
+          zonesVt,
+          p,
+          vue?.photo.name ?? project.doc.imageName ?? project.nom,
+          vue?.canvas ?? photoCanvas,
+          { vt: true }
+        );
+        if (svg) faces.push({ svg, nom: p.name });
+      }
+      if (faces.length === 0) {
         toast.error("Impossible de générer la maquette");
         return;
       }
       const illustratorPath =
         localStorage.getItem(ILLUSTRATOR_PATH_KEY) ?? DEFAULT_ILLUSTRATOR_PATH;
+      const baseNom = project.nom.replace(/[^a-zA-Z0-9]/g, "_");
       try {
-        const svgPath = await invoke<string>("save_temp_file", {
-          fileName: `maquette_vt_${project.nom.replace(/[^a-zA-Z0-9]/g, "_")}.svg`,
-          content: svg,
-        });
-        await invoke<string>("run_illustrator_script", {
-          illustratorPath,
-          scriptName: "premaquette_open.jsx",
-          params: JSON.stringify({ svgPath }),
-        });
-        toast.success("Maquette VT ouverte dans Illustrator");
+        const facesParams: { svgPath: string; nom: string }[] = [];
+        for (let i = 0; i < faces.length; i++) {
+          const svgPath = await invoke<string>("save_temp_file", {
+            fileName: `maquette_vt_${baseNom}_face_${i + 1}.svg`,
+            content: faces[i].svg,
+          });
+          facesParams.push({ svgPath, nom: faces[i].nom });
+        }
+        // mono-face : script historique éprouvé ; multi : un plan par face
+        if (facesParams.length === 1) {
+          await invoke<string>("run_illustrator_script", {
+            illustratorPath,
+            scriptName: "premaquette_open.jsx",
+            params: JSON.stringify({ svgPath: facesParams[0].svgPath }),
+          });
+        } else {
+          await invoke<string>("run_illustrator_script", {
+            illustratorPath,
+            scriptName: "premaquette_multi_open.jsx",
+            params: JSON.stringify({ faces: facesParams }),
+          });
+        }
+        toast.success(
+          faces.length > 1
+            ? `Maquette VT ouverte dans Illustrator — ${faces.length} plans de travail (un par face)`
+            : "Maquette VT ouverte dans Illustrator"
+        );
       } catch (err) {
         toast.error(`${String(err)} — téléchargement à la place`);
-        downloadSvg(svg, "maquette_vt.svg");
+        faces.forEach((f, i) => downloadSvg(f.svg, `maquette_vt_face_${i + 1}.svg`));
       }
       // génération SVG = projet terminé
       await updateProjectVt(project.id, vtDims, "terminee");
@@ -483,7 +543,17 @@ function ProjectDetail({
     }
     const imageName = project.doc.imageName ?? project.nom;
     try {
-      await savePhotoBlob(imageName, photoBlob);
+      // v2 multi-faces : blobs de TOUTES les photos en session locale,
+      // faces re-rattachées à leur photo (repli photo 1 pour les projets v1)
+      await clearPhotoBlobs();
+      for (const vue of vues) {
+        await savePhotoBlob(vue.photo.id, vue.photo.name, vue.blob);
+      }
+      const premierPhotoId = photosProjet[0].id;
+      const planes = project.doc.planes.map((p) => ({
+        ...p,
+        photoId: p.photoId ?? premierPhotoId,
+      }));
       // compteur de zones : reprendre APRÈS la plus grande lettre existante
       // (sinon les prochaines zones recommenceraient à "Zone A")
       const letterIndex = (s: string) => {
@@ -500,7 +570,8 @@ function ProjectDetail({
         -1
       );
       useMeasureDoc.setState({
-        planes: project.doc.planes,
+        photos: photosProjet.map(({ path: _path, ...meta }) => meta),
+        planes,
         activePlaneId: project.doc.activePlaneId,
         zones: project.doc.zones,
         imageName,
@@ -509,11 +580,12 @@ function ProjectDetail({
         zoneCounter: maxIdx + 1,
       });
       clearDocHistory();
-      // purge de l'image en cours dans Mesure photo (sinon la restauration
-      // au montage serait sautée et l'ancienne photo resterait affichée)
-      const prevImg = useMeasureImage.getState().image;
-      if (prevImg) URL.revokeObjectURL(prevImg.url);
-      useMeasureImage.getState().setImage(null);
+      // purge des images en cours dans Mesure photo (sinon la restauration
+      // au montage serait sautée et les anciennes photos resteraient affichées)
+      for (const img of Object.values(useMeasureImage.getState().images)) {
+        URL.revokeObjectURL(img.url);
+      }
+      useMeasureImage.getState().clearImages();
       clearOffscreen();
       toast.success(
         `Projet "${project.nom}" rechargé dans Mesure photo (${project.doc.zones.length} zone(s) + calibration)`
@@ -601,8 +673,8 @@ function ProjectDetail({
   };
 
   const handlePsd = async () => {
-    if (!photoCanvas) {
-      toast.error("Photo non chargée");
+    if (vues.length === 0) {
+      toast.error("Photos non chargées");
       return;
     }
     const selectedZones = zonesWithVt().filter((z) => !psdExcluded.has(z.id));
@@ -613,20 +685,31 @@ function ProjectDetail({
     setShowPsdDialog(false);
     setBusy(true);
     try {
-      toast.info("Génération du PSD...", { duration: 3000 });
-      const psdBytes = await buildPhotomontagePsd(selectedZones, photoCanvas);
-      const psdPath = await invoke<string>("save_temp_binary", {
-        fileName: `photomontage_vt_${project.nom.replace(/[^a-zA-Z0-9]/g, "_")}.psd`,
-        contentBase64: toBase64(psdBytes),
-      });
+      // un PSD PAR PHOTO, avec les zones de toutes ses faces (règle Jordan)
       const photoshopPath =
         localStorage.getItem(PHOTOSHOP_PATH_KEY) ?? DEFAULT_PHOTOSHOP_PATH;
-      try {
-        await invoke("open_file_with", { appPath: photoshopPath, filePath: psdPath });
-        toast.success("PSD ouvert dans Photoshop");
-      } catch {
-        toast.info(`PSD généré : ${psdPath}`);
+      let faits = 0;
+      for (let i = 0; i < vues.length; i++) {
+        const vue = vues[i];
+        const zonesPhoto = selectedZones.filter((z) => photoIdOfZone(z) === vue.photo.id);
+        if (zonesPhoto.length === 0) continue;
+        toast.info(`Génération du PSD ${vues.length > 1 ? `${i + 1}/${vues.length}` : ""}...`, {
+          duration: 2500,
+        });
+        const psdBytes = await buildPhotomontagePsd(zonesPhoto, vue.canvas);
+        const suffix = vues.length > 1 ? `_${i + 1}` : "";
+        const psdPath = await invoke<string>("save_temp_binary", {
+          fileName: `photomontage_vt_${project.nom.replace(/[^a-zA-Z0-9]/g, "_")}${suffix}.psd`,
+          contentBase64: toBase64(psdBytes),
+        });
+        try {
+          await invoke("open_file_with", { appPath: photoshopPath, filePath: psdPath });
+          faits++;
+        } catch {
+          toast.info(`PSD généré : ${psdPath}`);
+        }
       }
+      if (faits > 0) toast.success(`${faits} PSD ouvert(s) dans Photoshop`);
     } catch (err) {
       toast.error(`PSD : ${String(err)}`);
     } finally {
@@ -662,18 +745,32 @@ function ProjectDetail({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Photo */}
-        <Card className="p-3">
-          <h3 className="font-medium mb-2 dark:text-slate-200">{project.nom}</h3>
-          {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt={project.nom}
-              className="w-full rounded border dark:border-slate-700"
-            />
+        {/* Photos (une par photo du projet, annotée avec ses zones) */}
+        <Card className="p-3 space-y-3">
+          <h3 className="font-medium dark:text-slate-200">{project.nom}</h3>
+          {vues.length > 0 ? (
+            vues.map((vue) => (
+              <div key={vue.photo.id}>
+                {vues.length > 1 && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+                    {vue.photo.name}
+                    {" — faces : "}
+                    {project.doc.planes
+                      .filter((p) => (p.photoId ?? photosProjet[0].id) === vue.photo.id)
+                      .map((p) => p.name)
+                      .join(", ") || "—"}
+                  </p>
+                )}
+                <img
+                  src={vue.url}
+                  alt={vue.photo.name}
+                  className="w-full rounded border dark:border-slate-700"
+                />
+              </div>
+            ))
           ) : (
             <div className="h-64 flex items-center justify-center text-gray-400">
-              Chargement de la photo...
+              Chargement des photos...
             </div>
           )}
         </Card>

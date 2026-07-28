@@ -26,10 +26,23 @@ export interface Reference {
   heightMm: number;
 }
 
-/** Un plan physique (façade RDC, étage en retrait...) = une calibration */
+/** Une photo du projet (une façade, un intérieur...) — le blob est en
+ *  IndexedDB (clé = id), seules les métadonnées vivent dans le document */
+export interface PhotoMeta {
+  id: string;
+  name: string; // nom du fichier d'origine
+  width: number; // px pleine résolution
+  height: number;
+}
+
+/** Une FACE = un plan physique calibré (façade rue, mur d'angle, intérieur...)
+ *  rattaché à une photo. Une photo peut porter plusieurs faces (bâtiment
+ *  d'angle photographié en une seule prise : deux faces, deux calibrations). */
 export interface Plane {
   id: string;
   name: string;
+  /** Photo porteuse de la face (multi-faces v1.5) */
+  photoId: string;
   reference: Reference | null;
   H: H | null;
 }
@@ -63,16 +76,20 @@ export interface Zone {
 
 /** Document de mesure (état UNDOABLE, persisté en localStorage) */
 export interface MeasureDoc {
+  /** Photos du projet, dans l'ordre (v1.5 multi-faces) */
+  photos: PhotoMeta[];
+  /** Faces (plans calibrés), dans l'ordre des pages de la future fiche VT */
   planes: Plane[];
   activePlaneId: string;
   zones: Zone[];
-  /** Nom du fichier photo associé (pour restaurer la session en rechargeant la même photo) */
+  /** Hérité v1 (session mono-photo) — conservé pour la migration */
   imageName: string | null;
   /** Points de référence en cours de placement (0 à 4), en px image */
   draftRefPts: Pt[];
   /** Sommets de zone manuelle en cours de placement (0 à 4), en px image */
   draftZonePts: Pt[];
-  /** Compteur pour les labels "Zone A", "Zone B"... (jamais décrémenté) */
+  /** Compteur pour les labels "Zone A", "Zone B"... (jamais décrémenté,
+   *  CONTINU sur tout le projet, toutes faces confondues) */
   zoneCounter: number;
 }
 

@@ -8,7 +8,7 @@
 // déjà calculées : aucune perte de précision.
 
 import { supabase } from "@/lib/supabase";
-import type { MeasureDoc, Plane, Zone, Pt, H } from "../state/types";
+import type { MeasureDoc, PhotoMeta, Plane, Zone, Pt, H } from "../state/types";
 
 const BUCKET = "measure-photos";
 const MAX_DIM = 2560;
@@ -20,8 +20,15 @@ export interface VtDims {
   [zoneId: string]: { widthMm: number; heightMm: number };
 }
 
-/** Sous-ensemble sérialisable du document (sans les brouillons) */
+/** Photo sauvegardée : métadonnées + chemin Storage (v2 multi-faces) */
+export interface SavedPhoto extends PhotoMeta {
+  path: string;
+}
+
+/** Sous-ensemble sérialisable du document (sans les brouillons).
+ *  v2 : `photos` présent (multi-faces) — absent sur les projets v1. */
 export interface SavedDoc {
+  photos?: SavedPhoto[];
   planes: Plane[];
   activePlaneId: string;
   zones: Zone[];
@@ -54,24 +61,41 @@ function scaleH(h: H, s: number): H {
   return [h[0] / s, h[1] / s, h[2], h[3] / s, h[4] / s, h[5], h[6] / s, h[7] / s, h[8]];
 }
 
-function scaleDoc(doc: MeasureDoc, s: number): SavedDoc {
+/** Mise à l'échelle du document — chaque photo a SON facteur de compression :
+ *  les coordonnées (référence, zones) sont converties selon la photo de leur face. */
+function scaleDoc(
+  doc: MeasureDoc,
+  photos: SavedPhoto[],
+  scaleByPhoto: Record<string, number>
+): SavedDoc {
+  const scaleOfPlane = (planeId: string): number => {
+    const plane = doc.planes.find((p) => p.id === planeId);
+    return (plane && scaleByPhoto[plane.photoId]) || 1;
+  };
   return {
+    photos,
     activePlaneId: doc.activePlaneId,
     imageName: doc.imageName,
-    planes: doc.planes.map((p) => ({
-      ...p,
-      reference: p.reference
-        ? {
-            ...p.reference,
-            imgPts: p.reference.imgPts.map((pt) => scalePt(pt, s)) as [Pt, Pt, Pt, Pt],
-          }
-        : null,
-      H: p.H ? scaleH(p.H, s) : null,
-    })),
-    zones: doc.zones.map((z) => ({
-      ...z,
-      corners: z.corners.map((pt) => scalePt(pt, s)) as [Pt, Pt, Pt, Pt],
-    })),
+    planes: doc.planes.map((p) => {
+      const s = scaleByPhoto[p.photoId] || 1;
+      return {
+        ...p,
+        reference: p.reference
+          ? {
+              ...p.reference,
+              imgPts: p.reference.imgPts.map((pt) => scalePt(pt, s)) as [Pt, Pt, Pt, Pt],
+            }
+          : null,
+        H: p.H ? scaleH(p.H, s) : null,
+      };
+    }),
+    zones: doc.zones.map((z) => {
+      const s = scaleOfPlane(z.planeId);
+      return {
+        ...z,
+        corners: z.corners.map((pt) => scalePt(pt, s)) as [Pt, Pt, Pt, Pt],
+      };
+    }),
   };
 }
 
@@ -97,44 +121,74 @@ async function compressPhoto(
 
 // ---------- CRUD ----------
 
+/** v2 : toutes les photos du projet sont uploadées (compressées), chacune
+ *  avec son facteur d'échelle. Les colonnes historiques photo_path/width/
+ *  height pointent sur la PREMIÈRE photo (compat lecteurs v1). */
 export async function saveProject(
   nom: string,
   dossierId: string | null,
   doc: MeasureDoc,
-  photo: HTMLCanvasElement
+  photoCanvases: Map<string, HTMLCanvasElement>
 ): Promise<string> {
   const { data: auth } = await supabase.auth.getUser();
   const userId = auth.user?.id;
   if (!userId) throw new Error("Non connecté");
-
-  const { blob, width, height, scale } = await compressPhoto(photo);
-  const savedDoc = scaleDoc(doc, scale);
+  if (doc.photos.length === 0) throw new Error("Aucune photo dans le projet");
 
   const projectId = crypto.randomUUID();
-  const photoPath = `${userId}/${projectId}.jpg`;
+  const uploaded: string[] = [];
+  const savedPhotos: SavedPhoto[] = [];
+  const scaleByPhoto: Record<string, number> = {};
 
-  const { error: upErr } = await supabase.storage
-    .from(BUCKET)
-    .upload(photoPath, blob, { contentType: "image/jpeg", upsert: true });
-  if (upErr) throw new Error(`Upload photo : ${upErr.message}`);
+  try {
+    for (let i = 0; i < doc.photos.length; i++) {
+      const meta = doc.photos[i];
+      const canvas = photoCanvases.get(meta.id);
+      if (!canvas) throw new Error(`Photo « ${meta.name} » non chargée`);
+      const { blob, width, height, scale } = await compressPhoto(canvas);
+      const path = `${userId}/${projectId}${i === 0 ? "" : `_${i}`}.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, blob, { contentType: "image/jpeg", upsert: true });
+      if (upErr) throw new Error(`Upload photo : ${upErr.message}`);
+      uploaded.push(path);
+      savedPhotos.push({ id: meta.id, name: meta.name, width, height, path });
+      scaleByPhoto[meta.id] = scale;
+    }
 
-  const { error: insErr } = await supabase.from("measure_projects").insert({
-    id: projectId,
-    nom,
-    dossier_id: dossierId,
-    statut: "attente_vt",
-    doc: savedDoc,
-    photo_path: photoPath,
-    photo_width: width,
-    photo_height: height,
-    created_by: userId,
-  });
-  if (insErr) {
-    // nettoyage best-effort de la photo orpheline
-    await supabase.storage.from(BUCKET).remove([photoPath]);
-    throw new Error(`Enregistrement projet : ${insErr.message}`);
+    const savedDoc = scaleDoc(doc, savedPhotos, scaleByPhoto);
+    const { error: insErr } = await supabase.from("measure_projects").insert({
+      id: projectId,
+      nom,
+      dossier_id: dossierId,
+      statut: "attente_vt",
+      doc: savedDoc,
+      photo_path: savedPhotos[0].path,
+      photo_width: savedPhotos[0].width,
+      photo_height: savedPhotos[0].height,
+      created_by: userId,
+    });
+    if (insErr) throw new Error(`Enregistrement projet : ${insErr.message}`);
+    return projectId;
+  } catch (err) {
+    // nettoyage best-effort des photos orphelines
+    if (uploaded.length) await supabase.storage.from(BUCKET).remove(uploaded);
+    throw err;
   }
-  return projectId;
+}
+
+/** Photos d'un projet (v2 : doc.photos ; v1 : reconstitution mono-photo) */
+export function projectPhotos(row: MeasureProjectRow): SavedPhoto[] {
+  if (row.doc.photos?.length) return row.doc.photos;
+  return [
+    {
+      id: "photo-legacy",
+      name: row.doc.imageName ?? row.nom,
+      width: row.photo_width,
+      height: row.photo_height,
+      path: row.photo_path,
+    },
+  ];
 }
 
 export async function listProjects(): Promise<MeasureProjectRow[]> {
@@ -169,8 +223,8 @@ export async function setProjectStatut(id: string, statut: ProjectStatut): Promi
   if (error) throw new Error(error.message);
 }
 
-export async function deleteProject(id: string, photoPath: string): Promise<void> {
-  await supabase.storage.from(BUCKET).remove([photoPath]);
+export async function deleteProject(id: string, photoPaths: string[]): Promise<void> {
+  if (photoPaths.length) await supabase.storage.from(BUCKET).remove(photoPaths);
   const { error } = await supabase.from("measure_projects").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }

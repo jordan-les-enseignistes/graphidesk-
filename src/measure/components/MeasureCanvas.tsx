@@ -58,10 +58,50 @@ function flatten(pts: Pt[]): number[] {
 }
 
 /** Affichage d'une zone validée — label sur fond sombre pour la lisibilité */
-function ZoneOverlay({ zone, invScale }: { zone: Zone; invScale: number }) {
+function ZoneOverlay({
+  zone,
+  invScale,
+  inactive,
+}: {
+  zone: Zone;
+  invScale: number;
+  /** zone d'une AUTRE face de la même photo : grisée, en retrait visuel */
+  inactive?: boolean;
+}) {
   const c = centroid(zone.corners);
   const label = `${zoneNom(zone)} — ${zone.manuel ? `${Math.round(zone.widthMm)} × ${Math.round(zone.heightMm)} mm` : formatDims(zone.widthMm, zone.heightMm)}`;
   const fontSize = 13 * invScale;
+
+  if (inactive) {
+    // Face inactive : tracés gris discrets, pas de poignées, étiquette estompée
+    return (
+      <Group opacity={0.45}>
+        <Line
+          points={flatten(zone.corners)}
+          closed
+          stroke="#94a3b8"
+          strokeWidth={1.5 * invScale}
+          dash={[5 * invScale, 4 * invScale]}
+          fill="rgba(148, 163, 184, 0.10)"
+        />
+        <KonvaLabel
+          x={c.x}
+          y={c.y}
+          offsetX={label.length * fontSize * 0.27}
+          offsetY={fontSize}
+        >
+          <Tag fill="rgba(71, 85, 105, 0.75)" cornerRadius={4 * invScale} />
+          <Text
+            text={label}
+            fontSize={fontSize}
+            fill="#e2e8f0"
+            padding={5 * invScale}
+          />
+        </KonvaLabel>
+      </Group>
+    );
+  }
+
   return (
     <Group>
       <Line
@@ -159,10 +199,17 @@ export function MeasureCanvas({ imageEl, onCursorImagePos }: MeasureCanvasProps)
   // État document pour les overlays
   const draftRefPts = useMeasureDoc((s) => s.draftRefPts);
   const draftZonePts = useMeasureDoc((s) => s.draftZonePts);
-  const zones = useMeasureDoc((s) => s.zones);
+  const allZones = useMeasureDoc((s) => s.zones);
   const planes = useMeasureDoc((s) => s.planes);
   const activePlaneId = useMeasureDoc((s) => s.activePlaneId);
   const activePlane = planes.find((p) => p.id === activePlaneId);
+  // n'afficher QUE les zones des faces portées par la PHOTO AFFICHÉE :
+  // les coordonnées des autres photos n'ont aucun sens sur celle-ci
+  // (deux faces de la même photo — bâtiment d'angle — restent visibles)
+  const facesPhotoAffichee = new Set(
+    planes.filter((p) => p.photoId === activePlane?.photoId).map((p) => p.id)
+  );
+  const zones = allZones.filter((z) => facesPhotoAffichee.has(z.planeId));
 
   const invScale = 1 / view.scale;
 
@@ -484,10 +531,18 @@ export function MeasureCanvas({ imageEl, onCursorImagePos }: MeasureCanvasProps)
             <DraftPoints pts={draftZonePts} color={COLOR_DRAFT} invScale={invScale} />
           )}
 
-          {/* Zones validées */}
-          {zones.map((z) => (
-            <ZoneOverlay key={z.id} zone={z} invScale={invScale} />
-          ))}
+          {/* Zones validées — les faces INACTIVES de la photo d'abord
+              (grisées, derrière), la face active par-dessus */}
+          {zones
+            .filter((z) => z.planeId !== activePlaneId)
+            .map((z) => (
+              <ZoneOverlay key={z.id} zone={z} invScale={invScale} inactive />
+            ))}
+          {zones
+            .filter((z) => z.planeId === activePlaneId)
+            .map((z) => (
+              <ZoneOverlay key={z.id} zone={z} invScale={invScale} />
+            ))}
         </Layer>
       </Stage>
     </div>

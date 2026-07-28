@@ -32,7 +32,14 @@ export function SaveProjectButton({ onSaved }: SaveProjectButtonProps) {
   const [withFiche, setWithFiche] = useState(true);
   const [ficheExcluded, setFicheExcluded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
-  const zones = useMeasureDoc((s) => s.zones);
+  const allZones = useMeasureDoc((s) => s.zones);
+  const planes = useMeasureDoc((s) => s.planes);
+  // fiche VT v2 multi-faces : TOUTES les faces (une page de gabarit par face),
+  // liste groupée dans l'ordre des faces
+  const faceGroups = planes
+    .map((p) => ({ face: p, zones: allZones.filter((z) => z.planeId === p.id) }))
+    .filter((g) => g.zones.length > 0);
+  const zones = faceGroups.flatMap((g) => g.zones);
 
   const toggleFicheExcluded = (id: string) => {
     setFicheExcluded((prev) => {
@@ -48,14 +55,24 @@ export function SaveProjectButton({ onSaved }: SaveProjectButtonProps) {
       toast.error("Donne un nom au projet");
       return;
     }
-    const photo = getOffscreenCanvas();
-    if (!photo) {
+    // v2 multi-faces : le canvas pleine résolution de CHAQUE photo du projet
+    const doc = useMeasureDoc.getState();
+    const canvases = new Map<string, HTMLCanvasElement>();
+    for (const photo of doc.photos) {
+      const c = getOffscreenCanvas(photo.id);
+      if (!c) {
+        toast.error(`Photo « ${photo.name} » non disponible — recharge la page`);
+        return;
+      }
+      canvases.set(photo.id, c);
+    }
+    if (canvases.size === 0) {
       toast.error("Photo non disponible");
       return;
     }
     setBusy(true);
     try {
-      await saveProject(nom.trim(), null, useMeasureDoc.getState(), photo);
+      await saveProject(nom.trim(), null, doc, canvases);
       let ficheMsg = "";
       if (withFiche) {
         const selected = zones.filter((z) => !ficheExcluded.has(z.id));
@@ -144,22 +161,31 @@ export function SaveProjectButton({ onSaved }: SaveProjectButtonProps) {
             </label>
             {withFiche && (
               <div className="ml-6 space-y-1 max-h-44 overflow-y-auto rounded border border-gray-200 dark:border-slate-700 p-1.5">
-                {zones.map((z) => (
-                  <label
-                    key={z.id}
-                    className="flex items-center gap-2 rounded px-1.5 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={!ficheExcluded.has(z.id)}
-                      onChange={() => toggleFicheExcluded(z.id)}
-                      className="h-3.5 w-3.5 rounded border-gray-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-xs dark:text-slate-200">{zoneNom(z)}</span>
-                    <span className="text-[11px] text-gray-500 dark:text-slate-400 font-mono ml-auto">
-                      {formatDims(z.widthMm, z.heightMm)}
-                    </span>
-                  </label>
+                {faceGroups.map((g) => (
+                  <div key={g.face.id}>
+                    {faceGroups.length > 1 && (
+                      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 px-1.5 pt-1">
+                        {g.face.name}
+                      </p>
+                    )}
+                    {g.zones.map((z) => (
+                      <label
+                        key={z.id}
+                        className="flex items-center gap-2 rounded px-1.5 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!ficheExcluded.has(z.id)}
+                          onChange={() => toggleFicheExcluded(z.id)}
+                          className="h-3.5 w-3.5 rounded border-gray-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="text-xs dark:text-slate-200">{zoneNom(z)}</span>
+                        <span className="text-[11px] text-gray-500 dark:text-slate-400 font-mono ml-auto">
+                          {formatDims(z.widthMm, z.heightMm)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
                 ))}
               </div>
             )}
