@@ -167,10 +167,12 @@ export function MeasureApp() {
     (async () => {
       for (const photo of doc.photos) {
         if (dejaChargees[photo.id]) continue; // HMR / retour sur la page
+        // la clé normale d'abord (une reprise de projet v1 enregistre déjà
+        // sous LEGACY_PHOTO_ID) ; la migration de l'ancienne clé "current"
+        // n'est qu'un repli pour les vieilles sessions
         const stored =
-          photo.id === LEGACY_PHOTO_ID
-            ? await migrateLegacyBlob(LEGACY_PHOTO_ID)
-            : await loadPhotoBlob(photo.id);
+          (await loadPhotoBlob(photo.id)) ??
+          (photo.id === LEGACY_PHOTO_ID ? await migrateLegacyBlob(LEGACY_PHOTO_ID) : null);
         if (stored) {
           loadBlob(stored.blob, stored.name, photo.id, { addToDoc: false });
           restaurees++;

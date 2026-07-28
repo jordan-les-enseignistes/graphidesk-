@@ -1,6 +1,6 @@
 {
   "name": "graphidesk",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Application de suivi des dossiers graphistes - Les Enseignistes",
   "type": "module",
   "scripts": {
