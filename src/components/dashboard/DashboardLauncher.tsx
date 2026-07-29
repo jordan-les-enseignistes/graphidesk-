@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ROUTES } from "@/lib/constants";
 import { getFirstName, getContrastTextColor } from "@/lib/utils";
 import {
+  Box,
   Building2,
   ClipboardList,
   BarChart3,
@@ -111,6 +112,14 @@ const TOOLS: ToolCard[] = [
     path: ROUTES.MAQUETTE_VT,
     permission: "access:maquette_vt",
     color: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300",
+  },
+  {
+    label: "Simulation 3D",
+    description: "Rendu de l'enseigne posée pour le BAT",
+    icon: Box,
+    path: ROUTES.SIMULATION_3D,
+    permission: "access:simulation3d",
+    color: "bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300",
   },
   {
     label: "Calculatrice",
