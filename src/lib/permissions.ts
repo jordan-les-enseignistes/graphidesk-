@@ -116,6 +116,13 @@ export const PERMISSIONS: PermissionDefinition[] = [
     category: "access",
   },
   {
+    key: "access:simulation3d",
+    label: "Module Simulation 3D",
+    description:
+      "Accès au rendu 3D des enseignes posées (lettres relief, fixation, éclairage) pour les BAT.",
+    category: "access",
+  },
+  {
     key: "access:maquette_vt",
     label: "Module Maquette suite VT",
     description:

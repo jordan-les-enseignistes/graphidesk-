@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, CircleDot, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertCircle, CircleDot, CheckCircle2, ChevronDown, ChevronUp, Box } from "lucide-react";
 import type { LettresReliefParams } from "./types";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "@/lib/constants";
 
 interface LettresReliefFormProps {
   onGenerate: (params: LettresReliefParams) => void;
@@ -17,6 +19,7 @@ export function LettresReliefForm({ onGenerate, isProcessing }: LettresReliefFor
   const [coverageMm, setCoverageMm] = useState("150");
   const [clearanceMm, setClearanceMm] = useState("2");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const navigate = useNavigate();
 
   const buildParams = (mode: "placer" | "finaliser"): LettresReliefParams => ({
     mode,
@@ -169,6 +172,17 @@ export function LettresReliefForm({ onGenerate, isProcessing }: LettresReliefFor
           2. Finaliser
         </Button>
       </div>
+
+      {/* Raccourci vers le module autonome de simulation 3D (BAT) */}
+      <Button
+        variant="outline"
+        onClick={() => navigate(ROUTES.SIMULATION_3D)}
+        className="w-full gap-2 border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+        title="Ouvre le module Simulation 3D : rendu de l'enseigne posée pour le BAT client"
+      >
+        <Box className="h-5 w-5" />
+        Faire ma 3D (simulation BAT)
+      </Button>
 
       {/* Workflow */}
       <Card className="p-4 bg-slate-50 dark:bg-slate-800/60">

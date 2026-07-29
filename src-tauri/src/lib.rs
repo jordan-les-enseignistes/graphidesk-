@@ -111,6 +111,37 @@ fn save_fiche_vt(
     Ok(dir.to_string_lossy().replace('\\', "/"))
 }
 
+// Écrit un fichier BINAIRE à l'emplacement choisi par l'utilisateur.
+// Le chemin vient de la boîte d'enregistrement native : c'est l'utilisateur
+// qui décide où, on se contente d'écrire.
+#[tauri::command]
+fn save_binary_to(path: String, content_base64: String) -> Result<String, String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&content_base64)
+        .map_err(|e| format!("Erreur décodage base64 : {}", e))?;
+    let p = std::path::Path::new(&path);
+    if let Some(parent) = p.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Erreur création du dossier : {}", e))?;
+    }
+    fs::write(p, &bytes).map_err(|e| format!("Erreur écriture : {}", e))?;
+    Ok(p.to_string_lossy().to_string())
+}
+
+// Ramène la fenêtre GraphiDesk au premier plan.
+// Après un script Illustrator, c'est Illustrator qui a le focus : sans ça,
+// l'utilisateur doit basculer à la main pour voir le résultat.
+#[tauri::command]
+fn focus_main_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+    Ok(())
+}
+
 // Écrit un fichier BINAIRE (base64) sous Documents\GraphiDesk\{rel_path}
 // (installation des ressources atelier : nuanciers, gabarits...)
 #[tauri::command]
@@ -522,21 +553,28 @@ fn get_fabrik_assets_path(app: tauri::AppHandle) -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            // Quand une nouvelle instance est lancée, on affiche la fenêtre existante
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
-        }))
+        .plugin(tauri_plugin_window_state::Builder::default().build());
+
+    // Instance unique : en PRODUCTION uniquement. En développement, l'app de
+    // test se fermerait silencieusement (exit 0) dès que la version installée
+    // tourne — y compris masquée dans la barre système.
+    #[cfg(not(debug_assertions))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        // Quand une nouvelle instance est lancée, on affiche la fenêtre existante
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+        }
+    }));
+
+    builder
         .invoke_handler(tauri::generate_handler![
             set_minimize_on_close,
             get_minimize_on_close,
@@ -551,6 +589,8 @@ pub fn run() {
             save_documents_file,
             read_temp_binary,
             save_fiche_vt,
+            save_binary_to,
+            focus_main_window,
             get_indesign_plugin_status,
             install_indesign_plugin,
             open_file_with

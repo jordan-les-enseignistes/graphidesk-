@@ -72,6 +72,7 @@ export const ROUTES = {
   CALCULATRICE: "/calculatrice",
   MESURE: "/mesure",
   MAQUETTE_VT: "/maquette-vt",
+  SIMULATION_3D: "/simulation-3d",
   BIBLIOTHEQUE: "/bibliotheque",
   FEEDBACKS: "/feedbacks",
   MON_PROFIL: "/mon-profil",

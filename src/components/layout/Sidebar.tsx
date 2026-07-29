@@ -8,6 +8,7 @@ import { ROUTES, APP_CONFIG } from "@/lib/constants";
 import { useAppVersion } from "@/hooks/useAppUpdate";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
+  Box,
   LayoutDashboard,
   FolderOpen,
   Folders,
@@ -96,6 +97,7 @@ const navGroups: NavGroup[] = [
       { label: "Calculatrice", icon: Calculator, path: ROUTES.CALCULATRICE, permission: "access:calculatrice" },
       { label: "Mesure photo", icon: Ruler, path: ROUTES.MESURE, permission: "access:mesure" },
       { label: "Maquette suite VT", icon: PencilRuler, path: ROUTES.MAQUETTE_VT, permission: "access:maquette_vt" },
+      { label: "Simulation 3D", icon: Box, path: ROUTES.SIMULATION_3D, permission: "access:simulation3d" },
       { label: "Bibliothèque", icon: Library, path: ROUTES.BIBLIOTHEQUE, permission: "access:bibliotheque" },
       // --- ANNUAIRE : MASQUÉ DEPUIS v1.1.12 ---
       // Désormais géré via Tiimizy. Pour restaurer, décommenter la ligne ci-dessous :
