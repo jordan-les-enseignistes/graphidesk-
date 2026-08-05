@@ -20,6 +20,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
+import { construireDrapeau, analyserZone } from "./drapeau3d";
 // Matériaux de mur : photos + cartes de relief embarquées dans le binaire
 import betonCouleur from "@/assets/textures/beton.jpg";
 import betonRelief from "@/assets/textures/beton_relief.jpg";
@@ -29,8 +30,6 @@ import crepiCouleur from "@/assets/textures/crepi.jpg";
 import crepiRelief from "@/assets/textures/crepi_relief.jpg";
 import bardageCouleur from "@/assets/textures/bardage.jpg";
 import bardageRelief from "@/assets/textures/bardage_relief.jpg";
-import carrelageCouleur from "@/assets/textures/carrelage.jpg";
-import carrelageRelief from "@/assets/textures/carrelage_relief.jpg";
 
 export type VueNom =
   | "face"
@@ -69,20 +68,179 @@ export interface Relief3dInput {
   entretoises: Entretoise[];
   /** lisses dessinées par le graphiste (mode manuel) */
   lisses?: LisseFichier[];
+  /** Zone à ajourer d'un drapeau, relevée dans une seconde sélection.
+   *  Le décalage la recale dans le repère du panneau. */
+  zoneLumineuse?: {
+    svg: string;
+    decalageXMm: number;
+    decalageYMm: number;
+    /** largeur réelle de la zone, relevée dans Illustrator */
+    largeurMm?: number;
+  };
 }
 
-export type MotifMur = "uni" | "beton" | "brique" | "crepi" | "bardage" | "carrelage";
+/**
+ * Teinte moyenne de chaque dégradé déclaré dans le SVG, indexée par son id.
+ * Une enseigne à fond dégradé est courante ; sans cela sa face rendrait
+ * grise et le graphiste ne retrouverait pas son visuel.
+ */
+/**
+ * Recrée les dégradés du fichier en VRAIES textures, dessinées dans le
+ * repère du dessin. Une moyenne de couleurs donnait un aplat : le graphiste
+ * ne retrouvait pas son visuel.
+ * Illustrator exporte en coordonnées utilisateur (`userSpaceOnUse`), ce qui
+ * permet de tracer le dégradé exactement là où il est dans le fichier.
+ */
+export function texturesDesDegrades(
+  svg: string,
+  box: THREE.Box2,
+  k: number
+): Map<string, THREE.Texture> {
+  const table = new Map<string, THREE.Texture>();
+  const wMm = (box.max.x - box.min.x) * k;
+  const hMm = (box.max.y - box.min.y) * k;
+  if (wMm <= 0 || hMm <= 0) return table;
+  try {
+    const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+    const grads = doc.querySelectorAll("linearGradient, radialGradient");
+    grads.forEach((g) => {
+      const id = g.getAttribute("id");
+      if (!id) return;
+      const arrets: { pos: number; couleur: string }[] = [];
+      g.querySelectorAll("stop").forEach((s) => {
+        const c =
+          s.getAttribute("stop-color") ??
+          /stop-color\s*:\s*([^;]+)/.exec(s.getAttribute("style") ?? "")?.[1];
+        const o = parseFloat(s.getAttribute("offset") ?? "0");
+        if (c) arrets.push({ pos: isFinite(o) ? (o > 1 ? o / 100 : o) : 0, couleur: c.trim() });
+      });
+      if (arrets.length === 0) return;
+
+      const DEF = 512;
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = DEF;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      // le canevas couvre l'emprise du dessin : on y place le dégradé aux
+      // mêmes coordonnées que dans le fichier
+      const versPx = (x: number, y: number): [number, number] => [
+        ((x - box.min.x) / (box.max.x - box.min.x)) * DEF,
+        ((y - box.min.y) / (box.max.y - box.min.y)) * DEF,
+      ];
+      const nb = (v: string | null, repli: number) => {
+        const n = parseFloat(v ?? "");
+        return isFinite(n) ? n : repli;
+      };
+      let peinture: CanvasGradient;
+      if (g.tagName.toLowerCase() === "radialgradient") {
+        const cx = nb(g.getAttribute("cx"), box.min.x + (box.max.x - box.min.x) / 2);
+        const cy = nb(g.getAttribute("cy"), box.min.y + (box.max.y - box.min.y) / 2);
+        const rr = nb(g.getAttribute("r"), (box.max.x - box.min.x) / 2);
+        const [px, py] = versPx(cx, cy);
+        const rPx = (rr / (box.max.x - box.min.x)) * DEF;
+        peinture = ctx.createRadialGradient(px, py, 0, px, py, Math.max(1, rPx));
+      } else {
+        const x1 = nb(g.getAttribute("x1"), box.min.x);
+        const y1 = nb(g.getAttribute("y1"), box.min.y);
+        const x2 = nb(g.getAttribute("x2"), box.max.x);
+        const y2 = nb(g.getAttribute("y2"), box.min.y);
+        const [ax, ay] = versPx(x1, y1);
+        const [bx, by] = versPx(x2, y2);
+        peinture = ctx.createLinearGradient(ax, ay, bx, by);
+      }
+      for (const a of arrets) {
+        try {
+          peinture.addColorStop(Math.min(1, Math.max(0, a.pos)), a.couleur);
+        } catch {
+          // arrêt hors bornes ou couleur illisible : on l'ignore
+        }
+      }
+      ctx.fillStyle = peinture;
+      ctx.fillRect(0, 0, DEF, DEF);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.flipY = false;
+      // les coordonnées de texture d'une forme extrudée sont celles du
+      // DESSIN : on recale donc la texture sur ce repère
+      tex.repeat.set(1 / (box.max.x - box.min.x), 1 / (box.max.y - box.min.y));
+      tex.offset.set(
+        -box.min.x / (box.max.x - box.min.x),
+        -box.min.y / (box.max.y - box.min.y)
+      );
+      table.set(id, tex);
+    });
+  } catch {
+    // SVG illisible : les couleurs moyennes prendront le relais
+  }
+  return table;
+}
+
+function moyennesDesDegrades(svg: string): Map<string, string> {
+  const table = new Map<string, string>();
+  try {
+    const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+    const grads = doc.querySelectorAll("linearGradient, radialGradient");
+    grads.forEach((g) => {
+      const id = g.getAttribute("id");
+      if (!id) return;
+      const stops = g.querySelectorAll("stop");
+      let r = 0, v = 0, b = 0, n = 0;
+      stops.forEach((s) => {
+        const c =
+          s.getAttribute("stop-color") ??
+          /stop-color\s*:\s*([^;]+)/.exec(s.getAttribute("style") ?? "")?.[1];
+        if (!c) return;
+        try {
+          const col = new THREE.Color(c.trim());
+          r += col.r;
+          v += col.g;
+          b += col.b;
+          n++;
+        } catch {
+          // teinte illisible : on l'ignore plutôt que de fausser la moyenne
+        }
+      });
+      if (n > 0) {
+        table.set(id, new THREE.Color(r / n, v / n, b / n).getHexString());
+      }
+    });
+  } catch {
+    // SVG illisible : les couleurs de repli feront l'affaire
+  }
+  return table;
+}
+
+export type MotifMur = "uni" | "beton" | "brique" | "crepi" | "bardage";
 
 export const MOTIFS_MUR: { valeur: MotifMur; label: string; couleur: string }[] = [
   { valeur: "uni", label: "Uni", couleur: "#5a5a5a" },
-  // teinte blanche : la photo s'affiche telle quelle, le graphiste peut
-  // ensuite l'assombrir ou la colorer avec la palette
+  // Teinte NATURELLE de chaque photo, relevée sur l'image : le matériau
+  // s'affiche donc tel qu'il est au départ. Comme la photo est désaturée
+  // au chargement, changer cette couleur repeint réellement le mur — une
+  // brique peut devenir grise, un bardage vert.
+  // Béton et crépi sont des matières NEUTRES : leur photo est conservée en
+  // couleur (voir chargerTexture), la teinte blanche l'affiche donc telle
+  // quelle. Brique et bardage sont désaturés pour être repeints : leur
+  // teinte par défaut redonne leur aspect d'origine.
   { valeur: "beton", label: "Béton", couleur: "#ffffff" },
-  { valeur: "brique", label: "Brique", couleur: "#ffffff" },
+  { valeur: "brique", label: "Brique", couleur: "#9a7b61" },
   { valeur: "crepi", label: "Crépi", couleur: "#ffffff" },
-  { valeur: "bardage", label: "Bardage", couleur: "#ffffff" },
-  { valeur: "carrelage", label: "Carrelage", couleur: "#ffffff" },
+  { valeur: "bardage", label: "Bardage", couleur: "#b9bdc0" },
 ];
+
+/** Luminosité moyenne visée pour une photo de matière désaturée. En dessous
+ *  de 255 pour que les zones claires gardent de la marge avant saturation. */
+const CIBLE_LUMINANCE = 220;
+
+/** Amplitude de variation visée après traitement. En dessous, la matière
+ *  se lit comme un aplat ; au-dessus, elle devient sale et bruitée. */
+const CIBLE_ECART = 22;
+
+/** Au-delà de cette saturation moyenne, la photo est jugée COLORÉE : on la
+ *  désature pour que la teinte choisie puisse réellement la repeindre.
+ *  Mesuré : brique 0,39 et bardage 0,31 ; béton 0,10 et crépi 0,05. */
+const SEUIL_SATURATION = 0.18;
 
 /**
  * Matériaux photographiques embarqués dans l'application (ambientCG, licence
@@ -96,11 +254,16 @@ const MATIERES: Record<
   Exclude<MotifMur, "uni">,
   { couleur: string; relief: string; tuileMm: number; forceRelief: number }
 > = {
-  beton: { couleur: betonCouleur, relief: betonRelief, tuileMm: 2400, forceRelief: 0.6 },
+  // forceRelief : sur les matières lisses (béton, crépi, carrelage), c'est
+  // le relief qui porte l'essentiel de la lecture — la couleur ne varie
+  // presque pas. On l'y appuie davantage.
+  // ⚠ tuiles VOLONTAIREMENT resserrées sur les matières lisses : étalée sur
+  // 2,4 m, la grain d'un béton devient un dégradé imperceptible et le mur
+  // se lit comme un aplat, quel que soit le contraste de la photo.
+  beton: { couleur: betonCouleur, relief: betonRelief, tuileMm: 1200, forceRelief: 1.1 },
   brique: { couleur: briqueCouleur, relief: briqueRelief, tuileMm: 1800, forceRelief: 1 },
-  crepi: { couleur: crepiCouleur, relief: crepiRelief, tuileMm: 1000, forceRelief: 0.7 },
+  crepi: { couleur: crepiCouleur, relief: crepiRelief, tuileMm: 800, forceRelief: 1.4 },
   bardage: { couleur: bardageCouleur, relief: bardageRelief, tuileMm: 1000, forceRelief: 1 },
-  carrelage: { couleur: carrelageCouleur, relief: carrelageRelief, tuileMm: 2000, forceRelief: 0.8 },
 };
 
 /** Les textures sont chargées UNE fois et réutilisées : la scène est
@@ -111,11 +274,120 @@ function chargerTexture(url: string, couleur: boolean): THREE.Texture {
   const cle = url + (couleur ? "|c" : "|n");
   const dejaLa = cacheTextures.get(cle);
   if (dejaLa) return dejaLa;
-  const tex = new THREE.TextureLoader().load(url);
+
+  if (!couleur) {
+    const tex = new THREE.TextureLoader().load(url);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    // ⚠ une carte de relief interprétée comme une couleur fausserait
+    // l'éclairage : elle reste en espace linéaire
+    cacheTextures.set(cle, tex);
+    return tex;
+  }
+
+  // Photo de matière : on la DÉSATURE au chargement. Le matériau multiplie
+  // ensuite par la couleur choisie, donc c'est elle qui donne la teinte —
+  // sinon repeindre une brique rouge en bleu ne donnerait que de la boue.
+  // Le grain, les joints et les nuances de la photo sont conservés.
+  const canvas = document.createElement("canvas");
+  // ⚠ Une toile vide (0 × 0) donne une texture invalide, donc un mur NOIR.
+  // On l'initialise en blanc : tant que la photo n'est pas arrivée, le mur
+  // s'affiche simplement dans sa teinte, jamais en noir.
+  canvas.width = canvas.height = 2;
+  {
+    const c0 = canvas.getContext("2d");
+    if (c0) {
+      c0.fillStyle = "#ffffff";
+      c0.fillRect(0, 0, 2, 2);
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  // ⚠ seule la photo est en espace sRGB ; une carte de relief interprétée
-  // comme une couleur donnerait un éclairage faux
-  if (couleur) tex.colorSpace = THREE.SRGBColorSpace;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const img = new Image();
+  img.onerror = () => {
+    // photo illisible : on reste sur le blanc, la teinte fait le travail
+  };
+  img.onload = () => {
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(img, 0, 0);
+    // La photo est maintenant visible même si la désaturation échoue.
+    tex.needsUpdate = true;
+    let donnees: ImageData;
+    try {
+      donnees = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    } catch {
+      // lecture des pixels refusée : on garde la photo telle quelle
+      return;
+    }
+    const d = donnees.data;
+    const n = d.length / 4;
+
+    // 1re passe : luminance perçue ET saturation moyenne
+    const lum = new Float32Array(n);
+    let somme = 0;
+    let plusHaut = 0;
+    let cumulSat = 0;
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      const r = d[i], v = d[i + 1], b = d[i + 2];
+      const l = 0.299 * r + 0.587 * v + 0.114 * b;
+      lum[p] = l;
+      somme += l;
+      if (l > plusHaut) plusHaut = l;
+      const haut = Math.max(r, v, b);
+      if (haut > 0) cumulSat += (haut - Math.min(r, v, b)) / haut;
+    }
+    const moyenne = somme / n;
+    const saturation = cumulSat / n;
+
+    // ⚠ On ne désature QUE les matières franchement colorées (brique,
+    // bardage peint) : c'est ce qui permet de les repeindre. Un béton ou un
+    // crépi est déjà neutre — le désaturer ne sert à rien et détruit sa
+    // marbrure, seule chose qui le distingue d'un aplat. Sa teinte reste
+    // pilotable puisque la couleur choisie multiplie une base neutre.
+    const desaturer = saturation > SEUIL_SATURATION;
+
+    // Écart-type : il dit combien la matière « bouge » réellement.
+    let cumul = 0;
+    for (let p = 0; p < n; p++) {
+      const e = lum[p] - moyenne;
+      cumul += e * e;
+    }
+    const ecart = Math.sqrt(cumul / n);
+
+    // ⚠ Un béton ou un crépi ne varie presque pas en LUMINOSITÉ — tout son
+    // caractère tient à des nuances de couleur, que la désaturation efface.
+    // Sans rattrapage, on obtient un aplat uniforme. On redresse donc le
+    // contraste des matières trop lisses, sans jamais l'écraser pour celles
+    // qui en ont déjà (la brique et ses joints).
+    const gainContraste = ecart > 1 ? Math.min(3.5, Math.max(1, CIBLE_ECART / ecart)) : 1;
+    // puis on recentre la luminosité, en bridant le gain pour ne RIEN
+    // écrêter : un pixel saturé, c'est du détail définitivement perdu
+    const hautEtire = moyenne + (plusHaut - moyenne) * gainContraste;
+    const gainGlobal = Math.min(
+      CIBLE_LUMINANCE / Math.max(1, moyenne),
+      250 / Math.max(1, hautEtire)
+    );
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      const l = lum[p];
+      const cible = Math.max(0, Math.min(255, (moyenne + (l - moyenne) * gainContraste) * gainGlobal));
+      if (desaturer) {
+        d[i] = d[i + 1] = d[i + 2] = cible;
+      } else {
+        // même redressement, mais en conservant la TEINTE de chaque pixel :
+        // on fait varier les trois canaux dans le rapport de la luminance
+        const k = l > 1 ? cible / l : 1;
+        d[i] = Math.min(255, d[i] * k);
+        d[i + 1] = Math.min(255, d[i + 1] * k);
+        d[i + 2] = Math.min(255, d[i + 2] * k);
+      }
+    }
+    ctx.putImageData(donnees, 0, 0);
+    tex.needsUpdate = true;
+  };
+  img.src = url;
   cacheTextures.set(cle, tex);
   return tex;
 }
@@ -124,6 +396,27 @@ function chargerTexture(url: string, couleur: boolean): THREE.Texture {
 /** Largeur du chant conservé au dos d'un caisson rétroéclairé (mm) —
  *  c'est la bande sur laquelle se vissent les entretoises. */
 const CHANT_MM = 4;
+
+/** Deux familles de produits, deux géométries. Le mur, l'éclairage
+ *  d'ambiance, les matières, les vues et les exports sont communs. */
+export type TypeEnseigne = "lettres" | "drapeau";
+
+/** Modes de construction d'une enseigne drapeau (caisson double face) */
+export type ModeDrapeau =
+  | "nonLumineux"
+  | "ajourageRelief"
+  | "ajourageAPlat"
+  | "facePlexi";
+
+export const MODES_DRAPEAU: { valeur: ModeDrapeau; label: string; lumineux: boolean }[] = [
+  { valeur: "nonLumineux", label: "Non lumineux", lumineux: false },
+  { valeur: "facePlexi", label: "Face plexi diffusante", lumineux: true },
+  { valeur: "ajourageRelief", label: "Ajourage relief", lumineux: true },
+  { valeur: "ajourageAPlat", label: "Ajourage à plat", lumineux: true },
+];
+
+/** Support d'un drapeau : deux tubes, ou une potence centrale plus large */
+export type Potence = "deuxTubes" | "monopotence";
 
 export type Fixation = "entretoises" | "lisses" | "tiges" | "aplat";
 export type Eclairage = "aucun" | "face" | "retro" | "rampe" | "spot";
@@ -201,6 +494,27 @@ export interface Relief3dOptions {
   couleurLumiereSpots: string;
   /** peinture des lisses — métal brut par défaut */
   couleurLisse: string;
+
+  /* ---------- enseigne drapeau ---------- */
+  typeEnseigne: TypeEnseigne;
+  modeDrapeau: ModeDrapeau;
+  /** épaisseur du caisson : 40 mm en non lumineux, 70 mm en lumineux */
+  epaisseurCaissonMm: number;
+  /** écart entre le mur et le début du caisson (longueur des tubes) */
+  ecartMurMm: number;
+  potence: Potence;
+  /** section des tubes de potence (30 × 30 standard) */
+  sectionTubeMm: number;
+  /** chant du caisson, en aluminium laqué */
+  couleurChant: string;
+  /** peinture de la potence */
+  couleurPotence: string;
+  /** la potence reprend la teinte du chant du caisson */
+  potenceCommeCaisson: boolean;
+  /** teinte de la lumière diffusée par le caisson */
+  couleurDiffusion: string;
+  /** saillie de la zone en surépaisseur, en ajourage relief */
+  saillieAjourageMm: number;
   /** matière du mur de fond (béton, brique…) */
   motifMur: MotifMur;
   /** lettres sur entretoises, elles-mêmes vissées SUR les lisses */
@@ -262,6 +576,18 @@ export const RELIEF3D_DEFAUTS: Relief3dOptions = {
   couleurLisse: "#9aa0a6",
   entretoisesSurLisses: false,
   motifMur: "uni",
+  typeEnseigne: "lettres",
+  modeDrapeau: "nonLumineux",
+  epaisseurCaissonMm: 40,
+  ecartMurMm: 100,
+  potence: "deuxTubes",
+  sectionTubeMm: 30,
+  couleurChant: "#c9ccd1",
+  // la potence est en métal brut par défaut, indépendamment du caisson
+  couleurPotence: "#9aa0a6",
+  potenceCommeCaisson: false,
+  couleurDiffusion: "#ffffff",
+  saillieAjourageMm: 20,
   couleurLumiereRampe: "#ffffff",
   couleurLumiereSpots: "#ffffff",
 };
@@ -705,6 +1031,10 @@ interface Contours {
   shapes: THREE.Shape[];
   /** couleur de remplissage LUE DANS LE FICHIER, contour par contour */
   couleurs: string[];
+  /** identifiant du dégradé qui remplit le contour, s'il y en a un */
+  refsDegrade: (string | null)[];
+  /** dégradés du fichier, recréés en textures calées sur le dessin */
+  degrades: Map<string, THREE.Texture>;
   box: THREE.Box2;
   /** unités SVG → mm */
   k: number;
@@ -723,6 +1053,8 @@ export class Relief3dScene {
   private contours: Contours = {
     shapes: [],
     couleurs: [],
+    refsDegrade: [],
+    degrades: new Map(),
     box: new THREE.Box2(),
     k: 1,
   };
@@ -741,6 +1073,14 @@ export class Relief3dScene {
   elementsNonTenus = 0;
   /** couleurs distinctes trouvées dans le fichier du graphiste */
   couleursFichier: string[] = [];
+  /** contours de la zone à ajourer, avec leur propre repère */
+  private zonesLumineuses: {
+    shapes: THREE.Shape[];
+    box: THREE.Box2;
+    k: number;
+  } | null = null;
+  /** nombre de contours composant la zone lumineuse */
+  zonesLumineusesRendues = 0;
 
   /**
    * Barrettes de leds à l'intérieur du caisson, plaquées contre la face
@@ -832,6 +1172,102 @@ export class Relief3dScene {
     }
   }
 
+  /** Mur de fond, commun aux lettres et aux drapeaux. */
+  private construireMur(
+    o: Relief3dOptions,
+    W: number,
+    H: number,
+    deport: number
+  ): void {
+    const murW = Math.max(W * 2.2, W + 600);
+    const murH = Math.max(H * 3.2, H + 600);
+    const murGeo = new THREE.PlaneGeometry(murW, murH);
+    const murMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(o.couleurMur),
+      roughness: 0.95,
+      metalness: 0,
+    });
+    this.disposables.push(murGeo, murMat);
+    if (o.motifMur !== "uni") {
+      const m = MATIERES[o.motifMur];
+      const aniso = this.renderer.capabilities.getMaxAnisotropy();
+      const rep = new THREE.Vector2(murW / m.tuileMm, murH / m.tuileMm);
+      // ⚠ Sans filtrage anisotrope, la matière part en bouillie dès que le
+      // mur est vu de biais — et un BAT se regarde presque toujours de 3/4.
+      const photo = chargerTexture(m.couleur, true);
+      photo.repeat.copy(rep);
+      photo.anisotropy = aniso;
+      photo.needsUpdate = true;
+      const relief = chargerTexture(m.relief, false);
+      relief.repeat.copy(rep);
+      relief.anisotropy = aniso;
+      relief.needsUpdate = true;
+      murMat.map = photo;
+      // carte de NORMALES : elle décrit l'orientation réelle de la surface,
+      // là où un simple relief en niveaux de gris donne un aspect gonflé
+      murMat.normalMap = relief;
+      murMat.normalScale = new THREE.Vector2(m.forceRelief, m.forceRelief);
+      murMat.roughness = 0.9;
+      // les textures sont mises en cache : surtout ne pas les libérer ici
+    }
+    const mur = new THREE.Mesh(murGeo, murMat);
+    mur.position.z = -deport;
+    mur.receiveShadow = true;
+    this.groupe.add(mur);
+  }
+
+  /**
+   * ENSEIGNE DRAPEAU — caisson double face, perpendiculaire à la façade.
+   *
+   * Repère : le mur est le plan z = -ecart, le caisson s'en éloigne vers +z.
+   * Sa FACE regarde donc l'axe X : on la voit en marchant le long de la rue,
+   * ce qui est tout l'intérêt du produit.
+   *
+   * La plus grande forme du fichier donne le contour du caisson ; tout le
+   * reste est le visuel, appliqué sur les deux faces (en miroir au dos).
+   */
+  /**
+   * ENSEIGNE DRAPEAU — la géométrie vit dans son propre module : elle n'a
+   * rien de commun avec des lettres découpées. Ici on ne fait que lui
+   * passer les réglages et récupérer ce qu'il faudra libérer.
+   */
+  private construireDrapeau(o: Relief3dOptions): void {
+    const zone = this.input.zoneLumineuse
+      ? analyserZone(
+          this.input.zoneLumineuse.svg,
+          this.input.zoneLumineuse.decalageXMm,
+          this.input.zoneLumineuse.decalageYMm,
+          this.input.zoneLumineuse.largeurMm,
+          this.contours.k
+        )
+      : null;
+    const jetables = construireDrapeau(
+      this.groupe,
+      this.contours,
+      zone,
+      {
+        mode: o.modeDrapeau,
+        epaisseurMm: o.epaisseurCaissonMm,
+        ecartMurMm: o.ecartMurMm,
+        potence: o.potence,
+        sectionTubeMm: o.sectionTubeMm,
+        couleurChant: o.couleurChant,
+        couleurPotence: o.potenceCommeCaisson ? o.couleurChant : o.couleurPotence,
+        couleurDiffusion: o.couleurDiffusion,
+        saillieMm: o.saillieAjourageMm,
+        intensite: o.haloIntensite,
+        couleursDuFichier: o.couleursDuFichier,
+        couleurFaceParDefaut: o.couleurFace,
+      },
+      this.hauteurRendue
+    );
+    for (const j of jetables) this.disposables.push(j);
+    this.zonesLumineusesRendues = zone ? zone.shapes.length : 0;
+    this.entretoisesRendues = 0;
+    this.lissesRendues = 0;
+    this.elementsNonTenus = 0;
+  }
+
   /** Couleur la plus représentée dans le fichier (teinte du débordement
    *  lumineux quand ce sont les faces qui éclairent) */
   private couleurDominante(): string {
@@ -903,6 +1339,11 @@ export class Relief3dScene {
       alpha: true,
       // indispensable pour « Exporter le PNG » (sinon buffer vidé après rendu)
       preserveDrawingBuffer: true,
+      // ⚠ Une enseigne fait plusieurs mètres, ses éléments quelques dixièmes
+      // de millimètre : sans profondeur logarithmique, deux surfaces
+      // superposées (contour d'un logo et sa couleur posée dessus) se
+      // disputent le même plan et clignotent selon l'angle.
+      logarithmicDepthBuffer: true,
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -916,6 +1357,7 @@ export class Relief3dScene {
     this.controls.dampingFactor = 0.08;
 
     this.contours = this.parseShapes();
+    this.analyserZoneLumineuse();
     this.scene.add(this.groupe);
     this.build();
     this.cadrerCamera();
@@ -937,8 +1379,13 @@ export class Relief3dScene {
 
   /** Le débordement lumineux n'a de sens que si quelque chose émet. */
   private majBloom(o: Relief3dOptions): void {
-    this.avecBloom =
-      o.eclairage === "face" || o.eclairage === "retro" || o.eclairage === "spot" || o.eclairage === "rampe";
+    const drapeau = o.typeEnseigne === "drapeau";
+    this.avecBloom = drapeau
+      ? o.modeDrapeau !== "nonLumineux"
+      : o.eclairage === "face" ||
+        o.eclairage === "retro" ||
+        o.eclairage === "spot" ||
+        o.eclairage === "rampe";
     if (!this.avecBloom) return;
     if (!this.composer) {
       this.composer = new EffectComposer(this.renderer);
@@ -957,10 +1404,14 @@ export class Relief3dScene {
       // déborde, au-dessus tout crame d'un coup — et seules les teintes
       // claires le franchissent, les lettres colorées restant éteintes.
       // Seuil bas + amplitude pilotée par le curseur = réponse progressive.
-      const fort = o.eclairage === "face";
+      const fort = drapeau || o.eclairage === "face";
       const dose = fort ? o.haloIntensite * 0.7 : o.haloIntensite;
       this.bloom.strength = (fort ? 0.22 : 0.3) * Math.max(0.3, dose);
-      this.bloom.threshold = fort ? 0.45 : 0.8;
+      // ⚠ Sur un drapeau, le MUR occupe la moitié de l'image : un seuil bas
+      // le faisait déborder lui aussi et le crépi virait à l'aplat blanc dès
+      // qu'on passait en lumineux. Les faces diffusantes, elles, sont
+      // franchement émissives — un seuil haut ne leur retire rien.
+      this.bloom.threshold = drapeau ? 0.95 : fort ? 0.45 : 0.8;
       this.bloom.radius = fort ? 0.4 : 0.35;
     }
   }
@@ -968,23 +1419,33 @@ export class Relief3dScene {
   /** SVG Illustrator → contours bruts + facteur d'échelle vers les mm */
   private parseShapes(): Contours {
     const data = new SVGLoader().parse(this.input.svg);
+    // Illustrator exporte les fonds dégradés en `fill="url(#…)"`, que le
+    // lecteur ne sait pas résoudre : la forme deviendrait grise. On relève
+    // donc la teinte MOYENNE de chaque dégradé pour l'appliquer à plat.
+    const degrades = moyennesDesDegrades(this.input.svg);
     const shapes: THREE.Shape[] = [];
     const couleurs: string[] = [];
+    const refsDegrade: (string | null)[] = [];
     for (const path of data.paths) {
       // couleur RÉELLE du fichier : c'est elle qui habille les lettres,
       // le graphiste n'a pas à ressaisir sa charte
       const style = (path.userData as { style?: { fill?: string } } | undefined)?.style;
-      const fill =
-        style?.fill && style.fill !== "none"
-          ? new THREE.Color(style.fill).getHexString()
+      const brut = style?.fill;
+      const ref = brut ? /url\(#([^)]+)\)/.exec(brut) : null;
+      const fill = ref
+        ? (degrades.get(ref[1]) ?? path.color.getHexString())
+        : brut && brut !== "none"
+          ? new THREE.Color(brut).getHexString()
           : path.color.getHexString();
       for (const shape of SVGLoader.createShapes(path)) {
         shapes.push(shape);
         couleurs.push(`#${fill}`);
+        refsDegrade.push(ref ? ref[1] : null);
       }
     }
     const box = new THREE.Box2();
-    if (shapes.length === 0) return { shapes, couleurs, box, k: 1 };
+    if (shapes.length === 0)
+      return { shapes, couleurs, refsDegrade, degrades: new Map(), box, k: 1 };
 
     for (const s of shapes) {
       for (const p of s.getPoints(12)) box.expandByPoint(p);
@@ -994,7 +1455,48 @@ export class Relief3dScene {
     // le SVG est exporté dans ses propres unités : on le ramène à la
     // largeur RÉELLE des lettres mesurée dans Illustrator
     const k = larg > 0 ? this.input.wMm / larg : 1;
-    return { shapes, couleurs, box, k };
+    return {
+      shapes,
+      couleurs,
+      refsDegrade,
+      degrades: texturesDesDegrades(this.input.svg, box, k),
+      box,
+      k,
+    };
+  }
+
+  /** Contours de la zone à ajourer, avec leur propre échelle.
+   *  Sa largeur réelle est déduite du décalage relevé dans Illustrator :
+   *  on garde donc le rapport du dessin sans dépendre du repère du panneau. */
+  private analyserZoneLumineuse(): void {
+    const z = this.input.zoneLumineuse;
+    if (!z?.svg) {
+      this.zonesLumineuses = null;
+      return;
+    }
+    try {
+      const data = new SVGLoader().parse(z.svg);
+      const shapes: THREE.Shape[] = [];
+      for (const path of data.paths) {
+        for (const s of SVGLoader.createShapes(path)) shapes.push(s);
+      }
+      if (shapes.length === 0) {
+        this.zonesLumineuses = null;
+        return;
+      }
+      const box = new THREE.Box2();
+      for (const s of shapes) {
+        for (const p of s.getPoints(12)) box.expandByPoint(p);
+        for (const t of s.holes) for (const p of t.getPoints(12)) box.expandByPoint(p);
+      }
+      // la zone est exportée aux mêmes unités que le panneau : son échelle
+      // se déduit de la largeur du dessin d'origine
+      const larg = box.max.x - box.min.x;
+      const k = larg > 0 ? (z.largeurMm ?? larg * this.contours.k) / larg : 1;
+      this.zonesLumineuses = { shapes, box, k };
+    } catch {
+      this.zonesLumineuses = null;
+    }
   }
 
   /** Hauteur réelle rendue, déduite du SVG (le ratio prime sur le hMm
@@ -1022,10 +1524,23 @@ export class Relief3dScene {
 
     const W = this.input.wMm;
     const H = this.hauteurRendue;
-    // « à plat » : les lettres sont collées au mur, plus aucun jeu ni halo
-    const deport = o.fixation === "aplat" ? 0 : o.deportMm;
+    // « à plat » : les lettres sont collées au mur, plus aucun jeu ni halo.
+    // Sur un drapeau, le mur est le plan de référence : le caisson s'en
+    // écarte par sa potence, il n'y a pas de déport de lettres.
+    const deport =
+      o.typeEnseigne === "drapeau" ? 0 : o.fixation === "aplat" ? 0 : o.deportMm;
 
     this.scene.background = new THREE.Color(o.couleurMur).multiplyScalar(0.55);
+
+    // Une enseigne drapeau a sa propre géométrie : caisson perpendiculaire
+    // et potence. Tout le reste — mur, matières, lumières, vues, exports —
+    // est partagé avec les lettres relief.
+    if (o.typeEnseigne === "drapeau") {
+      this.construireMur(o, W, H, deport);
+      this.construireDrapeau(o);
+      this.finaliserLumieres(o, W, H, deport);
+      return;
+    }
 
     // ---- lettres ----
     // Les contours restent dans les unités du SVG : on extrude avec une
@@ -1056,7 +1571,14 @@ export class Relief3dScene {
     });
     this.disposables.push(matTrancheCommune);
 
+    // Décalage infime entre couleurs, dans l'ORDRE DU FICHIER : ce qui est
+    // dessiné par-dessus dans Illustrator passe devant en 3D. Douze
+    // centièmes de millimètre, invisibles sur une enseigne, mais qui
+    // suffisent à départager deux surfaces posées l'une sur l'autre.
+    const PAS_SUPERPOSITION = 0.12;
+    let rangCouleur = 0;
     for (const [hex, formes] of parCouleur) {
+      const avance = rangCouleur++ * PAS_SUPERPOSITION;
       // tranche : soit une couleur commune, soit celle de la lettre
       const matTranche = o.trancheCommeFace
         ? new THREE.MeshStandardMaterial({
@@ -1128,7 +1650,7 @@ export class Relief3dScene {
         separe ? [matFace, matDos, matTranche] : [matFace, matTranche]
       );
       lettres.rotation.x = Math.PI;
-      lettres.position.set(-W / 2, H / 2, o.epaisseurMm);
+      lettres.position.set(-W / 2, H / 2, o.epaisseurMm + avance);
       lettres.castShadow = true;
       lettres.receiveShadow = true;
       this.groupe.add(lettres);
@@ -1157,50 +1679,12 @@ export class Relief3dScene {
             : [matInterieur, matInterieur]
         );
         doublure.rotation.x = Math.PI;
-        doublure.position.set(-W / 2, H / 2, o.epaisseurMm);
+        doublure.position.set(-W / 2, H / 2, o.epaisseurMm + avance);
         this.groupe.add(doublure);
       }
     }
 
-    // ---- mur ----
-    const murW = Math.max(W * 2.2, W + 600);
-    const murH = Math.max(H * 3.2, H + 600);
-    const murGeo = new THREE.PlaneGeometry(murW, murH);
-    const murMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(o.couleurMur),
-      roughness: 0.95,
-      metalness: 0,
-    });
-    this.disposables.push(murGeo, murMat);
-    // matière du mur : la texture est en niveaux de gris, la couleur choisie
-    // la teinte — un béton peut ainsi être clair ou anthracite
-    if (o.motifMur !== "uni") {
-      const m = MATIERES[o.motifMur];
-      const aniso = this.renderer.capabilities.getMaxAnisotropy();
-      const rep = new THREE.Vector2(murW / m.tuileMm, murH / m.tuileMm);
-      // ⚠ Sans filtrage anisotrope, la matière part en bouillie dès que le
-      // mur est vu de biais — et un BAT se regarde presque toujours de 3/4.
-      const photo = chargerTexture(m.couleur, true);
-      photo.repeat.copy(rep);
-      photo.anisotropy = aniso;
-      photo.needsUpdate = true;
-      const relief = chargerTexture(m.relief, false);
-      relief.repeat.copy(rep);
-      relief.anisotropy = aniso;
-      relief.needsUpdate = true;
-
-      murMat.map = photo;
-      // carte de NORMALES : elle décrit l'orientation réelle de la surface,
-      // là où un simple relief en niveaux de gris donne un aspect gonflé
-      murMat.normalMap = relief;
-      murMat.normalScale = new THREE.Vector2(m.forceRelief, m.forceRelief);
-      murMat.roughness = 0.9;
-      // les textures sont mises en cache : surtout ne pas les libérer ici
-    }
-    const mur = new THREE.Mesh(murGeo, murMat);
-    mur.position.z = -deport;
-    mur.receiveShadow = true;
-    this.groupe.add(mur);
+    this.construireMur(o, W, H, deport);
 
     // ---- halo de rétroéclairage projeté sur le mur ----
     // Uniquement en rétroéclairé : la source est DERRIÈRE les lettres, sa
@@ -1410,6 +1894,41 @@ export class Relief3dScene {
     H: number,
     deport: number
   ): void {
+    // Un drapeau se regarde de part et d'autre : ses deux faces doivent
+    // être éclairées, sinon celle qui tourne le dos à la lumière rend noire.
+    if (o.typeEnseigne === "drapeau") {
+      // ⚠ Éclairage CONSTANT d'un mode à l'autre. Le doser selon le mode
+      // donnait l'impression que le mur changeait de matière en passant d'un
+      // ajourage à l'autre : c'est l'ÉMISSION du caisson qui doit varier,
+      // pas la lumière du jour qui tombe sur la façade.
+      this.scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+      const cote = (signe: number, force: number) => {
+        const l = new THREE.DirectionalLight(0xffffff, force);
+        l.position.set(signe * Math.max(W, 1200), H * 0.8, o.ecartMurMm + W * 0.6);
+        this.scene.add(l);
+        return l;
+      };
+      const principale = cote(1, 1);
+      principale.castShadow = true;
+      principale.shadow.mapSize.set(2048, 2048);
+      const port = Math.max(W, H) * 1.6;
+      principale.shadow.camera.left = -port;
+      principale.shadow.camera.right = port;
+      principale.shadow.camera.top = port;
+      principale.shadow.camera.bottom = -port;
+      principale.shadow.camera.far = port * 6;
+      principale.shadow.bias = -0.0008;
+      cote(-1, 0.7);
+      // rasante depuis le mur, pour détacher le caisson de la façade
+      const rasante = new THREE.DirectionalLight(0xffffff, 0.3);
+      rasante.position.set(0, H * 0.4, -Math.max(W, 800));
+      this.scene.add(rasante);
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.majBloom(o);
+      return;
+    }
+
     const exterieur = o.eclairage === "rampe" || o.eclairage === "spot";
     // Seul l'éclairage EXTÉRIEUR justifie une scène de nuit : ce sont les
     // projecteurs qui doivent sculpter l'enseigne. En rétroéclairé ou en

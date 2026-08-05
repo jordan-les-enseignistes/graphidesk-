@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useCurrentUserPermissions } from "@/hooks/useRoles";
+import { useMajKit } from "@/hooks/useMajKit";
 import { useFeedbacksPendingCount } from "@/hooks/useFeedbacks";
 import { cn } from "@/lib/utils";
 import { ROUTES, APP_CONFIG } from "@/lib/constants";
@@ -34,6 +35,7 @@ import {
   Ruler,
   PencilRuler,
   Library,
+  HardDriveDownload,
 } from "lucide-react";
 
 interface NavItem {
@@ -99,6 +101,7 @@ const navGroups: NavGroup[] = [
       { label: "Maquette suite VT", icon: PencilRuler, path: ROUTES.MAQUETTE_VT, permission: "access:maquette_vt" },
       { label: "Simulation 3D", icon: Box, path: ROUTES.SIMULATION_3D, permission: "access:simulation3d" },
       { label: "Bibliothèque", icon: Library, path: ROUTES.BIBLIOTHEQUE, permission: "access:bibliotheque" },
+      { label: "Kit du graphiste", icon: HardDriveDownload, path: ROUTES.RESSOURCES, permission: "access:ressources" },
       // --- ANNUAIRE : MASQUÉ DEPUIS v1.1.12 ---
       // Désormais géré via Tiimizy. Pour restaurer, décommenter la ligne ci-dessous :
       // { label: "Annuaire", icon: Contact, path: ROUTES.ANNUAIRE },
@@ -139,6 +142,7 @@ export function Sidebar() {
 
   // Récupérer le nombre de feedbacks en attente (admin only)
   const { data: pendingFeedbacksCount } = useFeedbacksPendingCount();
+  const majKit = useMajKit();
 
   // Récupérer l'état depuis localStorage
   const [collapsed, setCollapsed] = useState(() => {
@@ -241,6 +245,10 @@ export function Sidebar() {
     const itemsWithBadges = filteredItems.map((item) => {
       if (item.path === ROUTES.FEEDBACKS && canRespondToFeedbacks && pendingFeedbacksCount) {
         return { ...item, badge: pendingFeedbacksCount };
+      }
+      // Une ressource de l'atelier a changé : le graphiste doit la réinstaller.
+      if (item.path === ROUTES.RESSOURCES && majKit.nombre) {
+        return { ...item, badge: majKit.nombre };
       }
       return item;
     });

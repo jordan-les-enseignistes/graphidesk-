@@ -4,6 +4,8 @@ use tauri::{
     tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState},
     Manager,
 };
+mod ressources;
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::process::Command;
 use std::fs;
@@ -593,7 +595,16 @@ pub fn run() {
             focus_main_window,
             get_indesign_plugin_status,
             install_indesign_plugin,
-            open_file_with
+            open_file_with,
+            ressources::statut_ressource,
+            ressources::installer_ressource,
+            ressources::desinstaller_ressource,
+            ressources::personnaliser_gabarit,
+            ressources::personnaliser_dossier,
+            ressources::zipper_dossier,
+            ressources::dossier_temporaire,
+            ressources::supprimer_ressources_perimees,
+            ressources::creer_arborescence
         ])
         .setup(|app| {
             // Créer le menu du tray

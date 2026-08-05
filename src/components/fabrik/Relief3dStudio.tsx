@@ -24,12 +24,15 @@ import {
   Plus,
   FileUp,
   ImageIcon,
+  Flag,
 } from "lucide-react";
 import {
   Relief3dScene,
   RELIEF3D_DEFAUTS,
   VUES,
   MOTIFS_MUR,
+  MODES_DRAPEAU,
+  type ModeDrapeau,
   type VueNom,
   type Fixation,
   type Eclairage,
@@ -39,8 +42,19 @@ import {
 } from "@/lib/relief3d";
 import { DEFAULT_ILLUSTRATOR_PATH } from "./types";
 import { importerFichier } from "@/lib/importVectoriel";
+import { ChoixCouleurDialog } from "./ChoixCouleurDialog";
 
 const ILLUSTRATOR_PATH_KEY = "fabrik_illustrator_path";
+
+/**
+ * L'enseigne DRAPEAU (caisson double face) n'est pas finalisée : le moteur
+ * existe et fonctionne, mais le rendu n'est pas validé. Tant que ce drapeau
+ * vaut `false`, le module ne propose que les lettres relief.
+ *
+ * ⚠ Rien n'a été retiré : `drapeau3d.ts`, la section « Caisson » et toute la
+ * mécanique restent en place. Repasser à `true` rétablit le choix.
+ */
+const DRAPEAU_PRET = false;
 
 interface MetaExport {
   wMm?: number;
@@ -223,46 +237,20 @@ function Curseur({
   );
 }
 
-/** CMJN (0-100) → hexadécimal d'affichage. Conversion naïve : l'écran ne
- *  reproduit pas l'encre, c'est un aperçu — la valeur qui fait foi reste
- *  le CMJN saisi, celui que tu transmets à l'atelier. */
-function cmjnVersHex(c: number, m: number, j: number, n: number): string {
-  const borne = (x: number) => Math.min(100, Math.max(0, x)) / 100;
-  const k = borne(n);
-  const canal = (x: number) => Math.round(255 * (1 - borne(x)) * (1 - k));
-  const h = (x: number) => x.toString(16).padStart(2, "0");
-  return `#${h(canal(c))}${h(canal(m))}${h(canal(j))}`;
-}
-
-/** Nuancier : pastilles rapides + « + » pour saisir un CMJN précis */
+/** Nuancier : pastilles rapides + « + » qui ouvre le sélecteur complet */
 function Pastilles({
   valeur,
   choix,
   onChange,
+  titre,
 }: {
   valeur: string;
   choix: [string, string][];
   onChange: (v: string) => void;
+  titre?: string;
 }) {
   const [ouvert, setOuvert] = useState(false);
-  const [cmjn, setCmjn] = useState({ c: 0, m: 0, j: 0, n: 0 });
   const perso = !choix.some(([hex]) => hex.toLowerCase() === valeur.toLowerCase());
-
-  const champ = (cle: "c" | "m" | "j" | "n", titre: string) => (
-    <input
-      type="number"
-      min={0}
-      max={100}
-      title={titre}
-      value={cmjn[cle]}
-      onChange={(e) => {
-        const v = { ...cmjn, [cle]: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) };
-        setCmjn(v);
-        onChange(cmjnVersHex(v.c, v.m, v.j, v.n));
-      }}
-      className="h-7 w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-1 text-xs text-center dark:text-slate-200"
-    />
-  );
 
   return (
     <div className="space-y-1.5">
@@ -283,8 +271,8 @@ function Pastilles({
         ))}
         <button
           type="button"
-          title="Saisir un CMJN précis"
-          onClick={() => setOuvert((v) => !v)}
+          title="Autre couleur — roue chromatique, CMJN, RVB"
+          onClick={() => setOuvert(true)}
           className={`h-7 w-7 rounded-full border border-dashed flex items-center justify-center transition-colors ${
             perso
               ? "border-violet-500 ring-2 ring-violet-400"
@@ -295,14 +283,14 @@ function Pastilles({
           {!perso && <Plus className="h-3.5 w-3.5" />}
         </button>
       </div>
-      {ouvert && (
-        <div className="grid grid-cols-4 gap-1">
-          {champ("c", "Cyan")}
-          {champ("m", "Magenta")}
-          {champ("j", "Jaune")}
-          {champ("n", "Noir")}
-        </div>
-      )}
+      <ChoixCouleurDialog
+        open={ouvert}
+        onOpenChange={setOuvert}
+        valeur={valeur}
+        titre={titre}
+        onApercu={onChange}
+        onValider={onChange}
+      />
     </div>
   );
 }
@@ -316,7 +304,8 @@ export function Relief3dStudio() {
   const [busy, setBusy] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [opts, setOpts] = useState<Relief3dOptions>(RELIEF3D_DEFAUTS);
-  const [echelle10, setEchelle10] = useState(false);
+  // le 1:10 est l'usage courant de l'atelier : c'est lui la valeur par défaut
+  const [echelle10, setEchelle10] = useState(true);
   const [vue, setVue] = useState<VueNom>("troisQuartsGauche");
   const [nbFix, setNbFix] = useState(0);
   const [nonTenus, setNonTenus] = useState(0);
@@ -325,9 +314,11 @@ export function Relief3dStudio() {
   /** repère du fichier (origine des lettres) — sert au relevé des lisses */
   const [repere, setRepere] = useState<{ origX: number; origY: number; sf: number } | null>(null);
   /** échelle du plan de travail créé dans Illustrator à l'export */
-  const [exportAu10e, setExportAu10e] = useState(false);
+  const [exportAu10e, setExportAu10e] = useState(true);
   /** garde-fou : la sélection Illustrator doit être faite AVANT le relevé */
   const [confirmLisses, setConfirmLisses] = useState(false);
+  /** même garde-fou pour la récupération de l'enseigne elle-même */
+  const [confirmSelection, setConfirmSelection] = useState(false);
   const fichierRef = useRef<HTMLInputElement>(null);
   const [survol, setSurvol] = useState(false);
   /** d'où vient l'enseigne : relire la sélection n'a de sens que pour
@@ -419,6 +410,66 @@ export function Relief3dStudio() {
       setBusy(false);
     }
   }, [echelle10]);
+
+  // ---- relevé de la zone à ajourer d'un drapeau ----
+  const recupererZone = useCallback(async () => {
+    if (!repere) {
+      toast.error("Récupère d'abord ton panneau");
+      return;
+    }
+    setBusy(true);
+    try {
+      const illustratorPath =
+        localStorage.getItem(ILLUSTRATOR_PATH_KEY) ?? DEFAULT_ILLUSTRATOR_PATH;
+      await invoke<string>("run_illustrator_script", {
+        illustratorPath,
+        scriptName: "relief3d_export_selection.jsx",
+        params: JSON.stringify({ suffixe: "_zone" }),
+      });
+      let metaB64: string | null = null;
+      for (let i = 0; i < 40 && !metaB64; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        try {
+          metaB64 = await invoke<string>("read_temp_binary", {
+            fileName: "graphidesk_3d/meta_zone.json",
+          });
+        } catch {
+          metaB64 = null;
+        }
+      }
+      if (!metaB64) throw new Error("Illustrator n'a rien exporté (sélection vide ?)");
+      const meta = JSON.parse(b64Texte(metaB64)) as MetaExport;
+      if (meta.erreur) throw new Error(meta.erreur);
+      const svgB64 = await invoke<string>("read_temp_binary", {
+        fileName: "graphidesk_3d/lettres_zone.svg",
+      });
+      const k = echelle10 ? 10 : 1;
+      const PT_MM = 25.4 / 72;
+      const sf = meta.sf ?? 1;
+      // décalage de la zone par rapport au coin haut-gauche du panneau
+      const dx = ((meta.origX ?? 0) - repere.origX) * sf * PT_MM * k;
+      const dy = (repere.origY - (meta.origY ?? 0)) * sf * PT_MM * k;
+      setInput((p) =>
+        p
+          ? {
+              ...p,
+              zoneLumineuse: {
+                svg: b64Texte(svgB64),
+                decalageXMm: dx,
+                decalageYMm: dy,
+                largeurMm: (meta.wMm ?? 100) * k,
+              },
+            }
+          : p
+      );
+      await revenirSurGraphiDesk();
+      toast.success("Zone lumineuse relevée");
+    } catch (err) {
+      toast.error(`Relevé impossible : ${String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }, [repere, echelle10]);
 
   // ---- relevé des lisses dessinées par le graphiste ----
   const recupererLisses = useCallback(async () => {
@@ -574,8 +625,9 @@ export function Relief3dStudio() {
   const reinitialiser = useCallback(() => {
     setOpts(RELIEF3D_DEFAUTS);
     setVue("troisQuartsGauche");
-    setExportAu10e(false);
-    setEchelle10(false);
+    // on repart sur les valeurs d'usage : 1:10 à l'import comme à l'export
+    setExportAu10e(true);
+    setEchelle10(true);
     setInput(null);
     setRepere(null);
     setSource(null);
@@ -600,6 +652,18 @@ export function Relief3dStudio() {
         // le dialogue ne se referme pas tout seul
         setConfirmLisses(false);
         recupererLisses();
+      }}
+    />
+    <ConfirmDialog
+      open={confirmSelection}
+      onOpenChange={setConfirmSelection}
+      title="Ta sélection est-elle faite ?"
+      description="GraphiDesk lit la sélection ACTIVE dans Illustrator. Sélectionne ton enseigne — pour un drapeau, le panneau, son visuel et rien d'autre — puis reviens confirmer."
+      confirmText="Oui, c'est sélectionné"
+      cancelText="Non, pas encore"
+      onConfirm={() => {
+        setConfirmSelection(false);
+        recuperer();
       }}
     />
     <div className="grid gap-4 lg:grid-cols-[1fr_320px] h-full min-h-0">
@@ -651,7 +715,7 @@ export function Relief3dStudio() {
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-2">
               <Button
-                onClick={recuperer}
+                onClick={() => setConfirmSelection(true)}
                 disabled={busy}
                 className="bg-violet-600 hover:bg-violet-700 gap-2"
               >
@@ -760,6 +824,169 @@ export function Relief3dStudio() {
           </Section>
         )}
 
+        {/* ⚠ L'enseigne DRAPEAU n'est pas finalisée : son moteur est en place
+            (drapeau3d.ts, tout le bloc « Caisson » ci-dessous) mais il reste
+            des défauts de rendu. On ne PROPOSE donc pas le choix tant que ce
+            n'est pas au point — repasser DRAPEAU_PRET à true le rétablit,
+            aucun code n'a été retiré. */}
+        {DRAPEAU_PRET && (
+          <Section titre="Type d'enseigne">
+            <Segments
+              valeur={opts.typeEnseigne}
+              choix={[
+                { v: "lettres" as const, label: "Lettres relief", icone: Box },
+                { v: "drapeau" as const, label: "Drapeau", icone: Flag },
+              ]}
+              onChange={(v) => maj({ typeEnseigne: v })}
+            />
+          </Section>
+        )}
+
+        {opts.typeEnseigne === "drapeau" && (
+          <Section titre="Caisson">
+            <select
+              value={opts.modeDrapeau}
+              onChange={(e) => {
+                const m = e.target.value as ModeDrapeau;
+                const lum = MODES_DRAPEAU.find((x) => x.valeur === m)?.lumineux;
+                // standards atelier : 40 mm en non lumineux, 70 en lumineux ;
+                // 0,6 de puissance est le dosage jugé bon à l'usage
+                maj({
+                  modeDrapeau: m,
+                  epaisseurCaissonMm: lum ? 70 : 40,
+                  ...(lum ? { haloIntensite: 0.6 } : {}),
+                });
+              }}
+              className="w-full h-8 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 text-sm dark:text-slate-200"
+            >
+              {MODES_DRAPEAU.map((m) => (
+                <option key={m.valeur} value={m.valeur}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+
+            {(opts.modeDrapeau === "ajourageRelief" ||
+              opts.modeDrapeau === "ajourageAPlat") && (
+              <>
+                <Button
+                  onClick={recupererZone}
+                  disabled={busy || !input || source !== "illustrator"}
+                  size="sm"
+                  className="w-full gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Wand2 className="h-3.5 w-3.5" />
+                  Récupérer la zone lumineuse
+                </Button>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                  Sélectionne dans Illustrator la forme à ajourer.
+                  {input?.zoneLumineuse ? " Zone relevée." : ""}
+                </p>
+              </>
+            )}
+            {opts.modeDrapeau === "ajourageRelief" && (
+              <Curseur
+                label="Saillie de la zone"
+                valeur={opts.saillieAjourageMm}
+                min={2}
+                max={60}
+                suffixe=" mm"
+                onChange={(n) => maj({ saillieAjourageMm: n })}
+              />
+            )}
+            {MODES_DRAPEAU.find((m) => m.valeur === opts.modeDrapeau)?.lumineux && (
+              <Curseur
+                label="Puissance de l'éclairage"
+                valeur={opts.haloIntensite}
+                min={0.2}
+                max={2}
+                pas={0.1}
+                onChange={(n) => maj({ haloIntensite: n })}
+              />
+            )}
+            <Curseur
+              label="Épaisseur du caisson"
+              valeur={opts.epaisseurCaissonMm}
+              min={20}
+              max={150}
+              pas={5}
+              suffixe=" mm"
+              onChange={(n) => maj({ epaisseurCaissonMm: n })}
+            />
+            <Curseur
+              label="Écart au mur"
+              valeur={opts.ecartMurMm}
+              min={0}
+              max={400}
+              pas={10}
+              suffixe=" mm"
+              onChange={(n) => maj({ ecartMurMm: n })}
+            />
+            <Segments
+              valeur={opts.potence}
+              choix={[
+                { v: "deuxTubes" as const, label: "Deux tubes", icone: Rows3 },
+                { v: "monopotence" as const, label: "Monopotence", icone: Minus },
+              ]}
+              onChange={(v) => maj({ potence: v })}
+            />
+            <Curseur
+              label="Section des tubes"
+              valeur={opts.sectionTubeMm}
+              min={15}
+              max={80}
+              pas={5}
+              suffixe=" mm"
+              onChange={(n) => maj({ sectionTubeMm: n })}
+            />
+            <div className="space-y-1.5">
+              <span className="text-xs text-slate-600 dark:text-slate-300">
+                Chant du caisson
+              </span>
+              <Pastilles
+                valeur={opts.couleurChant}
+                choix={CORPS}
+                titre="Chant du caisson"
+                onChange={(v) => maj({ couleurChant: v })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <span className="text-xs text-slate-600 dark:text-slate-300">Potence</span>
+              <label className="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={opts.potenceCommeCaisson}
+                  onChange={(e) => maj({ potenceCommeCaisson: e.target.checked })}
+                  className="h-3.5 w-3.5 rounded accent-violet-600"
+                />
+                Même RAL que le caisson
+              </label>
+              {!opts.potenceCommeCaisson && (
+                <Pastilles
+                  valeur={opts.couleurPotence}
+                  choix={METAL}
+                  titre="Peinture de la potence"
+                  onChange={(v) => maj({ couleurPotence: v })}
+                />
+              )}
+            </div>
+            {MODES_DRAPEAU.find((m) => m.valeur === opts.modeDrapeau)?.lumineux && (
+              <div className="space-y-1.5">
+                <span className="text-xs text-slate-600 dark:text-slate-300">
+                  Couleur de diffusion
+                </span>
+                <Pastilles
+                  valeur={opts.couleurDiffusion}
+                  choix={TEINTES_HALO}
+                  titre="Lumière du caisson"
+                  onChange={(v) => maj({ couleurDiffusion: v })}
+                />
+              </div>
+            )}
+          </Section>
+        )}
+
+        {opts.typeEnseigne === "lettres" && (
         <Section titre="Fixation">
           <Segments
             valeur={opts.fixation}
@@ -882,7 +1109,11 @@ export function Relief3dStudio() {
             </div>
           )}
         </Section>
+        )}
 
+        {/* l'éclairage des lettres ne s'applique pas à un caisson drapeau :
+            c'est son intérieur qui s'allume, pas une source extérieure */}
+        {opts.typeEnseigne === "lettres" && (
         <Section titre="Éclairage">
           <Segments valeur={opts.eclairage} choix={ECLAIRAGE_CHOIX} onChange={(v) => maj({ eclairage: v })} />
           {opts.eclairage !== "aucun" && (
@@ -972,8 +1203,10 @@ export function Relief3dStudio() {
             </>
           )}
         </Section>
+        )}
 
         <Section titre="Matières">
+          {opts.typeEnseigne === "lettres" && (
           <div className="space-y-1.5">
             <span className="text-xs text-slate-600 dark:text-slate-300">
               Tranche des lettres
@@ -991,10 +1224,12 @@ export function Relief3dStudio() {
               <Pastilles
                 valeur={opts.couleurTranche}
                 choix={NEUTRES}
+                titre="Tranche des lettres"
                 onChange={(v) => maj({ couleurTranche: v })}
               />
             )}
           </div>
+          )}
           <div className="space-y-1.5">
             <span className="text-xs text-slate-600 dark:text-slate-300">Mur</span>
             <div className="grid grid-cols-3 gap-1">
@@ -1020,6 +1255,7 @@ export function Relief3dStudio() {
             <Pastilles
               valeur={opts.couleurMur}
               choix={NEUTRES}
+              titre="Couleur du mur"
               onChange={(v) => maj({ couleurMur: v })}
             />
           </div>
@@ -1092,6 +1328,15 @@ export function Relief3dStudio() {
               </button>
             ))}
           </div>
+          {/* Illustrator limite son espace de travail à 227 pouces : au-delà,
+              le rendu ne peut pas se poser à côté de la maquette */}
+          {input && !exportAu10e && input.wMm > 2500 && (
+            <p className="rounded-md bg-amber-50 dark:bg-amber-900/25 px-2 py-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+              Enseigne de {(input.wMm / 1000).toFixed(1)} m : à l'échelle 1:1 elle
+              ne tiendra pas à côté de ta maquette et partira dans un nouveau
+              document. Choisis 1:10 pour l'avoir à côté.
+            </p>
+          )}
           <Button
             onClick={() => envoyerVersIllustrator(false)}
             disabled={!input || envoi}
@@ -1146,7 +1391,7 @@ export function Relief3dStudio() {
 
           <div className="grid grid-cols-2 gap-2">
             <Button
-              onClick={recuperer}
+              onClick={() => setConfirmSelection(true)}
               disabled={busy || source !== "illustrator"}
               variant="ghost"
               size="sm"

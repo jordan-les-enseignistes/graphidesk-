@@ -137,6 +137,13 @@ export const PERMISSIONS: PermissionDefinition[] = [
     category: "access",
   },
   {
+    key: "access:ressources",
+    label: "Module Kit du graphiste",
+    description:
+      "Accès au kit du nouvel arrivant : installation des nuanciers, gabarits, scripts InDesign et création de l'arborescence d'un dossier.",
+    category: "access",
+  },
+  {
     key: "access:nuancier",
     label: "Module Nuancier",
     description: "Accès au convertisseur RAL.",

@@ -39,6 +39,7 @@ import Mesure from "@/pages/Mesure";
 import MaquetteVT from "@/pages/MaquetteVT";
 import Simulation3D from "@/pages/Simulation3D";
 import Bibliotheque from "@/pages/Bibliotheque";
+import Ressources from "@/pages/Ressources";
 
 // Query Client
 const queryClient = new QueryClient({
@@ -226,6 +227,7 @@ function App() {
               <Route path={ROUTES.MAQUETTE_VT} element={<MaquetteVT />} />
               <Route path={ROUTES.SIMULATION_3D} element={<Simulation3D />} />
               <Route path={ROUTES.BIBLIOTHEQUE} element={<Bibliotheque />} />
+              <Route path={ROUTES.RESSOURCES} element={<Ressources />} />
               <Route path={ROUTES.FEEDBACKS} element={<Feedbacks />} />
               <Route path={ROUTES.ANNUAIRE} element={<Annuaire />} />
               <Route path={ROUTES.MON_PROFIL} element={<MonProfil />} />

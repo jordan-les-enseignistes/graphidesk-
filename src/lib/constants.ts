@@ -74,6 +74,7 @@ export const ROUTES = {
   MAQUETTE_VT: "/maquette-vt",
   SIMULATION_3D: "/simulation-3d",
   BIBLIOTHEQUE: "/bibliotheque",
+  RESSOURCES: "/ressources",
   FEEDBACKS: "/feedbacks",
   MON_PROFIL: "/mon-profil",
   ANNUAIRE: "/annuaire",

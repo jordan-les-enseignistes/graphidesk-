@@ -71,6 +71,27 @@ Règles structurelles complémentaires :
   - Couverture : échantillonnage de la surface (grille ou points du contour) + test distance aux entretoises posées
   - Pathfinder : `app.executeMenuCommand("group")` + Pathfinder Minus Front par paires, ou opération de groupe composé
 
+## Analyse du dossier POUR_NOUVEAU_GRAPHISTE (05/08/2026)
+- BAT_.indd, VT_.indd et BAT_MAIRIE_.indd sont présents DEUX fois (racine +
+  squelette), identiques au hash md5. Source classique de désynchronisation.
+- BAT_MAIRIE_MR_ENSEIGNES.indd et BAT_MR_MR_ENSEIGNES.indd n'existent qu'à la
+  racine et sont bien distincts : à conserver.
+- EMPLACEMENT.txt du nuancier vise C:\Program Files\ (droits admin + chemin
+  versé « 2026 »). On visera l'équivalent utilisateur, sans droits admin.
+- GraphiDesk_1.0.7_x64-setup.exe : périmé (courant = 1.6.1). La librairie doit
+  servir le lien de la dernière release, pas un .exe figé.
+- BAT_Les_Enseignistes_V5.0.jsx distribué alors que le poste de Jordan a la V5.1.
+- Polices Raleway_L.E.* présentes mais hors périmètre V1 (licences à vérifier).
+
+## Choix techniques
+- Squelette livré en .zip (le zip sait stocker les dossiers VIDES, et Jordan le
+  met à jour en rezippant son dossier). Crate `zip` déjà présente dans le lock.
+- Règle de nommage unique et auto-documentée : GraphiDesk remplace le jeton
+  littéral NOMDUDOSSIER partout, dossiers ET noms de fichiers. Jordan renomme
+  une fois BAT_.indd en BAT_NOMDUDOSSIER.indd dans son zip, et c'est réglé.
+- Migration rendue IDEMPOTENTE (drop policy if exists) : elle s'applique qu'elle
+  ait déjà tourné ou non, la question ne se pose plus.
+
 ## Étapes d'implémentation
 
 - [ ] **Étape 0 — Calibration** : mini-script de mesure à lancer sur les 4 fichiers d'exemple → extrait Ø réels, offsets réels, distances entre entretoises voisines, distance max surface→entretoise. Fixe la valeur par défaut de X.
@@ -114,3 +135,175 @@ Règles structurelles complémentaires :
 ### V2 envisagée
 - Mode "sur lisses" : alignement des entretoises sur N lignes horizontales
 - Amélioration des heuristiques de placement d'après retours d'usage
+
+---
+
+# Kit du nouvel arrivant (librairie de ressources) — plan V1
+
+Contexte : arrivée d'une nouvelle graphiste. Objectif = un endroit unique où
+chacun récupère et INSTALLE réellement les ressources de l'atelier, au lieu de
+recevoir des fichiers à ranger soi-même.
+
+Arbitrages Jordan (05/08/2026) :
+- Stockage MIXTE : embarqué pour ce qui est couplé à la version de l'app,
+  Supabase pour le reste.
+- Personnalisation des gabarits au nom du graphiste : PLUS TARD.
+- Squelette de dossier : bouton « Créer l'arborescence » dans GraphiDesk.
+- Référence des gabarits = ceux du squelette NOMDUDOSSIER. Les copies à la
+  racine sont des résidus SAUF les deux MR ENSEIGNES, qui sont distincts et
+  doivent être conservés.
+- Préréglages PDF / polices / checklist / espaces de travail : PAS en V1.
+
+Périmètre V1 : nuanciers Illustrator, gabarits InDesign, scripts InDesign,
++ le plugin Cotes BAT déjà existant, regroupés sur une seule page.
+
+## Découvertes (vérifiées sur le poste de Jordan, pas supposées)
+- Nuanciers AI  : %APPDATA%\Adobe\Adobe Illustrator 30 Settings\fr_FR\x64\Nuancier\
+- Scripts InDD  : %APPDATA%\Adobe\InDesign\Version 21.0\fr_FR\Scripts\Scripts Panel\
+- Actions .aia  : <programme>\Presets\fr_FR\Scripts d'action\  (droits admin)
+- Gabarits      : aucun dossier système -> Documents\
+- PIÈGE 1 : les noms de dossiers Adobe sont LOCALISÉS (Nuancier/Swatches) et le
+  numéro de version bouge (Illustrator 30, InDesign 21.0). À résoudre par scan.
+- PIÈGE 2 : le Scripts Panel de Jordan contient déjà BAT_Les_Enseignistes_V5.0
+  ET V5.1. Un installateur qui empile aggrave le problème.
+
+## Analyse du dossier POUR_NOUVEAU_GRAPHISTE (05/08/2026)
+- BAT_.indd, VT_.indd et BAT_MAIRIE_.indd sont présents DEUX fois (racine +
+  squelette), identiques au hash md5. Source classique de désynchronisation.
+- BAT_MAIRIE_MR_ENSEIGNES.indd et BAT_MR_MR_ENSEIGNES.indd n'existent qu'à la
+  racine et sont bien distincts : à conserver.
+- EMPLACEMENT.txt du nuancier vise C:\Program Files\ (droits admin + chemin
+  versé « 2026 »). On visera l'équivalent utilisateur, sans droits admin.
+- GraphiDesk_1.0.7_x64-setup.exe : périmé (courant = 1.6.1). La librairie doit
+  servir le lien de la dernière release, pas un .exe figé.
+- BAT_Les_Enseignistes_V5.0.jsx distribué alors que le poste de Jordan a la V5.1.
+- Polices Raleway_L.E.* présentes mais hors périmètre V1 (licences à vérifier).
+
+## Choix techniques
+- Squelette livré en .zip (le zip sait stocker les dossiers VIDES, et Jordan le
+  met à jour en rezippant son dossier). Crate `zip` déjà présente dans le lock.
+- Règle de nommage unique et auto-documentée : GraphiDesk remplace le jeton
+  littéral NOMDUDOSSIER partout, dossiers ET noms de fichiers. Jordan renomme
+  une fois BAT_.indd en BAT_NOMDUDOSSIER.indd dans son zip, et c'est réglé.
+- Migration rendue IDEMPOTENTE (drop policy if exists) : elle s'applique qu'elle
+  ait déjà tourné ou non, la question ne se pose plus.
+
+## Étapes
+- [x] 1. Réécrire la migration 20260722190000 (jamais commitée) en idempotente.
+- [x] 2. Migration : catégories nuancier|gabarit|script_indesign|autre,
+      colonnes fichier_nom (nom réel + extension), description, version, ordre.
+      + catégorie squelette. RLS alignée sur le motif maison (authentifié = tout).
+- [x] 3. Rust : resoudre_dossier_adobe(cible) — scan par version décroissante,
+      tolérant à la locale, erreur explicite listant ce qui a été cherché.
+- [x] 4. Rust : installer_ressource() + statut_ressources() (non installé /
+      installé / version différente), sur le modèle de get_indesign_plugin_status.
+- [x] 5. Rust : détecter les versions PÉRIMÉES d'un même script et les proposer
+      à la suppression — jamais de suppression silencieuse.
+- [x] 6. Front : useAtelierRessources étendu (statut + install par catégorie).
+- [x] 7. Front : page Ressources en sections, chaque ligne = état + bouton,
+      carte plugin Cotes BAT intégrée, zone d'ajout réservée aux admins.
+- [x] 8. Câblage : route + entrée Sidebar + permission access:ressources
+      (aujourd'hui la page existe mais n'est atteignable par personne).
+- [ ] 9. Vérification : installer un fichier témoin dans chaque cible sur ce
+      poste, puis confirmer qu'Illustrator et InDesign le voient réellement.
+
+## Parqué (non oublié)
+- Bugs restants du module Simulation 3D (drapeau) — Jordan n'est pas satisfait,
+  à reprendre après ce chantier. Rien n'est poussé, version locale en 1.7.0.
+
+## Fait le 05/08/2026 — reste l'étape 9 (bout en bout dans l'app)
+- src-tauri/src/ressources.rs : résolution des dossiers Adobe par SCAN (version
+  décroissante + noms localisés), installation, statut, ménage des versions
+  périmées, dépliage du squelette. 5 tests unitaires.
+- Vérifié sur le poste : nuancier -> ...\Illustrator 30 Settings\fr_FR\x64\Nuancier,
+  script -> ...\InDesign\Version 21.0\fr_FR\Scripts\Scripts Panel, et la détection
+  de version périmée a bien repéré BAT_Les_Enseignistes_V5.0.jsx à côté de la V5.1.
+- PIÈGE ZIP découvert à la mesure : Compress-Archive englobe le dossier racine et
+  écrit des « \ » ; .NET part du contenu avec des « / ». Sans normalisation on
+  obtenait un dossier imbriqué deux fois. Test qui compare les deux styles.
+- Migration APPLIQUÉE en production le 05/08/2026 (feu vert Jordan). Vérifié :
+  11 colonnes en place, permission access:ressources accordée à admin + graphiste.
+  Constat au passage : le bucket atelier-ressources existait déjà alors que la
+  table non — l'ancienne migration avait donc été jouée à moitié. L'idempotence
+  a absorbé le cas sans qu'on ait à le diagnostiquer.
+- RESTE : téléverser les vrais fichiers depuis la page (Jordan, admin), puis
+  confirmer dans Illustrator que le .ase déposé apparaît bien dans
+  Fenêtre > Nuancier > Bibliothèque de nuances. C'est le dernier maillon non
+  prouvé de la chaîne.
+
+## Kit du graphiste — notification de mise à jour (05/08/2026, fait)
+- Colonnes `empreinte` (SHA-256) + `maj_le` sur atelier_ressources ; empreinte
+  calculée au téléversement (crypto.subtle) et au statut (SHA-256 maison en
+  Rust, validé sur les vecteurs du NIST).
+- « À jour ? » se décide par EMPREINTE, pas par taille ni date : les deux
+  mentent dès qu'un fichier est réenregistré sans changer.
+- Signalement à trois endroits, même palette sky : pastille dans la barre
+  latérale (mécanisme `badge` existant, réutilisé), bandeau en tête de page,
+  ligne + bouton « Mettre à jour » sur la ressource concernée.
+- Vérifié en faussant une empreinte en base : les trois apparaissent, puis
+  l'empreinte réelle a été restaurée (aucune fausse alerte laissée).
+
+## Personnalisation des gabarits — état des lieux
+- Les coordonnées sont en clair dans les .indd : « Jordan NEAU » +
+  « jordan@les-enseignistes.fr », MAIS aussi « Michael Renassia » +
+  « contact@les-enseignistes.fr », et le téléphone 04 78 03 95 96 partout.
+- Patcher les octets est EXCLU : les chaînes sont précédées de leur longueur,
+  un nom plus court ou plus long casserait le fichier.
+- Reste donc un script InDesign (find/replace) — en attente des réponses de
+  Jordan sur QUOI remplacer et QUAND le déclencher.
+
+## Personnalisation des gabarits (05/08/2026)
+Consigne Jordan, après deux fausses pistes de ma part :
+- SEULS son nom (« Jordan NEAU », « Jordan », « NEAU ») et son e-mail changent.
+- Les autres adresses et TOUS les téléphones sont ceux des COMMERCIAUX :
+  intouchables. J'avais commencé une détection automatique des contacts du
+  fichier — supprimée, elle serait allée les écraser.
+- Les valeurs sont SAISIES par l'utilisateur (pré-remplies depuis le profil,
+  jamais imposées) : Jordan prépare parfois un dossier pour quelqu'un d'autre.
+- L'identité de référence (celle présente DANS les gabarits) est un réglage
+  d'application, `app_settings.gabarits_identite_reference` : elle appartient
+  aux fichiers, pas à la personne qui télécharge.
+
+Fait :
+- `gabarit_personnaliser.jsx` : remplacements explicites, DANS L'ORDRE reçu
+  (nom complet avant prénom seul, sinon le nom complet n'est jamais reconnu).
+  Préférences de recherche InDesign remises à zéro puis RESTAURÉES — elles sont
+  globales et persistantes, un réglage laissé par un autre script fausserait
+  tout en silence. Casse activée, gabarits de page inclus.
+- Rust : `personnaliser_gabarit` (COM InDesign via PowerShell, DoScript
+  synchrone), `personnaliser_dossier`, `zipper_dossier`, `dossier_temporaire`.
+- Les trois parcours passent par le même dialogue : gabarit, « Créer un
+  dossier », et « Télécharger le .zip » (déplié → personnalisé → recompressé,
+  sinon l'archive resterait au nom du précédent).
+- Les échecs partiels sont affichés un par un : un gabarit resté au mauvais nom
+  ne doit jamais partir sans qu'on le sache.
+
+RESTE À FAIRE — jamais exécuté sur un vrai gabarit. À tester sur une COPIE.
+
+### Test réel du 05/08/2026 sur une COPIE de BAT_.indd (original intact)
+- Le gabarit porte les DEUX formes : « Jordan NEAU » (×3) ET l'emplacement vide
+  « xxxx XXXX » (×1) sous le titre « VOTRE GRAPHISTE ». Idem pour les mails.
+  La référence liste donc PLUSIEURS formes par champ, pas une seule.
+- Résultat vérifié en interrogeant InDesign (pas les octets) : anciennes
+  valeurs → 0, nouvelles → 4, et contact@ / Michael Renassia / 04 78 03 95 96
+  intacts.
+- PIÈGE : `doc.save()` sans argument fait une sauvegarde INCRÉMENTALE — le
+  document est juste mais l'ancien nom reste lisible dans le fichier livré.
+  `doc.save(File)` force une sauvegarde complète : 3928 Ko → 2600 Ko et plus
+  aucun résidu exploitable. Le contrôle par octets seul est TROMPEUR, il faut
+  demander à InDesign.
+- Diagnostic sur 127 articles : l'unique occurrence restant dans les octets
+  n'est rattachée à aucun article, hyperlien ni métadonnée — donnée morte.
+- Ajouté ensuite : recherche dans les calques MASQUÉS et les notes de bas de
+  page (exclus par défaut) — un nom manqué là partirait chez le client.
+
+## Publication v1.7.0 — le drapeau reste au chaud (05/08/2026)
+Jordan : publier SANS la 3D du caisson double face, pas finalisée.
+Choix : ne pas extraire les changements du lot (ils sont entremêlés dans
+relief3d.ts, Relief3dStudio.tsx…, un tri risquerait de perdre du travail), mais
+masquer le CHOIX dans l'interface via `DRAPEAU_PRET = false`.
+Vérifié : `typeEnseigne` n'est modifiable qu'à un seul endroit, à l'intérieur du
+bloc masqué, et sa valeur par défaut est « lettres ». Le drapeau est donc
+inatteignable, moteur intact. Repasser la constante à true le rétablit.
+
+Ne PAS committer : .claude/settings.local.json, .claude/launch.json (locaux).

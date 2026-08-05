@@ -14,25 +14,30 @@
 // ⚠ Ne modifie NI le document du graphiste NI ses unités globales :
 //    on travaille sur une COPIE via le presse-papiers.
 
-(function () {
+(function (params) {
   var DIR = Folder.temp + "/graphidesk_3d";
   var MM = 2.834645669;
+  // Un suffixe permet de faire DEUX relevés sans que le second écrase le
+  // premier : le panneau d'un drapeau, puis sa zone à ajourer.
+  var SUF = (params && params.suffixe) ? String(params.suffixe) : "";
+  var NOM_SVG = "/lettres" + SUF + ".svg";
+  var NOM_META = "/meta" + SUF + ".json";
 
   function ecrireMeta(objStr) {
     var d = new Folder(DIR);
     if (!d.exists) d.create();
-    var f = new File(DIR + "/meta.json");
+    var f = new File(DIR + NOM_META);
     f.encoding = "UTF-8"; f.open("w"); f.write(objStr); f.close();
   }
 
   // purge des sorties précédentes (sinon GraphiDesk relirait l'export d'avant)
-  try { var o1 = new File(DIR + "/lettres.svg"); if (o1.exists) o1.remove(); } catch (e0) {}
-  try { var o2 = new File(DIR + "/meta.json"); if (o2.exists) o2.remove(); } catch (e1) {}
+  try { var o1 = new File(DIR + NOM_SVG); if (o1.exists) o1.remove(); } catch (e0) {}
+  try { var o2 = new File(DIR + NOM_META); if (o2.exists) o2.remove(); } catch (e1) {}
 
-  if (app.documents.length === 0) { alert("Ouvre ton fichier de lettres."); return; }
+  if (app.documents.length === 0) { alert("Ouvre ton fichier."); return; }
   var doc = app.activeDocument;
   if (!doc.selection || doc.selection.length === 0) {
-    alert("Sélectionne d'abord le tracé de découpe des lettres.");
+    alert("Sélectionne d'abord les tracés à récupérer.");
     return;
   }
 
@@ -130,7 +135,7 @@
     try { svgOpts.cssProperties = SVGCSSPropertyLocation.PRESENTATIONATTRIBUTES; } catch (eO5) {}
     var dir = new Folder(DIR);
     if (!dir.exists) dir.create();
-    out.exportFile(new File(DIR + "/lettres.svg"), ExportType.SVG, svgOpts);
+    out.exportFile(new File(DIR + NOM_SVG), ExportType.SVG, svgOpts);
     out.close(SaveOptions.DONOTSAVECHANGES);
 
     var parts = [];
@@ -152,4 +157,4 @@
   }
 
   try { if (oldUIL !== null) app.userInteractionLevel = oldUIL; } catch (eV) {}
-})();
+})(typeof params !== "undefined" ? params : {});

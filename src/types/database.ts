@@ -76,6 +76,10 @@ export interface Database {
           horaires_base: HorairesBase | null;
           preferences: UserPreferences | null;
           badge_color: BadgeColorId | null;
+          /** Nom tel qu'il doit apparaître sur les BAT (« Jordan NEAU ») —
+           *  distinct de full_name, qui peut n'être qu'un prénom */
+          nom_bat: string | null;
+          telephone: string | null;
           created_at: string;
           updated_at: string;
         };
