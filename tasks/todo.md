@@ -307,3 +307,50 @@ bloc masqué, et sa valeur par défaut est « lettres ». Le drapeau est donc
 inatteignable, moteur intact. Repasser la constante à true le rétablit.
 
 Ne PAS committer : .claude/settings.local.json, .claude/launch.json (locaux).
+
+## Ajourage sur enseignes à plat (05/08/2026)
+Demande Jordan, avec l'exemple du caisson « 10ème AVENUE » 6500x750 : seul le
+texte + filet + étoiles s'allument. LED BLANCHES à l'intérieur, mais l'adhésif
+doré/dégradé est devant → la zone doit s'allumer AUX COULEURS DU FICHIER.
+
+Fait :
+- `analyserZoneLumineuse` conserve désormais couleurs ET dégradés de la zone
+  (elle ne gardait que les formes ; son résultat n'était utilisé nulle part).
+- Deux modes ajoutés à l'éclairage : « Ajourage relief » et « Ajourage à plat ».
+- `construireZoneAjouree` : une géométrie par couleur, émissive avec le dégradé
+  du fichier en `emissiveMap`. Une seule face (le dos est contre le mur).
+- `masqueAjourage` : perce la tôle à l'emplacement de la zone, sinon le plexi
+  logé 3 mm derrière reste caché — le défaut déjà rencontré sur le drapeau.
+
+Deux pièges trouvés À LA MESURE, invisibles à la relecture :
+1. La rotation de 180° qui redresse le dessin RETOURNE la normale d'une surface
+   plane : le plexi de l'ajourage à plat était éliminé comme face arrière.
+   → `side: DoubleSide`.
+2. Émission trop forte = la zone sature à BLANC PUR, ce qui détruit tout
+   l'intérêt (voir l'adhésif traversé). Barème abaissé de `0.9 + 1.6*halo` à
+   `0.25 + 0.55*halo`.
+
+Mesuré sur un caisson noir 6500x750 avec logo doré en dégradé :
+éteint 0 pixel doré | à plat 3073 | relief 3265, bbox centrée, teinte conservée.
+
+## Ajourages — halo : état réel au 06/08/2026
+Le halo est GLOBAL (seuil de luminosité sur toute l'image). Mesuré :
+- mur crépi BLANC + ajourage  -> 65 % des pixels du mur saturés  (défaut)
+- mur crépi GRIS  + ajourage  -> 0 % saturé, grain 161 conservé  (correct)
+CORRIGÉ le 06/08 : sur les ajourages, la clarté du MUR et celle du FOND DE
+SCÈNE sont plafonnées sous le seuil du halo. Le piège : le fond se déduit de
+la couleur du mur mais est calculé à part — assombrir le mur seul ne changeait
+rien, c'était le fond qui cramait. Mesuré en crépi BLANC : 0 % de saturation
+(contre 63 %), grain 196 conservé, et la diffusion de l'enseigne répond
+toujours au curseur (voile 644 -> 1288 entre les intensités 1,0 et 1,6).
+
+HALO SÉLECTIF (`HALO_SELECTIF_PRET = false`) : la vraie solution, laissée en
+place mais DÉSACTIVÉE. La chaîne à deux passes est écrite et la passe
+d'addition fonctionne (vérifié : une texture grise injectée fait passer l'image
+de 50 à 202). Mais la passe de lueur rend NOIR, même affichée seule à l'écran,
+alors que les 9 maillages de la découpe sont bien conservés à l'assombrissement.
+Bug non identifié — À REPRENDRE À TÊTE REPOSÉE, pas en fin de session.
+Corrigés en route et à conserver : les composers doivent être redimensionnés
+(sinon cibles à 300x150) et la texture de lueur relue à chaque image
+(`setSize` recrée les cibles) ; il faut aussi une `OutputPass` finale, sans
+quoi toute l'image sort assombrie (mur à 133 au lieu de 200).

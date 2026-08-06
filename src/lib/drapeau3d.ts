@@ -29,7 +29,7 @@ export interface ContoursDrapeau {
  * coordonnées de texture des formes extrudées — sans ce recalage le masque
  * est échantillonné n'importe où et ne se voit pas.
  */
-function masqueDessin(
+export function masqueDessin(
   box: THREE.Box2,
   k: number,
   dessiner: (ctx: CanvasRenderingContext2D) => void
@@ -68,7 +68,7 @@ function masqueDessin(
 }
 
 /** Trace une forme et ses contre-formes dans le contexte 2D */
-function tracer(ctx: CanvasRenderingContext2D, forme: THREE.Shape): Path2D {
+export function tracer(ctx: CanvasRenderingContext2D, forme: THREE.Shape): Path2D {
   const p = new Path2D();
   const suite = (pts: THREE.Vector2[]) => {
     if (pts.length < 2) return;

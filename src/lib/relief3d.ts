@@ -18,9 +18,17 @@ import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
-import { construireDrapeau, analyserZone } from "./drapeau3d";
+import {
+  construireDrapeau,
+  analyserZone,
+  masqueDessin,
+  tracer,
+  DIBOND_MM,
+} from "./drapeau3d";
 // Matériaux de mur : photos + cartes de relief embarquées dans le binaire
 import betonCouleur from "@/assets/textures/beton.jpg";
 import betonRelief from "@/assets/textures/beton_relief.jpg";
@@ -91,6 +99,89 @@ export interface Relief3dInput {
  * Illustrator exporte en coordonnées utilisateur (`userSpaceOnUse`), ce qui
  * permet de tracer le dégradé exactement là où il est dans le fichier.
  */
+
+/**
+ * Version « rétroéclairée » d'une couleur : on remonte sa luminosité sans
+ * toucher à sa teinte.
+ *
+ * ⚠ Physiquement, le caisson est éclairé UNIFORMÉMENT derrière : c'est la
+ * même quantité de lumière partout, l'adhésif ne fait que la teinter. Utiliser
+ * la couleur telle quelle rendait les parties sombres d'un dégradé quasi
+ * éteintes — « ça n'éclaire qu'une petite partie ». On comprime donc la
+ * dynamique vers le clair.
+ */
+/**
+ * Bande de luminosité dans laquelle on ramène l'adhésif rétroéclairé.
+ *
+ * ⚠ Deux écueils constatés à la mesure :
+ *   - garder la couleur telle quelle laissait les parties sombres d'un dégradé
+ *     quasi éteintes (« ça n'éclaire qu'une petite partie ») ;
+ *   - la remonter vers le blanc éclaircissait bien, mais DÉSATURAIT : le doré
+ *     partait au blanc pur.
+ * On comprime donc uniquement la LUMINOSITÉ, en multipliant les trois canaux
+ * par un même facteur : leurs rapports sont préservés, donc la teinte et la
+ * saturation aussi, exactement.
+ */
+const RETRO_CIBLE = 0.92;
+/** Ce qui reste des écarts d'origine. 0 = parfaitement uniforme.
+ *  Bas volontairement : derrière la plaque, la lumière est la MÊME partout. */
+const RETRO_RESTE = 0.18;
+
+/** Facteur à appliquer aux trois canaux pour ramener le plus fort à la cible.
+ *  Multiplier les trois par le même nombre préserve exactement teinte et
+ *  saturation : seule la luminosité est égalisée. */
+function facteurRetro(r: number, g: number, b: number): number {
+  const m = Math.max(r, g, b);
+  if (m <= 0.001) return 0;
+  // un noir reste sombre (l'encre bloque vraiment la lumière), mais tout le
+  // reste est ramené au même niveau
+  const cible = RETRO_CIBLE * ((1 - RETRO_RESTE) + RETRO_RESTE * m);
+  return cible / m;
+}
+
+function couleurRetroeclairee(hex: string): THREE.Color {
+  const c = new THREE.Color(hex);
+  const f = facteurRetro(c.r, c.g, c.b);
+  return new THREE.Color(
+    Math.min(1, c.r * f),
+    Math.min(1, c.g * f),
+    Math.min(1, c.b * f)
+  );
+}
+
+/** Même compression, appliquée à une texture de dégradé. Le placement
+ *  (repeat / offset / flipY) est recopié : c'est lui qui cale le dégradé. */
+function textureRetroeclairee(source: THREE.Texture): THREE.Texture | null {
+  const img = source.image as HTMLCanvasElement | undefined;
+  if (!img?.getContext) return null;
+  const ctx = img.getContext("2d");
+  if (!ctx) return null;
+  const w = img.width;
+  const h = img.height;
+  const copie = document.createElement("canvas");
+  copie.width = w;
+  copie.height = h;
+  const cctx = copie.getContext("2d");
+  if (!cctx) return null;
+  const d = ctx.getImageData(0, 0, w, h);
+  for (let i = 0; i < d.data.length; i += 4) {
+    const r = d.data[i] / 255;
+    const g = d.data[i + 1] / 255;
+    const b = d.data[i + 2] / 255;
+    const f = facteurRetro(r, g, b);
+    d.data[i] = Math.min(255, r * f * 255);
+    d.data[i + 1] = Math.min(255, g * f * 255);
+    d.data[i + 2] = Math.min(255, b * f * 255);
+  }
+  cctx.putImageData(d, 0, 0);
+  const tex = new THREE.CanvasTexture(copie);
+  tex.colorSpace = source.colorSpace;
+  tex.flipY = source.flipY;
+  tex.repeat.copy(source.repeat);
+  tex.offset.copy(source.offset);
+  return tex;
+}
+
 export function texturesDesDegrades(
   svg: string,
   box: THREE.Box2,
@@ -419,7 +510,29 @@ export const MODES_DRAPEAU: { valeur: ModeDrapeau; label: string; lumineux: bool
 export type Potence = "deuxTubes" | "monopotence";
 
 export type Fixation = "entretoises" | "lisses" | "tiges" | "aplat";
-export type Eclairage = "aucun" | "face" | "retro" | "rampe" | "spot";
+export type Eclairage =
+  | "aucun"
+  | "face"
+  | "retro"
+  | "rampe"
+  | "spot"
+  /** Zone découpée qui RESSORT du caisson et diffuse sur son pourtour */
+  | "ajourageRelief"
+  /** Zone découpée dans la tôle, plexi logé en retrait derrière */
+  | "ajourageAPlat";
+
+/** Les deux ajourages ont besoin d'un relevé de zone et d'un réglage de puissance */
+/** Le halo sélectif n'est pas au point : repasser à `true` pour le reprendre. */
+const HALO_SELECTIF_PRET = false;
+
+/** Calque réservé aux surfaces qui doivent rayonner (halo sélectif) */
+export const CALQUE_LUEUR = 1;
+const CALQUE_LUEUR_MASQUE = new THREE.Layers();
+CALQUE_LUEUR_MASQUE.set(CALQUE_LUEUR);
+
+export function estAjourage(e: Eclairage): boolean {
+  return e === "ajourageRelief" || e === "ajourageAPlat";
+}
 
 /** Une lisse relevée dans le fichier du graphiste (repère des lettres, mm) */
 export interface LisseFichier {
@@ -445,6 +558,8 @@ export const ECLAIRAGES: { valeur: Eclairage; label: string }[] = [
   { valeur: "retro", label: "Rétroéclairé (halo au mur)" },
   { valeur: "rampe", label: "Rampe (barre sur la longueur)" },
   { valeur: "spot", label: "Spots" },
+  { valeur: "ajourageRelief", label: "Ajourage relief (zone en saillie)" },
+  { valeur: "ajourageAPlat", label: "Ajourage à plat (plexi en retrait)" },
 ];
 
 /** Un « mot » = groupe de lettres proches, porté par sa propre structure de
@@ -1062,6 +1177,18 @@ export class Relief3dScene {
   private composer: EffectComposer | null = null;
   private renderPass: RenderPass | null = null;
   private bloom: UnrealBloomPass | null = null;
+  /** Chaîne du halo SÉLECTIF (ajourages) — voir `dessinerHaloSelectif` */
+  private composerLueur: EffectComposer | null = null;
+  private composerFinal: EffectComposer | null = null;
+  private bloomSelectif: UnrealBloomPass | null = null;
+  private passeComposite: ShaderPass | null = null;
+  /** ⚠ À REPOINTER à chaque reconstruction : `build()` crée une scène NEUVE,
+   *  et une passe qui garde l'ancienne affiche un décor figé — le mur ne
+   *  changeait plus de matière et l'enseigne n'éclairait plus. */
+  private passesRendu: RenderPass[] = [];
+  private haloSelectif = false;
+  private noirTemporaire = new Map<string, THREE.Material | THREE.Material[]>();
+  private readonly matNoir = new THREE.MeshBasicMaterial({ color: 0x000000 });
   /** true quand une source lumineuse doit « déborder » (façade, leds, spots) */
   private avecBloom = false;
   private autoCache: { cle: string; ents: Entretoise[] } | null = null;
@@ -1074,8 +1201,19 @@ export class Relief3dScene {
   /** couleurs distinctes trouvées dans le fichier du graphiste */
   couleursFichier: string[] = [];
   /** contours de la zone à ajourer, avec leur propre repère */
+  /**
+   * Zone ajourée d'une enseigne à plat : les formes découpées dans le
+   * caisson, AVEC leurs couleurs et leurs dégradés.
+   *
+   * ⚠ Les LED sont blanches, mais ce qu'on voit est l'adhésif traversé par
+   * la lumière : la zone doit s'allumer AUX COULEURS DU FICHIER, dégradé
+   * compris. La faire briller en blanc était l'erreur commise sur le drapeau.
+   */
   private zonesLumineuses: {
     shapes: THREE.Shape[];
+    couleurs: string[];
+    refsDegrade: (string | null)[];
+    degrades: Map<string, THREE.Texture>;
     box: THREE.Box2;
     k: number;
   } | null = null;
@@ -1182,8 +1320,20 @@ export class Relief3dScene {
     const murW = Math.max(W * 2.2, W + 600);
     const murH = Math.max(H * 3.2, H + 600);
     const murGeo = new THREE.PlaneGeometry(murW, murH);
+    // ⚠ Sur un AJOURAGE, le halo se déclenche à partir d'un seuil bas — il le
+    // faut pour que toute la découpe rayonne. Un mur clair franchit ce seuil
+    // lui aussi et vire à l'aplat blanc (mesuré : 65 % des pixels du mur
+    // saturés en crépi blanc, 0 % en gris). On plafonne donc la clarté du mur
+    // sur ces deux modes : il garde sa teinte et sa matière, il est seulement
+    // ramené sous le seuil, comme sur une photo de fin de journée.
+    const teinteMur = new THREE.Color(o.couleurMur);
+    if (estAjourage(o.eclairage)) {
+      const CLARTE_MAX = 0.42;
+      const m = Math.max(teinteMur.r, teinteMur.g, teinteMur.b);
+      if (m > CLARTE_MAX) teinteMur.multiplyScalar(CLARTE_MAX / m);
+    }
     const murMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(o.couleurMur),
+      color: teinteMur,
       roughness: 0.95,
       metalness: 0,
     });
@@ -1372,20 +1522,140 @@ export class Relief3dScene {
   }
 
   /** Un rendu : direct, ou via la chaîne de post-traitement (halo lumineux) */
+  /**
+   * Halo SÉLECTIF : seules les surfaces marquées `CALQUE_LUEUR` rayonnent.
+   *
+   * ⚠ Pourquoi ce détour. Le halo ordinaire s'applique à toute l'image en
+   * fonction d'un seuil de luminosité. Or un mur de crépi blanc rend à 0,78 et
+   * une découpe rétroéclairée à 0,77 : AUCUN seuil ne peut les séparer. Résultat
+   * mesuré, soit le mur débordait et virait à l'aplat blanc, soit l'enseigne
+   * restait mate. Ici on rend une seconde fois la scène avec tout le reste
+   * peint en NOIR : le mur ne peut donc rien émettre, quelle que soit sa
+   * clarté, et l'enseigne rayonne librement.
+   */
+  private dessinerHaloSelectif(): void {
+    if (!this.composerLueur || !this.composerFinal) return;
+    // 1. tout ce qui n'appartient pas au calque de lueur passe au noir
+    this.noirTemporaire.clear();
+    this.scene.traverse((obj) => {
+      const m = obj as THREE.Mesh;
+      if (!m.isMesh || m.layers.test(CALQUE_LUEUR_MASQUE)) return;
+      this.noirTemporaire.set(m.uuid, m.material);
+      m.material = this.matNoir;
+    });
+    const fond = this.scene.background;
+    this.scene.background = null;
+    this.composerLueur.render();
+    // 2. on remet chaque matériau à sa place
+    this.scene.traverse((obj) => {
+      const m = obj as THREE.Mesh;
+      const sauv = this.noirTemporaire.get(m.uuid);
+      if (sauv) m.material = sauv;
+    });
+    this.noirTemporaire.clear();
+    this.scene.background = fond;
+    // 3. rendu normal + addition de la lueur.
+    // ⚠ `setSize` RECRÉE les cibles de rendu : une texture mémorisée à la
+    // construction devient périmée et l'addition ne rapporte plus rien. On
+    // relit donc la cible courante à chaque image.
+    if (this.passeComposite) {
+      this.passeComposite.uniforms.tLueur.value =
+        this.composerLueur.renderTarget2.texture;
+    }
+    this.composerFinal.render();
+  }
+
+  /** Monte la chaîne à deux passes du halo sélectif (une seule fois) */
+  private monterHaloSelectif(): void {
+    if (this.composerLueur && this.composerFinal) return;
+    const canvas = this.renderer.domElement;
+    const larg = canvas.clientWidth || canvas.width || 800;
+    const haut = canvas.clientHeight || canvas.height || 600;
+    const taille = new THREE.Vector2(larg, haut);
+    this.composerLueur = new EffectComposer(this.renderer);
+    this.composerLueur.renderToScreen = false;
+    const passeLueur = new RenderPass(this.scene, this.camera);
+    this.passesRendu.push(passeLueur);
+    this.composerLueur.addPass(passeLueur);
+    this.bloomSelectif = new UnrealBloomPass(taille, 0.9, 0.6, 0.1);
+    this.composerLueur.addPass(this.bloomSelectif);
+
+    this.composerFinal = new EffectComposer(this.renderer);
+    const passeFinale = new RenderPass(this.scene, this.camera);
+    this.passesRendu.push(passeFinale);
+    this.composerFinal.addPass(passeFinale);
+    this.passeComposite = new ShaderPass(
+        {
+          uniforms: {
+            tDiffuse: { value: null },
+            tLueur: { value: this.composerLueur.renderTarget2.texture },
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }`,
+          fragmentShader: `
+            uniform sampler2D tDiffuse;
+            uniform sampler2D tLueur;
+            varying vec2 vUv;
+            void main() {
+              // addition simple : la lueur s'ajoute à l'image, elle ne la
+              // remplace pas — le grain du mur reste donc intact dessous
+              gl_FragColor = texture2D(tDiffuse, vUv) + texture2D(tLueur, vUv);
+            }`,
+        },
+        "tDiffuse"
+      );
+    this.composerFinal.addPass(this.passeComposite);
+    // ⚠ Une chaîne de post-traitement travaille en linéaire : sans cette passe
+    // finale, la conversion sRGB et le tone mapping ne sont jamais appliqués
+    // et toute l'image ressort assombrie (mesuré : mur à 133 au lieu de 200).
+    this.composerFinal.addPass(new OutputPass());
+    // taille correcte dès la construction : sans ça les cibles restent au
+    // 300 x 150 par défaut jusqu'au premier redimensionnement
+    this.composerLueur.setSize(larg, haut);
+    this.composerFinal.setSize(larg, haut);
+  }
+
   private dessiner(): void {
-    if (this.avecBloom && this.composer) this.composer.render();
+    if (this.haloSelectif) this.dessinerHaloSelectif();
+    else if (this.avecBloom && this.composer) this.composer.render();
     else this.renderer.render(this.scene, this.camera);
   }
 
   /** Le débordement lumineux n'a de sens que si quelque chose émet. */
   private majBloom(o: Relief3dOptions): void {
     const drapeau = o.typeEnseigne === "drapeau";
+
+    // ⚠ HALO SÉLECTIF — inachevé, désactivé. L'idée reste la bonne : faire
+    // rayonner la découpe seule, pour que le mur n'entre jamais en concurrence
+    // avec elle (un crépi blanc est aussi clair qu'une découpe allumée, aucun
+    // seuil global ne peut les séparer). Mais la passe de lueur rend NOIR,
+    // même affichée seule — bug non identifié, à reprendre au calme.
+    // En attendant, les ajourages repassent par le halo global.
+    this.haloSelectif = HALO_SELECTIF_PRET && !drapeau && estAjourage(o.eclairage);
+    if (this.haloSelectif) {
+      this.monterHaloSelectif();
+      if (this.bloomSelectif) {
+        // seuil TRÈS bas : dans cette passe il n'y a QUE la découpe, donc elle
+        // rayonne d'un bout à l'autre, y compris là où l'adhésif est sombre
+        this.bloomSelectif.threshold = 0.05;
+        this.bloomSelectif.strength = 0.55 * Math.max(0.4, o.haloIntensite);
+        this.bloomSelectif.radius = 0.55;
+      }
+      this.avecBloom = false;
+      return;
+    }
+
     this.avecBloom = drapeau
       ? o.modeDrapeau !== "nonLumineux"
       : o.eclairage === "face" ||
         o.eclairage === "retro" ||
         o.eclairage === "spot" ||
-        o.eclairage === "rampe";
+        o.eclairage === "rampe" ||
+        estAjourage(o.eclairage);
     if (!this.avecBloom) return;
     if (!this.composer) {
       this.composer = new EffectComposer(this.renderer);
@@ -1401,16 +1671,18 @@ export class Relief3dScene {
     if (this.renderPass) this.renderPass.scene = this.scene;
     if (this.bloom) {
       // ⚠ Un seuil élevé rend la réponse TOUT OU RIEN : en dessous rien ne
-      // déborde, au-dessus tout crame d'un coup — et seules les teintes
-      // claires le franchissent, les lettres colorées restant éteintes.
-      // Seuil bas + amplitude pilotée par le curseur = réponse progressive.
-      const fort = drapeau || o.eclairage === "face";
+      // déborde, au-dessus tout crame d'un coup. Seuil bas + amplitude pilotée
+      // par le curseur = réponse progressive.
+      // l'ajourage rejoint les modes « forts » : sans seuil bas, seule la
+      // partie la plus claire de l'adhésif rayonnait et l'enseigne paraissait
+      // à moitié éteinte
+      const fort = drapeau || o.eclairage === "face" || estAjourage(o.eclairage);
       const dose = fort ? o.haloIntensite * 0.7 : o.haloIntensite;
       this.bloom.strength = (fort ? 0.22 : 0.3) * Math.max(0.3, dose);
-      // ⚠ Sur un drapeau, le MUR occupe la moitié de l'image : un seuil bas
-      // le faisait déborder lui aussi et le crépi virait à l'aplat blanc dès
-      // qu'on passait en lumineux. Les faces diffusantes, elles, sont
-      // franchement émissives — un seuil haut ne leur retire rien.
+      // ⚠ Sur un drapeau le MUR occupe la moitié de l'image : un seuil bas le
+      // faisait déborder et le crépi virait à l'aplat blanc. Les faces
+      // diffusantes étant franchement émissives, un seuil haut ne leur retire
+      // rien.
       this.bloom.threshold = drapeau ? 0.95 : fort ? 0.45 : 0.8;
       this.bloom.radius = fort ? 0.4 : 0.35;
     }
@@ -1465,9 +1737,131 @@ export class Relief3dScene {
     };
   }
 
+
+  /**
+   * Masque de PERCEMENT de la tôle pour un ajourage à plat : blanc partout,
+   * noir à l'emplacement de la zone.
+   *
+   * ⚠ Sans lui, le plexi logé 3 mm derrière la face reste caché par la tôle
+   * et « ça n'éclaire rien » — exactement le défaut constaté sur le drapeau.
+   * Le masque est dessiné dans le repère du DESSIN puis recalé sur les
+   * coordonnées de texture, comme pour le caisson double face.
+   */
+  private masqueAjourage(): THREE.Texture | null {
+    const z = this.zonesLumineuses;
+    if (!z) return null;
+    const k = this.contours.k;
+    const dx = this.input.zoneLumineuse?.decalageXMm ?? 0;
+    const dy = this.input.zoneLumineuse?.decalageYMm ?? 0;
+    return masqueDessin(this.contours.box, k, (ctx) => {
+      ctx.fillStyle = "#fff";
+      for (const f of this.contours.shapes) ctx.fill(tracer(ctx, f), "evenodd");
+      ctx.fillStyle = "#000";
+      for (const forme of z.shapes) {
+        ctx.save();
+        // la zone est relevée dans SES unités, décalée en mm depuis le coin
+        // haut-gauche du dessin : on repasse dans le repère du panneau
+        ctx.translate(this.contours.box.min.x + dx / k, this.contours.box.min.y + dy / k);
+        ctx.scale(z.k / k, z.k / k);
+        ctx.translate(-z.box.min.x, -z.box.min.y);
+        ctx.fill(tracer(ctx, forme), "evenodd");
+        ctx.restore();
+      }
+    });
+  }
+
   /** Contours de la zone à ajourer, avec leur propre échelle.
    *  Sa largeur réelle est déduite du décalage relevé dans Illustrator :
    *  on garde donc le rapport du dessin sans dépendre du repère du panneau. */
+  /**
+   * Zone ajourée d'une enseigne à plat : la découpe du caisson par laquelle
+   * la lumière sort.
+   *
+   * ⚠ Le caisson est éclairé par des LED BLANCHES, mais l'adhésif est devant :
+   * ce qu'on voit allumé, c'est l'adhésif traversé. La zone s'allume donc AUX
+   * COULEURS DU FICHIER — dégradé compris — et surtout pas en blanc.
+   *
+   * Contrairement au drapeau, le dos est contre le mur : une seule face à
+   * traiter.
+   */
+  private construireZoneAjouree(o: Relief3dOptions, W: number, H: number): void {
+    if (!estAjourage(o.eclairage)) return;
+    const z = this.zonesLumineuses;
+    if (!z || z.shapes.length === 0) return;
+
+    const relief = o.eclairage === "ajourageRelief";
+    // à plat : le plexi se loge dans la saignée du dibond, donc EN RETRAIT ;
+    // en relief : la zone dépasse de la face avant.
+    const saillie = Math.max(2, o.saillieAjourageMm);
+    const zAvant = o.epaisseurMm;
+    const zZone = relief ? zAvant + saillie : zAvant - DIBOND_MM;
+
+    // une géométrie par couleur, comme pour la face : un logo bicolore
+    // s'allume bicolore
+    const parCouleur = new Map<string, { formes: THREE.Shape[]; ref: string | null }>();
+    z.shapes.forEach((forme, i) => {
+      const hex = z.couleurs[i] ?? o.couleurFace;
+      const ref = z.refsDegrade[i] ?? null;
+      const cle = ref ? `deg:${ref}` : hex;
+      const entree = parCouleur.get(cle);
+      if (entree) entree.formes.push(forme);
+      else parCouleur.set(cle, { formes: [forme], ref });
+    });
+
+    // Dosage retenu à l'essai : assez pour lire une découpe allumée, pas
+    // assez pour saturer la teinte à blanc.
+    const intensite = 0.25 + 0.55 * o.haloIntensite;
+    const dx = this.input.zoneLumineuse?.decalageXMm ?? 0;
+    const dy = this.input.zoneLumineuse?.decalageYMm ?? 0;
+
+    for (const [cle, { formes, ref }] of parCouleur) {
+      const hex = cle.startsWith("deg:")
+        ? (z.couleurs[z.refsDegrade.indexOf(ref)] ?? o.couleurFace)
+        : cle;
+      const degrade = ref ? z.degrades.get(ref) : undefined;
+      // la lumière traversante est uniforme : on l'émet à partir d'une
+      // version RELEVÉE de l'adhésif, teinte conservée
+      const degradeRetro = degrade ? textureRetroeclairee(degrade) : null;
+      if (degradeRetro) this.disposables.push(degradeRetro);
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(degrade ? "#ffffff" : hex),
+        map: degrade ?? null,
+        emissive: degradeRetro
+          ? new THREE.Color("#ffffff")
+          : couleurRetroeclairee(hex),
+        emissiveMap: degradeRetro ?? degrade ?? null,
+        emissiveIntensity: intensite,
+        roughness: 0.5,
+        metalness: 0,
+        // ⚠ La rotation de 180° qui redresse le dessin retourne aussi la
+        // normale d'une surface PLANE : en face avant seule, le plexi de
+        // l'ajourage à plat était éliminé comme face arrière et on ne voyait
+        // rien. Une plaque de plexi se regarde des deux côtés, de toute façon.
+        side: THREE.DoubleSide,
+      });
+      this.disposables.push(mat);
+
+      const geo = relief
+        ? new THREE.ExtrudeGeometry(formes, {
+            depth: z.k > 0 ? saillie / z.k : saillie,
+            bevelEnabled: false,
+            curveSegments: 12,
+          })
+        : new THREE.ShapeGeometry(formes, 12);
+      geo.translate(-z.box.min.x, -z.box.min.y, 0);
+      geo.scale(z.k, z.k, z.k);
+      this.disposables.push(geo);
+
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = Math.PI;
+      // le relevé de zone est repéré depuis le coin haut-gauche du dessin
+      mesh.position.set(-W / 2 + dx, H / 2 - dy, zZone);
+      // seule la découpe rayonne : le mur, si clair soit-il, ne peut pas
+      mesh.layers.enable(CALQUE_LUEUR);
+      this.groupe.add(mesh);
+    }
+  }
+
   private analyserZoneLumineuse(): void {
     const z = this.input.zoneLumineuse;
     if (!z?.svg) {
@@ -1475,10 +1869,25 @@ export class Relief3dScene {
       return;
     }
     try {
+      const moyennes = moyennesDesDegrades(z.svg);
       const data = new SVGLoader().parse(z.svg);
       const shapes: THREE.Shape[] = [];
+      const couleurs: string[] = [];
+      const refsDegrade: (string | null)[] = [];
       for (const path of data.paths) {
-        for (const s of SVGLoader.createShapes(path)) shapes.push(s);
+        const style = (path.userData as { style?: { fill?: string } } | undefined)?.style;
+        const brut = style?.fill;
+        const ref = brut ? /url\(#([^)]+)\)/.exec(brut) : null;
+        const fill = ref
+          ? (moyennes.get(ref[1]) ?? path.color.getHexString())
+          : brut && brut !== "none"
+            ? new THREE.Color(brut).getHexString()
+            : path.color.getHexString();
+        for (const s of SVGLoader.createShapes(path)) {
+          shapes.push(s);
+          couleurs.push(`#${fill}`);
+          refsDegrade.push(ref ? ref[1] : null);
+        }
       }
       if (shapes.length === 0) {
         this.zonesLumineuses = null;
@@ -1493,7 +1902,14 @@ export class Relief3dScene {
       // se déduit de la largeur du dessin d'origine
       const larg = box.max.x - box.min.x;
       const k = larg > 0 ? (z.largeurMm ?? larg * this.contours.k) / larg : 1;
-      this.zonesLumineuses = { shapes, box, k };
+      this.zonesLumineuses = {
+        shapes,
+        couleurs,
+        refsDegrade,
+        degrades: texturesDesDegrades(z.svg, box, k),
+        box,
+        k,
+      };
     } catch {
       this.zonesLumineuses = null;
     }
@@ -1521,6 +1937,7 @@ export class Relief3dScene {
     this.groupe = new THREE.Group();
     this.scene.add(this.groupe);
     if (this.renderPass) this.renderPass.scene = this.scene;
+    for (const passe of this.passesRendu) passe.scene = this.scene;
 
     const W = this.input.wMm;
     const H = this.hauteurRendue;
@@ -1530,7 +1947,17 @@ export class Relief3dScene {
     const deport =
       o.typeEnseigne === "drapeau" ? 0 : o.fixation === "aplat" ? 0 : o.deportMm;
 
-    this.scene.background = new THREE.Color(o.couleurMur).multiplyScalar(0.55);
+    // ⚠ Le FOND de scène se déduit de la couleur du mur : sur un ajourage il
+    // doit être plafonné lui aussi, sinon c'est LUI qui franchit le seuil du
+    // halo et blanchit toute l'image — le mur avait beau être assombri, le
+    // fond restait au-dessus.
+    const fond = new THREE.Color(o.couleurMur).multiplyScalar(0.55);
+    if (estAjourage(o.eclairage)) {
+      const CLARTE_FOND = 0.3;
+      const mf = Math.max(fond.r, fond.g, fond.b);
+      if (mf > CLARTE_FOND) fond.multiplyScalar(CLARTE_FOND / mf);
+    }
+    this.scene.background = fond;
 
     // Une enseigne drapeau a sa propre géométrie : caisson perpendiculaire
     // et potence. Tout le reste — mur, matières, lumières, vues, exports —
@@ -1571,6 +1998,13 @@ export class Relief3dScene {
     });
     this.disposables.push(matTrancheCommune);
 
+    // Ajourage à plat : la tôle est DÉCOUPÉE à l'emplacement du plexi, sinon
+    // elle le masque et rien ne s'allume. Calculé une fois pour toutes les
+    // couleurs du fichier.
+    const perceeAjour =
+      o.eclairage === "ajourageAPlat" ? this.masqueAjourage() : null;
+    if (perceeAjour) this.disposables.push(perceeAjour);
+
     // Décalage infime entre couleurs, dans l'ORDRE DU FICHIER : ce qui est
     // dessiné par-dessus dans Illustrator passe devant en 3D. Douze
     // centièmes de millimètre, invisibles sur une enseigne, mais qui
@@ -1603,6 +2037,9 @@ export class Relief3dScene {
         color: new THREE.Color(hex),
         roughness: 0.45,
         metalness: 0.02,
+        // `alphaTest` seul, sans `transparent` : la tôle reste dans la passe
+        // opaque et se trie donc correctement avec le plexi en retrait
+        ...(perceeAjour ? { alphaMap: perceeAjour, alphaTest: 0.5 } : {}),
       });
       if (o.eclairage === "face") {
         // Lettres lumineuses en façade : c'est la FACE qui émet, la couleur
@@ -1685,6 +2122,9 @@ export class Relief3dScene {
     }
 
     this.construireMur(o, W, H, deport);
+
+    // ---- zone ajourée d'une enseigne à plat ----
+    this.construireZoneAjouree(o, W, H);
 
     // ---- halo de rétroéclairage projeté sur le mur ----
     // Uniquement en rétroéclairé : la source est DERRIÈRE les lettres, sa
@@ -2140,6 +2580,11 @@ export class Relief3dScene {
     const h = canvas.clientHeight || 600;
     this.renderer.setSize(w, h, false);
     this.composer?.setSize(w, h);
+    // ⚠ Les composers du halo sélectif doivent suivre eux aussi : oubliés,
+    // leurs cibles restaient à la taille par défaut (300 x 150) et la lueur
+    // ne ressortait jamais.
+    this.composerLueur?.setSize(w, h);
+    this.composerFinal?.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }

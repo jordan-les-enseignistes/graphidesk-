@@ -29,6 +29,7 @@ import {
 import {
   Relief3dScene,
   RELIEF3D_DEFAUTS,
+  estAjourage,
   VUES,
   MOTIFS_MUR,
   MODES_DRAPEAU,
@@ -97,6 +98,8 @@ const ECLAIRAGE_CHOIX: { v: Eclairage; label: string; icone: React.ElementType }
   { v: "retro", label: "Rétro", icone: Sparkles },
   { v: "rampe", label: "Rampe", icone: Minus },
   { v: "spot", label: "Spots", icone: Lightbulb },
+  { v: "ajourageRelief", label: "Ajour. relief", icone: Scissors },
+  { v: "ajourageAPlat", label: "Ajour. à plat", icone: Square },
 ];
 
 const TEINTES_HALO: [string, string][] = [
@@ -165,15 +168,20 @@ function Segments<T extends string>({
   valeur,
   choix,
   onChange,
+  colonnes,
 }: {
   valeur: T;
   choix: { v: T; label: string; icone: React.ElementType }[];
   onChange: (v: T) => void;
+  /** Au-delà de 5 choix, une seule rangée devient illisible : on répartit. */
+  colonnes?: number;
 }) {
   return (
     <div
       className="grid gap-1 rounded-lg bg-slate-100 dark:bg-slate-800/80 p-1"
-      style={{ gridTemplateColumns: `repeat(${choix.length}, minmax(0, 1fr))` }}
+      style={{
+        gridTemplateColumns: `repeat(${colonnes ?? choix.length}, minmax(0, 1fr))`,
+      }}
     >
       {choix.map((c) => {
         const Icone = c.icone;
@@ -1115,7 +1123,12 @@ export function Relief3dStudio() {
             c'est son intérieur qui s'allume, pas une source extérieure */}
         {opts.typeEnseigne === "lettres" && (
         <Section titre="Éclairage">
-          <Segments valeur={opts.eclairage} choix={ECLAIRAGE_CHOIX} onChange={(v) => maj({ eclairage: v })} />
+          <Segments
+            valeur={opts.eclairage}
+            choix={ECLAIRAGE_CHOIX}
+            colonnes={4}
+            onChange={(v) => maj({ eclairage: v })}
+          />
           {opts.eclairage !== "aucun" && (
             <Curseur
               label="Intensité"
@@ -1124,6 +1137,42 @@ export function Relief3dStudio() {
               max={2}
               pas={0.1}
               onChange={(n) => maj({ haloIntensite: n })}
+            />
+          )}
+          {estAjourage(opts.eclairage) && (
+            <>
+              <Button
+                onClick={recupererZone}
+                disabled={busy || !input || source !== "illustrator"}
+                size="sm"
+                className="w-full gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                Récupérer la zone lumineuse
+              </Button>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                Sélectionne dans Illustrator la partie ajourée — sur l'exemple du
+                « 10ème AVENUE », le texte, le filet et les étoiles, pas le fond du
+                caisson.
+                {input?.zoneLumineuse ? " Zone relevée." : ""}
+              </p>
+              {/* ⚠ Les leds sont blanches, mais l'adhésif est devant : la zone
+                  s'allume aux couleurs du fichier, dégradé compris. Il n'y a donc
+                  PAS de couleur de leds à choisir ici. */}
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                La zone s'allume aux couleurs de ton fichier, dégradé compris —
+                c'est l'adhésif qui teinte la lumière des leds blanches.
+              </p>
+            </>
+          )}
+          {opts.eclairage === "ajourageRelief" && (
+            <Curseur
+              label="Saillie de la zone"
+              valeur={opts.saillieAjourageMm}
+              min={5}
+              max={80}
+              pas={5}
+              onChange={(n) => maj({ saillieAjourageMm: n })}
             />
           )}
           {opts.eclairage === "retro" && (
