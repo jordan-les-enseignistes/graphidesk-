@@ -75,6 +75,18 @@
             blancOk = executeWHITE(doc, params);
         }
 
+        // ===== ÉTAPE 6: ALIGNEMENT DU CONTOUR DE DÉCOUPE =====
+        // L'alignement d'un contour n'est PAS accessible au script Illustrator
+        // (la DOM expose l'extrémité, la jonction, l'épaisseur — pas
+        // l'alignement). On passe donc par une action, seule voie possible.
+        //
+        // ⚠ L'action commence par « Tout sélectionner ». Jouée telle quelle en
+        // fin de traitement, elle écraserait l'épaisseur de contour de TOUT le
+        // document, visuel compris. On VERROUILLE donc tous les calques sauf
+        // CutContour : « Tout sélectionner » ne peut alors attraper que la
+        // découpe. Les états de verrouillage sont restaurés juste après.
+        alignerContourDecoupe(doc, params);
+
         app.redraw();
 
         var msgFin = "🎉 AUTOMATISATION TERMINÉE ! 🎉\n\n" +
@@ -103,6 +115,39 @@
     }
 
     // ===== FONCTIONS =====
+    function alignerContourDecoupe(doc, params) {
+        if (!params || !params.alignCentreActionPath) return;
+        var fichier = new File(params.alignCentreActionPath);
+        if (!fichier.exists) return;
+
+        var etats = [];
+        var i;
+        try {
+            // mémoriser puis verrouiller tout sauf la découpe
+            for (i = 0; i < doc.layers.length; i++) {
+                var lay = doc.layers[i];
+                etats.push({ calque: lay, verrou: lay.locked, cache: lay.visible });
+                var estDecoupe = String(lay.name) === "CutContour";
+                lay.locked = !estDecoupe;
+                if (estDecoupe) lay.visible = true;
+            }
+            doc.selection = null;
+            app.loadAction(fichier);
+            app.doScript("align_centre", "AlignCentre");
+            app.unloadAction("AlignCentre", "");
+        } catch (eA) {
+            // l'action peut manquer sur un poste : le reste du fichier est bon
+        }
+        // restauration, quoi qu'il arrive
+        for (i = 0; i < etats.length; i++) {
+            try {
+                etats[i].calque.locked = etats[i].verrou;
+                etats[i].calque.visible = etats[i].cache;
+            } catch (eR) {}
+        }
+        try { doc.selection = null; } catch (eS) {}
+    }
+
     function prepareLayersStructure(doc) {
         function findLayer(name) {
             for (var i = 0; i < doc.layers.length; i++) {
@@ -362,6 +407,12 @@
                             item.filled = false;
                             item.stroked = true;
                             item.strokeColor = cutColor;
+                            // ⚠ Extrémité PROJETÉE sur le tracé de découpe.
+                            // Avec l'extrémité par défaut (« sans débord »), un
+                            // tracé OUVERT s'arrête net au point final : la lame
+                            // ne va pas jusqu'au bout et la découpe tombe courte
+                            // de la moitié de l'épaisseur du trait à chaque bout.
+                            item.strokeCap = StrokeCap.PROJECTINGENDCAP;
                         } catch (e) {}
                     }
                 }

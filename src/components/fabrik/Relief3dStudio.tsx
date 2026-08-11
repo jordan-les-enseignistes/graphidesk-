@@ -48,14 +48,13 @@ import { ChoixCouleurDialog } from "./ChoixCouleurDialog";
 const ILLUSTRATOR_PATH_KEY = "fabrik_illustrator_path";
 
 /**
- * L'enseigne DRAPEAU (caisson double face) n'est pas finalisée : le moteur
- * existe et fonctionne, mais le rendu n'est pas validé. Tant que ce drapeau
- * vaut `false`, le module ne propose que les lettres relief.
+ * Interrupteur de l'enseigne DRAPEAU (caisson double face).
  *
- * ⚠ Rien n'a été retiré : `drapeau3d.ts`, la section « Caisson » et toute la
- * mécanique restent en place. Repasser à `true` rétablit le choix.
+ * Il a servi à publier les versions 1.7.0 et 1.8.0 sans embarquer le drapeau,
+ * alors que son moteur était déjà dans le dépôt. Le repasser à `false` le
+ * retire de l'interface sans rien supprimer du code.
  */
-const DRAPEAU_PRET = false;
+const DRAPEAU_PRET = true;
 
 interface MetaExport {
   wMm?: number;
@@ -843,7 +842,7 @@ export function Relief3dStudio() {
               valeur={opts.typeEnseigne}
               choix={[
                 { v: "lettres" as const, label: "Lettres relief", icone: Box },
-                { v: "drapeau" as const, label: "Drapeau", icone: Flag },
+                { v: "drapeau" as const, label: "Drapeau (bêta)", icone: Flag },
               ]}
               onChange={(v) => maj({ typeEnseigne: v })}
             />
@@ -852,6 +851,13 @@ export function Relief3dStudio() {
 
         {opts.typeEnseigne === "drapeau" && (
           <Section titre="Caisson">
+            {/* Le drapeau est publié en bêta : le dire À L'ENDROIT où on s'en
+                sert, pas seulement dans les notes de version que personne ne
+                relit au moment de faire un BAT. */}
+            <p className="rounded-md border border-amber-300/60 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1.5 text-[11px] text-amber-800 dark:text-amber-300">
+              Bêta — le rendu du caisson double face est encore en cours de
+              réglage. Vérifie le résultat avant de l'envoyer à un client.
+            </p>
             <select
               value={opts.modeDrapeau}
               onChange={(e) => {

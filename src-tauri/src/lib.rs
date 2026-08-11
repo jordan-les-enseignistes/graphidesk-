@@ -293,6 +293,7 @@ async fn run_illustrator_script(
     let offset_path = actions_dir.join("OffsetSet.aia").to_string_lossy().replace("\\", "/");
     let pathfinder_path = actions_dir.join("PathfinderUnion.aia").to_string_lossy().replace("\\", "/");
     let cutcontour_path = actions_dir.join("CutContour.aia").to_string_lossy().replace("\\", "/");
+    let aligncentre_path = actions_dir.join("AlignCentre.aia").to_string_lossy().replace("\\", "/");
 
     // Parser les params JSON existants et ajouter les chemins d'actions
     let params_with_actions = if params == "{}" || params.is_empty() {
@@ -302,13 +303,15 @@ async fn run_illustrator_script(
     "vectoContourActionPath": "{}",
     "offsetActionPath": "{}",
     "pathfinderUnionActionPath": "{}",
-    "cutContourActionPath": "{}"
+    "cutContourActionPath": "{}",
+    "alignCentreActionPath": "{}"
 }}"#,
             vecto_texte_path,
             vecto_contour_path,
             offset_path,
             pathfinder_path,
-            cutcontour_path
+            cutcontour_path,
+            aligncentre_path
         )
     } else {
         // Insérer les chemins dans les params existants
@@ -316,13 +319,14 @@ async fn run_illustrator_script(
         if params_trimmed.ends_with("}") {
             let without_closing = &params_trimmed[..params_trimmed.len()-1];
             format!(
-                "{},\n    \"vectoTexteActionPath\": \"{}\",\n    \"vectoContourActionPath\": \"{}\",\n    \"offsetActionPath\": \"{}\",\n    \"pathfinderUnionActionPath\": \"{}\",\n    \"cutContourActionPath\": \"{}\"\n}}",
+                "{},\n    \"vectoTexteActionPath\": \"{}\",\n    \"vectoContourActionPath\": \"{}\",\n    \"offsetActionPath\": \"{}\",\n    \"pathfinderUnionActionPath\": \"{}\",\n    \"cutContourActionPath\": \"{}\",\n    \"alignCentreActionPath\": \"{}\"\n}}",
                 without_closing,
                 vecto_texte_path,
                 vecto_contour_path,
                 offset_path,
                 pathfinder_path,
-                cutcontour_path
+                cutcontour_path,
+                aligncentre_path
             )
         } else {
             params
