@@ -16,6 +16,25 @@ l'exécution) et vérifié la logique de parsage hors application.
 3. exiger l'inclusion du premier dans le second, et vérifier que le jeu accordé
    par la capability (`permissions/default.toml`) les couvre.
 
+**Récidive le même jour, en pire.** Ce `npm install` a AUSSI fait monter
+`@tauri-apps/api` de 2.9.1 à 2.11.1 — le discret « changed 1 package » de la
+sortie npm. J'ai retiré le plugin, pas la montée de version. Résultat : la
+construction de la v1.11.0 a échoué en 2 secondes, `tauri build` refusant de
+travailler quand le paquet npm et le crate Rust ne sont pas sur la même mineure
+(2.11.1 contre 2.9.5). En développement ce n'est qu'un AVERTISSEMENT — je
+l'avais vu passer dans les journaux et je ne l'avais pas traité.
+
+**Règles qui en découlent :**
+- lire la sortie de `npm install` : « changed N packages » n'est jamais anodin,
+  vérifier par `git diff package-lock.json` ce qui a bougé d'autre ;
+- `@tauri-apps/api` est verrouillé en version EXACTE sur la version du crate ;
+  les deux moitiés de Tauri se bumpent ENSEMBLE ;
+- un avertissement de version au démarrage de l'app est un échec de release
+  différé : le traiter tout de suite ;
+- avant de pousser un tag : `git clone` du dépôt dans un dossier vierge, puis
+  `npm ci && npm run tauri build`. C'est la SEULE façon de reproduire la CI —
+  une construction locale passe avec un `node_modules` déjà en place.
+
 **Et la leçon de fond** : un `cargo check` vert ne prouve rien sur les commandes
 — elles se résolvent par leur NOM au moment de l'invocation. Un harnais qui
 teste le parsage ne teste pas le transport. Tant que je ne peux pas ouvrir la
