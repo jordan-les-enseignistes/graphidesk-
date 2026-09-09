@@ -45,6 +45,7 @@ import {
   type SavedPhoto,
 } from "@/measure/persistence/projects";
 import { buildPremaquetteSvg, downloadSvg, gdZoneName, gdProjetKey } from "@/measure/engine/svgExport";
+import { ECHELLE_PAR_DEFAUT } from "@/measure/state/types";
 import { roundTo5Mm } from "@/measure/engine/zones";
 import { buildPhotomontagePsd, toBase64 } from "@/measure/engine/psdExport";
 import { DEFAULT_ILLUSTRATOR_PATH } from "@/components/fabrik/types";
@@ -482,7 +483,7 @@ function ProjectDetail({
           p,
           vue?.photo.name ?? project.doc.imageName ?? project.nom,
           vue?.canvas ?? photoCanvas,
-          { vt: true }
+          { vt: true, echelle: project.doc.echelle }
         );
         if (svg) faces.push({ svg, nom: p.name });
       }
@@ -619,6 +620,19 @@ function ProjectDetail({
     const selected = zones.filter((z) => !recaleExcluded.has(z.id));
     if (selected.length === 0) {
       toast.error("Aucune zone sélectionnée");
+      return;
+    }
+    // Le script de recalage raisonne au 1:10. Une maquette exportée à une autre
+    // échelle serait recalée d'un facteur 10 — en silence. Tant que le script
+    // n'est pas rendu paramétrable, on refuse plutôt que de détruire le
+    // fichier du graphiste.
+    const echelleProjet = project.doc.echelle ?? ECHELLE_PAR_DEFAUT;
+    if (echelleProjet !== ECHELLE_PAR_DEFAUT) {
+      toast.error(
+        `Recalage impossible : cette maquette est au 1:${echelleProjet}, et le recalage ne sait travailler qu'au 1:${ECHELLE_PAR_DEFAUT}. ` +
+          "Les cotes VT restent enregistrées — le report est à faire à la main.",
+        { duration: 12000 }
+      );
       return;
     }
     setShowRecaleDialog(false);

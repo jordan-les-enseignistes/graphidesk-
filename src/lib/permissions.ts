@@ -137,6 +137,13 @@ export const PERMISSIONS: PermissionDefinition[] = [
     category: "access",
   },
   {
+    key: "access:suivi_vt",
+    label: "Onglet Suivi VT",
+    description:
+      "Accès au tableau de suivi des visites techniques, partagé avec le prestataire extérieur.",
+    category: "access",
+  },
+  {
     key: "access:ressources",
     label: "Module Kit du graphiste",
     description:

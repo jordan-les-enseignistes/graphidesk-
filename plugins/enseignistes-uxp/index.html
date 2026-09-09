@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="index.js" defer></script>
+  </head>
+  <body>
+
+    <!-- ===================== GÉNÉRATION ===================== -->
+    <div id="generateView">
+      <div class="topbar">
+        <label>Produit :</label>
+        <sp-dropdown id="productSelect" class="control">
+          <sp-menu slot="options"></sp-menu>
+        </sp-dropdown>
+        <sp-button id="btnEdit" variant="secondary" size="s" class="hidden">Modifier</sp-button>
+        <sp-button id="btnCopyBuiltin" variant="secondary" size="s" class="hidden">Modifier</sp-button>
+        <sp-button id="btnReset" variant="secondary" size="s">Réinitialiser</sp-button>
+      </div>
+
+      <div class="topbar hidden" id="subRow">
+        <label>Sous-produit :</label>
+        <sp-dropdown id="subSelect" class="control">
+          <sp-menu slot="options"></sp-menu>
+        </sp-dropdown>
+      </div>
+
+      <div id="fields"></div>
+
+      <div class="preview-label">Aperçu :</div>
+      <div class="preview-wrap">
+        <sp-textarea id="preview"></sp-textarea>
+        <div id="previewGrip" title="Étirer l'aperçu">◢</div>
+      </div>
+
+      <div class="actions">
+        <sp-button id="btnGenerate" variant="cta">Générer</sp-button>
+        <sp-button id="btnPlus" variant="secondary">+1</sp-button>
+      </div>
+
+      <div id="status"></div>
+    </div>
+
+    <!-- ===================== EXPORTER (sélection) ===================== -->
+    <div id="exportView" class="hidden">
+      <div class="view-header">
+        <sp-button id="exBack" variant="secondary" size="s">← Annuler</sp-button>
+        <strong class="grow">Exporter des produits</strong>
+      </div>
+      <div class="note">Coche les produits à exporter :</div>
+      <div id="exportList"></div>
+      <div class="ed-actions">
+        <sp-button id="exDoExport" variant="cta">Exporter la sélection</sp-button>
+      </div>
+      <div id="exStatus"></div>
+    </div>
+
+    <!-- ===================== ÉDITER UN PRODUIT ===================== -->
+    <div id="productView" class="hidden">
+      <div class="view-header">
+        <sp-button id="pvBack" variant="secondary" size="s">← Retour</sp-button>
+        <strong class="grow">Modifier le produit</strong>
+      </div>
+
+      <label>Nom du produit :</label>
+      <sp-textfield id="pvName"></sp-textfield>
+
+      <div class="ed-section">Sous-produits</div>
+      <div id="pvSubs"></div>
+      <sp-button id="pvAddSub" variant="secondary" size="s">+ Nouveau sous-produit</sp-button>
+
+      <div class="ed-actions" style="margin-top:14px;">
+        <sp-button id="pvDelete" variant="secondary" size="s">Supprimer le produit</sp-button>
+      </div>
+      <div id="pvStatus"></div>
+    </div>
+
+    <!-- ===================== ÉDITER UN SOUS-PRODUIT ===================== -->
+    <div id="subView" class="hidden">
+      <div class="view-header">
+        <sp-button id="seBack" variant="secondary" size="s">← Retour</sp-button>
+        <strong class="grow">Modifier le sous-produit</strong>
+      </div>
+
+      <label>Nom du sous-produit :</label>
+      <sp-textfield id="seName"></sp-textfield>
+
+      <sp-checkbox id="seAdvanced">Options avancées (obligatoire, conditions, choix liés)</sp-checkbox>
+
+      <div class="ed-section">Champs</div>
+      <div id="seFields"></div>
+      <sp-button id="seAddField" variant="secondary" size="s">+ Ajouter un champ</sp-button>
+
+      <div class="ed-section">Texte généré</div>
+      <div class="note">Chaque bloc est séparé automatiquement par « - ». Clique une étiquette pour ajouter un bloc, ou « + Texte fixe ». Un bloc dont l'étiquette est vide disparaît. Tu peux mélanger texte et étiquette dans un bloc (ex : « RAL {RAL} »).</div>
+      <div id="seTokens" class="tokens"></div>
+      <div id="seSegments"></div>
+      <sp-button id="seAddSeg" variant="secondary" size="s">+ Texte fixe</sp-button>
+
+      <div class="preview-label">Aperçu :</div>
+      <div id="sePreview"></div>
+
+      <div class="ed-actions">
+        <sp-button id="seSave" variant="cta">Enregistrer</sp-button>
+        <sp-button id="seDelete" variant="secondary" size="s">Supprimer</sp-button>
+        <sp-button id="seResetBuiltin" variant="secondary" size="s" class="hidden">Réinitialiser au modèle de base</sp-button>
+      </div>
+      <div id="seStatus"></div>
+    </div>
+
+  </body>
+</html>

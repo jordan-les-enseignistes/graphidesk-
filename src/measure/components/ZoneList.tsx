@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useMeasureDoc, useMeasureUi } from "../state/store";
 import { formatDims, zoneNom } from "../engine/zones";
+import { ECHELLE_PAR_DEFAUT } from "../state/types";
 import type { Zone } from "../state/types";
 import { buildPremaquetteSvg, downloadSvg } from "../engine/svgExport";
 import { buildPhotomontagePsd, toBase64 } from "../engine/psdExport";
@@ -220,6 +221,8 @@ export function ZoneList() {
   const tool = useMeasureUi((s) => s.tool);
   const setTool = useMeasureUi((s) => s.setTool);
   const allZones = useMeasureDoc((s) => s.zones);
+  const echelle = useMeasureDoc((s) => s.echelle ?? ECHELLE_PAR_DEFAUT);
+  const setEchelle = useMeasureDoc((s) => s.setEchelle);
   const draftZonePts = useMeasureDoc((s) => s.draftZonePts);
   const deleteZone = useMeasureDoc((s) => s.deleteZone);
   const toggleZoneVitrage = useMeasureDoc((s) => s.toggleZoneVitrage);
@@ -307,7 +310,8 @@ export function ZoneList() {
                 s.zones,
                 plane,
                 photoMeta?.name ?? "photo",
-                getOffscreenCanvas(plane.photoId)
+                getOffscreenCanvas(plane.photoId),
+                { echelle }
               );
               if (svg) faces.push({ svg, nom: plane.name });
             }
@@ -351,17 +355,32 @@ export function ZoneList() {
               // fallback : téléchargement classique
               toast.error(`${String(err)} — téléchargement des fichiers à la place`);
               faces.forEach((f, i) =>
-                downloadSvg(f.svg, `premaquette_face_${i + 1}_1-10.svg`)
+                downloadSvg(f.svg, `premaquette_face_${i + 1}_1-${echelle}.svg`)
               );
             }
           }}
         >
           <FileDown className="h-4 w-4" />
-          Ouvrir la prémaquette dans Illustrator (1:10)
+          Ouvrir la prémaquette dans Illustrator (1:{echelle})
         </Button>
       )}
 
       {zones.length > 0 && <PsdExportButton />}
+
+      {zones.length > 0 && (
+        <label className="flex cursor-pointer items-start gap-2 px-0.5 text-[11px] text-gray-500 dark:text-slate-400">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-3 w-3 shrink-0 accent-amber-500"
+            checked={echelle === 100}
+            onChange={(e) => setEchelle(e.target.checked ? 100 : ECHELLE_PAR_DEFAUT)}
+          />
+          <span>
+            <strong>Échelle 1:100e</strong> pour la maquette — pour les très grands bâtiments,
+            qui ne rentrent pas dans le plan de travail Illustrator au 1:10
+          </span>
+        </label>
+      )}
 
       {zones.length > 0 && (
         <div className="rounded bg-slate-50 dark:bg-slate-800/60 p-2 space-y-1 text-[11px] text-gray-500 dark:text-slate-400">

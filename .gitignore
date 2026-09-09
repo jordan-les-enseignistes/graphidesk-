@@ -43,3 +43,4 @@ tmpclaude-*-cwd
 
 # Local test files
 public/FICHIER_TEST_*
+.claude/launch.json

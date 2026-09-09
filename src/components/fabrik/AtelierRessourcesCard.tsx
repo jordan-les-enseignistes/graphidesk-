@@ -13,9 +13,11 @@ import {
   Eraser,
   FolderPlus,
   HardDriveDownload,
+  ListTree,
   Plus,
   RefreshCw,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { useHasPermission } from "@/hooks/useHasPermission";
 import { useAuthStore } from "@/stores/authStore";
@@ -26,6 +28,13 @@ import {
   useAddRessource,
   useDeleteRessource,
   useInstallerRessource,
+  useEntreesArchive,
+  useRemplacerFichier,
+  extraireElement,
+  reperesIdentite,
+  ressourcePersonnalisable,
+  estExclu,
+  type EntreeArchive,
   useDesinstallerRessource,
   useTelechargerRessource,
   useSupprimerPerimees,
@@ -59,6 +68,61 @@ const CATEGORIES: RessourceCategorie[] = [
   "autre",
 ];
 
+/**
+ * Contenu d'un squelette : chaque fichier livrable seul. Composant à part
+ * parce qu'il porte sa propre requête — une ligne de tableau ne peut pas.
+ */
+function ContenuArchive({
+  r,
+  reperes,
+  exclu,
+  occupe,
+  onChoisir,
+}: {
+  r: AtelierRessource;
+  reperes: string[];
+  exclu: (chemin: string) => boolean;
+  occupe: boolean;
+  onChoisir: (e: EntreeArchive) => void;
+}) {
+  const { data: entrees, isFetching } = useEntreesArchive(r, reperes);
+  return (
+    <div className="mt-2 space-y-1 border-t border-slate-200 pt-2 dark:border-slate-700">
+      <p className="text-[11px] text-slate-400 dark:text-slate-500">
+        Clique un fichier pour le récupérer seul, sans déplier tout le dossier.
+      </p>
+      {isFetching && !entrees && (
+        <p className="flex items-center gap-1.5 text-xs text-slate-400">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          Lecture de l'archive…
+        </p>
+      )}
+      {entrees?.map((e) => (
+        <button
+          key={e.chemin}
+          disabled={occupe}
+          onClick={() => onChoisir(e)}
+          className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-700/60"
+        >
+          <Download className="h-3 w-3 shrink-0 text-slate-400" />
+          <span className="truncate">{e.chemin}</span>
+          {e.personnalisable && !exclu(e.chemin) && (
+            <span className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400">
+              à ton nom
+            </span>
+          )}
+          <span className="ml-auto shrink-0 text-[11px] text-slate-400">
+            {tailleLisible(e.taille)}
+          </span>
+        </button>
+      ))}
+      {entrees?.length === 0 && (
+        <p className="text-xs text-slate-400">Cette archive ne contient aucun fichier.</p>
+      )}
+    </div>
+  );
+}
+
 export function AtelierRessourcesCard() {
   const { data: ressources, isLoading } = useAtelierRessources();
   const { data: statuts, refetch: relireStatuts } = useStatutsRessources(ressources);
@@ -86,7 +150,24 @@ export function AtelierRessourcesCard() {
     | { type: "gabarit"; r: AtelierRessource; destination: string }
     | { type: "zip"; r: AtelierRessource; destination: string }
     | { type: "dossier"; r: AtelierRessource; destination: string; nomDossier: string }
+    | { type: "element"; r: AtelierRessource; destination: string; entree: string }
   >(null);
+
+  // Le contenu d'un squelette est visible D'EMBLÉE : c'est ce qu'on vient y
+  // chercher. On garde de quoi le replier pour les listes longues.
+  const [contenuReplie, setContenuReplie] = useState<Set<string>>(new Set());
+  const basculerContenu = (id: string) =>
+    setContenuReplie((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const reperes = reperesIdentite(reference);
+
+  const remplacer = useRemplacerFichier();
+  const remplaceRef = useRef<HTMLInputElement>(null);
+  const [aRemplacer, setARemplacer] = useState<AtelierRessource | null>(null);
 
   const [enCours, setEnCours] = useState<string | null>(null);
   const [addCategorie, setAddCategorie] = useState<RessourceCategorie>("nuancier");
@@ -125,8 +206,12 @@ export function AtelierRessourcesCard() {
     if (!cible) return;
     // Un gabarit InDesign porte une identité : on la met à jour avant livraison.
     if (r.categorie === "gabarit" && reference) {
-      setDemande({ type: "gabarit", r, destination: cible });
-      return;
+      // même règle que dans le squelette : on ne demande que si le fichier
+      // contient réellement une identité à remplacer
+      if (await ressourcePersonnalisable(r, reperes, reference)) {
+        setDemande({ type: "gabarit", r, destination: cible });
+        return;
+      }
     }
     if (r.categorie === "squelette" && reference) {
       setDemande({ type: "zip", r, destination: cible });
@@ -146,9 +231,55 @@ export function AtelierRessourcesCard() {
       let suffixe = "";
       if (remplacements.length) {
         const n = await personnaliserFichier(chemin, remplacements);
-        suffixe = ` — ${n} mention(s) mise(s) à ton nom`;
+        suffixe =
+          n > 0
+            ? ` — ${n} mention(s) mise(s) à ton nom`
+            : " — aucune mention à remplacer dans ce fichier";
       }
       toast.success(`« ${r.nom} » enregistré${suffixe}`, {
+        description: chemin,
+        duration: 8000,
+      });
+    } catch (e) {
+      toast.error(String(e), { duration: 12000 });
+    } finally {
+      setEnCours(null);
+    }
+  };
+
+  /** Un seul fichier du squelette, livré comme s'il était seul en librairie —
+   *  personnalisation comprise pour un gabarit InDesign. */
+  const handleTelechargerElement = async (r: AtelierRessource, e: EntreeArchive) => {
+    const nomFichier = e.chemin.split("/").pop() ?? e.chemin;
+    const cible = await save({ defaultPath: nomFichier, title: `Enregistrer « ${nomFichier} »` });
+    if (!cible) return;
+    // Seul un fichier qui PORTE une identité justifie de demander des
+    // coordonnées : un VT n'en contient aucune.
+    if (e.personnalisable && reference && !estExclu(reference, e.chemin)) {
+      setDemande({ type: "element", r, destination: cible, entree: e.chemin });
+      return;
+    }
+    await livrerElement(r, cible, e.chemin, []);
+  };
+
+  const livrerElement = async (
+    r: AtelierRessource,
+    destination: string,
+    entree: string,
+    remplacements: { avant: string; apres: string }[]
+  ) => {
+    setEnCours(r.id);
+    try {
+      const chemin = await extraireElement({ ressource: r, entree, destination });
+      let suffixe = "";
+      if (remplacements.length) {
+        const n = await personnaliserFichier(chemin, remplacements);
+        suffixe =
+          n > 0
+            ? ` — ${n} mention(s) mise(s) à ton nom`
+            : " — aucune mention à remplacer dans ce fichier";
+      }
+      toast.success(`« ${entree} » enregistré${suffixe}`, {
         description: chemin,
         duration: 8000,
       });
@@ -243,6 +374,8 @@ export function AtelierRessourcesCard() {
       await livrerFichier(d.r, d.destination, remplacements);
     } else if (d.type === "dossier") {
       await livrerDossier(d.r, d.destination, d.nomDossier, remplacements);
+    } else if (d.type === "element") {
+      await livrerElement(d.r, d.destination, d.entree, remplacements);
     } else {
       setEnCours(d.r.id);
       try {
@@ -273,8 +406,9 @@ export function AtelierRessourcesCard() {
     return (
       <div
         key={r.id}
-        className="flex items-start gap-3 rounded border border-slate-200 dark:border-slate-700 px-3 py-2"
+        className="rounded border border-slate-200 dark:border-slate-700 px-3 py-2"
       >
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium dark:text-slate-200 truncate">{r.nom}</span>
@@ -378,6 +512,35 @@ export function AtelierRessourcesCard() {
             </Button>
           )}
 
+          {squelette && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-slate-500"
+              onClick={() => basculerContenu(r.id)}
+              title="Récupérer un seul fichier du dossier"
+            >
+              <ListTree className="h-3.5 w-3.5" />
+              {contenuReplie.has(r.id) ? "Contenu" : "Masquer le contenu"}
+            </Button>
+          )}
+
+          {peutGerer && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-500"
+              disabled={remplacer.isPending}
+              onClick={() => {
+                setARemplacer(r);
+                remplaceRef.current?.click();
+              }}
+              title="Remplacer le fichier de la librairie par une nouvelle version"
+            >
+              <Upload className="h-3.5 w-3.5" />
+            </Button>
+          )}
+
           {peutGerer && (
             <Button
               variant="ghost"
@@ -402,6 +565,17 @@ export function AtelierRessourcesCard() {
           )}
         </div>
       </div>
+
+      {squelette && !contenuReplie.has(r.id) && (
+        <ContenuArchive
+          r={r}
+          reperes={reperes}
+          exclu={(chemin) => estExclu(reference, chemin)}
+          occupe={occupe}
+          onChoisir={(e) => handleTelechargerElement(r, e)}
+        />
+      )}
+      </div>
     );
   };
 
@@ -413,6 +587,37 @@ export function AtelierRessourcesCard() {
       reference={reference ?? null}
       onValider={validerCoordonnees}
       onAnnuler={() => setDemande(null)}
+    />
+    {/* Remplacement du fichier d'une ressource : hors des lignes, une seule
+        entrée cachée sert toutes les ressources. */}
+    <input
+      ref={remplaceRef}
+      type="file"
+      className="hidden"
+      onChange={(e) => {
+        const f = e.target.files?.[0];
+        e.target.value = "";
+        const r = aRemplacer;
+        setARemplacer(null);
+        if (!f || !r) return;
+        if (
+          !window.confirm(
+            `Remplacer le fichier de « ${r.nom} » par « ${f.name} » ?
+
+` +
+              `Toute l'équipe recevra cette version, et GraphiDesk signalera la ` +
+              `mise à jour à ceux qui ont encore l'ancienne.`
+          )
+        )
+          return;
+        remplacer.mutate(
+          { ressource: r, fichier: f },
+          {
+            onSuccess: () => toast.success(`« ${r.nom} » mis à jour dans la librairie`),
+            onError: (err) => toast.error(String(err), { duration: 12000 }),
+          }
+        );
+      }}
     />
     <Card className="p-4 space-y-4">
       <div className="flex items-center justify-between gap-3">

@@ -873,6 +873,114 @@ mod tests_arborescence {
         let deux = vec!["x/a.txt".into(), "y/b.txt".into()];
         assert_eq!(racine_commune_du_zip(&deux), None);
     }
+
+    /// Un squelette dont les trois gabarits portent des identités différentes :
+    /// le BAT du graphiste, un VT qui ne contient qu'un prénom enfoui dans les
+    /// métadonnées d'un logo, et le BAT d'une autre société.
+    fn zip_avec_identite() -> String {
+        use base64::Engine;
+        use std::io::Write;
+        let contenus: [(&str, &[u8]); 3] = [
+            ("BAT_NOMDUDOSSIER.indd", b"bloc contact Jordan NEAU jordan@les-enseignistes.fr"),
+            ("VT/VT_NOMDUDOSSIER.indd", b"%%For: (Jordan JMJCOM) logo importe"),
+            ("DOSSIER MAIRIE/BAT_MAIRIE_NOMDUDOSSIER.indd", b"florent@mr-enseignes.fr"),
+        ];
+        let mut buf = std::io::Cursor::new(Vec::new());
+        {
+            let mut w = zip::ZipWriter::new(&mut buf);
+            let opts: zip::write::FileOptions<()> = zip::write::FileOptions::default();
+            for (nom, contenu) in contenus {
+                w.start_file(nom, opts).unwrap();
+                w.write_all(contenu).unwrap();
+            }
+            w.finish().unwrap();
+        }
+        base64::engine::general_purpose::STANDARD.encode(buf.into_inner())
+    }
+
+    /// Le contenu affiché doit être celui de l'arborescence CRÉÉE : dossier
+    /// racine retiré, séparateurs normalisés — quel que soit l'outil qui a
+    /// fabriqué l'archive.
+    #[test]
+    fn contenu_liste_les_fichiers_sans_le_dossier_racine() {
+        for avec_racine in [false, true] {
+            let entrees = lister_archive(zip_squelette(avec_racine), vec![]).unwrap();
+            let chemins: Vec<&str> = entrees.iter().map(|e| e.chemin.as_str()).collect();
+            assert_eq!(
+                chemins,
+                vec![
+                    "BAT_NOMDUDOSSIER.indd",
+                    "DOSSIER MAIRIE/BAT_MAIRIE_NOMDUDOSSIER.indd",
+                    "VT/VT_NOMDUDOSSIER.indd",
+                ],
+                "archive avec_racine={}",
+                avec_racine
+            );
+            // les dossiers VIDES n'ont rien à livrer à l'unité
+            assert!(entrees.iter().all(|e| !e.chemin.ends_with('/')));
+            assert!(entrees.iter().all(|e| e.taille > 0));
+        }
+    }
+
+    #[test]
+    fn un_seul_fichier_extrait_au_bon_endroit() {
+        for avec_racine in [false, true] {
+            let dossier = std::env::temp_dir().join(format!("gd_extrait_{}", avec_racine));
+            let _ = fs::remove_dir_all(&dossier);
+            let cible = dossier.join("BAT a moi.indd");
+            let ecrit = extraire_entree(
+                zip_squelette(avec_racine),
+                "VT/VT_NOMDUDOSSIER.indd".into(),
+                cible.to_string_lossy().to_string(),
+            )
+            .unwrap();
+            assert_eq!(ecrit, cible.to_string_lossy());
+            assert_eq!(fs::read(&cible).unwrap(), b"contenu factice");
+            // rien d'autre ne doit avoir été déplié
+            let voisins: Vec<_> = fs::read_dir(&dossier).unwrap().collect();
+            assert_eq!(voisins.len(), 1);
+            let _ = fs::remove_dir_all(&dossier);
+        }
+    }
+
+    /// Un VT ou un BAT d'une autre société n'a rien à personnaliser : proposer
+    /// des coordonnées pour n'en rien faire est une fausse promesse.
+    #[test]
+    fn seuls_les_indesign_porteurs_dun_repere_sont_personnalisables() {
+        let reperes = vec!["Jordan NEAU".to_string(), "jordan@les-enseignistes.fr".to_string()];
+        let entrees = lister_archive(zip_avec_identite(), reperes.clone()).unwrap();
+        let par_chemin = |c: &str| {
+            entrees
+                .iter()
+                .find(|e| e.chemin == c)
+                .unwrap_or_else(|| panic!("{} absent", c))
+                .personnalisable
+        };
+        assert!(par_chemin("BAT_NOMDUDOSSIER.indd"), "le BAT porte le nom complet");
+        assert!(!par_chemin("VT/VT_NOMDUDOSSIER.indd"), "le VT ne porte qu'un prénom");
+        assert!(
+            !par_chemin("DOSSIER MAIRIE/BAT_MAIRIE_NOMDUDOSSIER.indd"),
+            "contact d'une autre société"
+        );
+        // sans repère fourni, on ne promet rien
+        assert!(lister_archive(zip_avec_identite(), vec![])
+            .unwrap()
+            .iter()
+            .all(|e| !e.personnalisable));
+    }
+
+    #[test]
+    fn extraction_dune_entree_absente_est_une_erreur_lisible() {
+        let err = extraire_entree(
+            zip_squelette(false),
+            "VT/INEXISTANT.indd".into(),
+            std::env::temp_dir().join("gd_jamais.indd").to_string_lossy().to_string(),
+        )
+        .unwrap_err();
+        assert!(err.contains("introuvable"), "message reçu : {}", err);
+        assert!(!std::env::temp_dir().join("gd_jamais.indd").exists());
+    }
+
 }
 
 
@@ -1090,6 +1198,158 @@ pub fn personnaliser_dossier(
         remplacements: total,
         echecs,
     })
+}
+
+/// Un fichier contenu dans une archive, chemin déjà normalisé.
+#[derive(serde::Serialize)]
+pub struct EntreeArchive {
+    pub chemin: String,
+    pub taille: u64,
+    /// Le fichier porte-t-il une identité à mettre au nom du graphiste ?
+    /// Faux pour un VT ou un BAT d'une autre société : demander des
+    /// coordonnées pour n'en rien faire n'a aucun sens.
+    pub personnalisable: bool,
+}
+
+/// Cherche des repères d'identité dans le contenu brut d'un document.
+///
+/// ⚠ On ne cherche que des repères FORTS — un nom complet, une adresse
+/// e-mail. Un prénom seul se retrouve dans les métadonnées d'un logo importé
+/// (constaté le 09/09/2026 sur VT_.indd : « %%For: (Jordan JMJCOM) »), invisible
+/// dans le document et hors de portée de la recherche InDesign : le prendre
+/// pour un repère ferait proposer une personnalisation sans objet.
+fn contient_repere(octets: &[u8], reperes: &[String]) -> bool {
+    reperes.iter().any(|r| {
+        let r = r.as_bytes();
+        !r.is_empty() && r.len() <= octets.len() && octets.windows(r.len()).any(|f| f == r)
+    })
+}
+
+fn est_indesign(chemin: &str) -> bool {
+    chemin.to_lowercase().ends_with(".indd")
+}
+
+/// Le contenu d'un fichier porte-t-il l'un des repères d'identité ?
+#[tauri::command]
+pub fn identite_presente(contenu_base64: String, reperes: Vec<String>) -> Result<bool, String> {
+    use base64::Engine;
+    let octets = base64::engine::general_purpose::STANDARD
+        .decode(&contenu_base64)
+        .map_err(|e| format!("Contenu illisible : {}", e))?;
+    Ok(contient_repere(&octets, &reperes))
+}
+
+/// Décode le base64 et retire, s'il existe, le dossier racine commun.
+/// La MÊME normalisation que `creer_arborescence` : sans elle, la liste
+/// affichée ne correspondrait pas à l'arborescence effectivement créée.
+fn archive_normalisee(
+    zip_base64: &str,
+) -> Result<(zip::ZipArchive<std::io::Cursor<Vec<u8>>>, Option<String>), String> {
+    use base64::Engine;
+    let octets = base64::engine::general_purpose::STANDARD
+        .decode(zip_base64)
+        .map_err(|e| format!("Archive illisible (base64) : {}", e))?;
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(octets))
+        .map_err(|e| format!("Archive illisible (zip) : {}", e))?;
+    let noms: Vec<String> = (0..archive.len())
+        .filter_map(|i| archive.by_index(i).ok().map(|e| e.name().replace('\\', "/")))
+        .collect();
+    let racine = racine_commune_du_zip(&noms);
+    Ok((archive, racine))
+}
+
+fn chemin_interne(brut: &str, racine: &Option<String>) -> Option<String> {
+    let interne = brut.replace('\\', "/");
+    // garde-fou « zip slip » : une archive piégée écrirait n'importe où
+    if interne.split('/').any(|s| s == ".." || s.contains(':')) {
+        return None;
+    }
+    let sans = match racine {
+        Some(r) => interne.strip_prefix(r).unwrap_or(&interne).to_string(),
+        None => interne,
+    };
+    if sans.trim().is_empty() {
+        None
+    } else {
+        Some(sans)
+    }
+}
+
+/// Liste les FICHIERS d'une archive (les dossiers vides n'ont rien à livrer
+/// à l'unité). Sert au téléchargement d'un élément seul du squelette.
+#[tauri::command]
+pub fn lister_archive(
+    zip_base64: String,
+    reperes: Vec<String>,
+) -> Result<Vec<EntreeArchive>, String> {
+    use std::io::Read;
+    let (mut archive, racine) = archive_normalisee(&zip_base64)?;
+    let mut sortie = Vec::new();
+    for i in 0..archive.len() {
+        let mut entree = archive
+            .by_index(i)
+            .map_err(|e| format!("Entrée {} illisible : {}", i, e))?;
+        if entree.is_dir() {
+            continue;
+        }
+        let taille = entree.size();
+        if let Some(chemin) = chemin_interne(entree.name(), &racine) {
+            let personnalisable = if est_indesign(&chemin) && !reperes.is_empty() {
+                let mut octets = Vec::with_capacity(taille as usize);
+                entree.read_to_end(&mut octets).map_err(|e| {
+                    format!("Lecture de « {} » impossible : {}", chemin, e)
+                })?;
+                contient_repere(&octets, &reperes)
+            } else {
+                false
+            };
+            sortie.push(EntreeArchive {
+                chemin,
+                taille,
+                personnalisable,
+            });
+        }
+    }
+    sortie.sort_by(|a, b| a.chemin.cmp(&b.chemin));
+    Ok(sortie)
+}
+
+/// Extrait UN fichier de l'archive vers `destination` (chemin complet du
+/// fichier à écrire). Permet de récupérer le seul BAT sans déplier tout le
+/// dossier de chantier.
+#[tauri::command]
+pub fn extraire_entree(
+    zip_base64: String,
+    entree: String,
+    destination: String,
+) -> Result<String, String> {
+    use std::io::Read;
+    let (mut archive, racine) = archive_normalisee(&zip_base64)?;
+    for i in 0..archive.len() {
+        let mut e = archive
+            .by_index(i)
+            .map_err(|er| format!("Entrée {} illisible : {}", i, er))?;
+        if e.is_dir() {
+            continue;
+        }
+        match chemin_interne(e.name(), &racine) {
+            Some(c) if c == entree => {
+                let mut octets = Vec::with_capacity(e.size() as usize);
+                e.read_to_end(&mut octets)
+                    .map_err(|er| format!("Lecture de « {} » impossible : {}", entree, er))?;
+                let cible = PathBuf::from(&destination);
+                if let Some(parent) = cible.parent() {
+                    fs::create_dir_all(parent)
+                        .map_err(|er| format!("Dossier {} impossible : {}", parent.display(), er))?;
+                }
+                fs::write(&cible, &octets)
+                    .map_err(|er| format!("Écriture de {} impossible : {}", cible.display(), er))?;
+                return Ok(cible.to_string_lossy().to_string());
+            }
+            _ => {}
+        }
+    }
+    Err(format!("« {} » est introuvable dans l'archive.", entree))
 }
 
 /// Rezippe un dossier (sans l'englober) vers `destination`.

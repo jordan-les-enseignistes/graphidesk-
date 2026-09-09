@@ -75,6 +75,9 @@ export interface Zone {
 }
 
 /** Document de mesure (état UNDOABLE, persisté en localStorage) */
+/** Échelle par défaut de l'atelier : 1:10. */
+export const ECHELLE_PAR_DEFAUT = 10;
+
 export interface MeasureDoc {
   /** Photos du projet, dans l'ordre (v1.5 multi-faces) */
   photos: PhotoMeta[];
@@ -91,6 +94,9 @@ export interface MeasureDoc {
   /** Compteur pour les labels "Zone A", "Zone B"... (jamais décrémenté,
    *  CONTINU sur tout le projet, toutes faces confondues) */
   zoneCounter: number;
+  /** Dénominateur de l'échelle de la maquette : 10 = 1:10, 100 = 1:100.
+   *  Absent sur les projets antérieurs — lire via ECHELLE_PAR_DEFAUT. */
+  echelle?: number;
 }
 
 /** Transform de vue (état NON undoable) */

@@ -11,9 +11,10 @@
 
 import { applyHomography, invertHomography } from "./homography";
 import { roundTo5Mm, zoneNom } from "./zones";
+import { ECHELLE_PAR_DEFAUT } from "../state/types";
 import type { Zone, Plane } from "../state/types";
 
-const SCALE = 10; // 1:10
+// L'échelle par défaut vit avec le document (state/types).
 const MARGIN_MM = 300; // marge autour du dessin, en mm réels
 const TITLE_MM = 500; // hauteur du bloc titre, en mm réels
 const FOND_MARGIN_MM = 0; // le fond colle exactement à l'enveloppe des zones
@@ -112,6 +113,8 @@ export function gdProjetKey(imageName: string): string {
 export interface SvgExportOptions {
   /** true = maquette définitive avec cotes réelles de visite technique */
   vt?: boolean;
+  /** dénominateur de l'échelle : 10 = 1:10 (défaut), 100 = 1:100 */
+  echelle?: number;
 }
 
 /**
@@ -143,6 +146,7 @@ export function buildPremaquetteSvg(
   const planeZones = zones.filter((z) => z.planeId === plane.id);
   if (planeZones.length === 0) return null;
   const isVt = opts?.vt === true;
+  const SCALE = opts?.echelle && opts.echelle > 0 ? opts.echelle : ECHELLE_PAR_DEFAUT;
 
   // auto-correction des calibrations "miroir" (jacobien négatif)
   const H = unmirrorH(plane.H, planeZones[0].corners[0]);
@@ -325,8 +329,8 @@ export function buildPremaquetteSvg(
   // ---- Groupe 2 : tous les TEXTES (titre + cotes) — supprimable en un clic ----
   const dateStr = new Date().toLocaleDateString("fr-FR");
   const title = isVt
-    ? `MAQUETTE — COTES VT du ${dateStr} — échelle 1:10`
-    : "PRÉMAQUETTE PROVISOIRE — échelle 1:10 — cotes arrondies au 5 mm";
+    ? `MAQUETTE — COTES VT du ${dateStr} — échelle 1:${SCALE}`
+    : `PRÉMAQUETTE PROVISOIRE — échelle 1:${SCALE} — cotes arrondies au 5 mm`;
   const subtitle = isVt
     ? `Cotes réelles saisies après visite technique — photo : ${imageName}`
     : `Référence : ${plane.reference.widthMm} × ${plane.reference.heightMm} mm — photo : ${imageName} — À CONFIRMER EN VISITE TECHNIQUE`;

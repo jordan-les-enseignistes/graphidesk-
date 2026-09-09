@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { temporal } from "zundo";
 import { measureQuad } from "../engine/zones";
+import { ECHELLE_PAR_DEFAUT } from "./types";
 import type { MeasureDoc, ViewTransform, LoadedImage, PhotoMeta, Plane, Pt, H, Reference, Zone } from "./types";
 
 /** Index → lettre illimitée (A..Z, AA, AB...) — remplace le modulo 26 qui
@@ -32,6 +33,7 @@ function makeInitialDoc(): MeasureDoc {
     draftZonePts: [],
     zoneCounter: 0,
     imageName: null,
+    echelle: ECHELLE_PAR_DEFAUT,
   };
 }
 
@@ -131,6 +133,9 @@ interface DocActions {
   setZoneDims: (id: string, wMm: number, hMm: number) => void;
   /** Revient à l'estimation photo d'origine d'une zone — undoable */
   resetZoneDims: (id: string) => void;
+  /** Échelle de la maquette (10 = 1:10, 100 = 1:100). Hors historique : c'est
+   *  un réglage d'export, l'annulation doit porter sur le dessin. */
+  setEchelle: (echelle: number) => void;
 }
 
 export const useMeasureDoc = create<MeasureDoc & DocActions>()(
@@ -327,6 +332,8 @@ export const useMeasureDoc = create<MeasureDoc & DocActions>()(
           };
         }),
 
+      setEchelle: (echelle) => set({ echelle }),
+
       setZoneNom: (id, nom) =>
         set((s) => ({
           zones: s.zones.map((z) =>
@@ -396,6 +403,7 @@ export const useMeasureDoc = create<MeasureDoc & DocActions>()(
         draftZonePts: state.draftZonePts,
         zoneCounter: state.zoneCounter,
         imageName: state.imageName,
+        echelle: state.echelle,
       }),
     }
   )

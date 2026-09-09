@@ -181,6 +181,64 @@ fn read_temp_binary(file_name: String) -> Result<String, String> {
     Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
 }
 
+
+/// Reponse brute d'une page publique Google, telle que le webview ne peut pas
+/// l'obtenir lui-meme (Google n'autorise pas le CORS sur ces adresses).
+#[derive(serde::Serialize)]
+struct ReponseWeb {
+    statut: u16,
+    type_contenu: String,
+    corps: String,
+}
+
+/// Recupere une page publique de docs.google.com (onglet Suivi VT).
+///
+/// Trois garde-fous volontaires :
+/// - l'adresse est bornee a docs.google.com : cette commande ne doit pas
+///   pouvoir servir de passe-plat vers n'importe quel site ;
+/// - un delai maximum, sans quoi une requete qui n'aboutit jamais laisserait
+///   l'interface en chargement perpetuel (constate le 09/09/2026) ;
+/// - les echecs sont journalises cote Rust, donc lisibles sans ouvrir les
+///   outils de developpement.
+#[tauri::command]
+async fn lire_page_google(url: String) -> Result<ReponseWeb, String> {
+    const PREFIXE: &str = "https://docs.google.com/";
+    if !url.starts_with(PREFIXE) {
+        return Err(format!("Adresse refusee (hors {}) : {}", PREFIXE, url));
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| format!("Client HTTP indisponible : {}", e))?;
+    let reponse = client.get(&url).send().await.map_err(|e| {
+        eprintln!("[suivi-vt] echec reseau sur {} : {}", url, e);
+        format!("Le document n'a pas pu etre contacte : {}", e)
+    })?;
+    let statut = reponse.status().as_u16();
+    let type_contenu = reponse
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let corps = reponse.text().await.map_err(|e| {
+        eprintln!("[suivi-vt] lecture du corps impossible sur {} : {}", url, e);
+        format!("Reponse illisible : {}", e)
+    })?;
+    eprintln!(
+        "[suivi-vt] {} -> {} ({}, {} octets)",
+        url,
+        statut,
+        type_contenu,
+        corps.len()
+    );
+    Ok(ReponseWeb {
+        statut,
+        type_contenu,
+        corps,
+    })
+}
+
 // Ouvre un fichier avec une application donnée (Photoshop, etc.)
 #[tauri::command]
 fn open_file_with(app_path: String, file_path: String) -> Result<(), String> {
@@ -389,7 +447,38 @@ fn resolve_assets_dir(app: &tauri::AppHandle, sub: &str) -> Result<std::path::Pa
 }
 
 const UPIA_PATH: &str = r"C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe";
-const COTES_BAT_PLUGIN_ID: &str = "com.izy.cotesbat";
+
+/// Une extension UXP livrée avec GraphiDesk.
+///
+/// Les deux outils InDesign de l'atelier sont de même nature — c'est la
+/// remarque de Jordan du 09/09/2026 : « c'est pareil en soi ». Ils sont donc
+/// décrits ici, et tout le reste (état, installation, désinstallation) les
+/// traite indifféremment.
+struct PluginUxp {
+    id: &'static str,
+    nom: &'static str,
+    fichier: &'static str,
+}
+
+const PLUGINS_UXP: &[PluginUxp] = &[
+    PluginUxp {
+        id: "com.izy.cotesbat",
+        nom: "Cotes BAT",
+        fichier: "Cotes-BAT.ccx",
+    },
+    PluginUxp {
+        id: "com.izy.enseignistes",
+        nom: "Rédaction des BAT",
+        fichier: "BAT-Enseignistes.ccx",
+    },
+];
+
+fn plugin_par_id(id: &str) -> Result<&'static PluginUxp, String> {
+    PLUGINS_UXP
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("Extension inconnue : {}", id))
+}
 
 fn uxp_registry_path() -> Result<std::path::PathBuf, String> {
     let appdata = env::var("APPDATA").map_err(|_| "Variable APPDATA introuvable".to_string())?;
@@ -401,15 +490,43 @@ fn uxp_registry_path() -> Result<std::path::PathBuf, String> {
         .join("ID.json"))
 }
 
-// Versions du plugin Cotes BAT enregistrées dans le registre UXP d'InDesign
-fn installed_plugin_versions() -> Vec<String> {
+/// Version livrée, lue DANS le .ccx.
+///
+/// ⚠ Elle était auparavant recopiée dans un `version.txt` à tenir à jour à la
+/// main. Un fichier qui doit rester synchrone avec un autre finit toujours par
+/// diverger : le manifeste du paquet est la seule source qui ne peut pas mentir.
+fn version_embarquee(ccx: &std::path::Path) -> Result<String, String> {
+    let fichier = fs::File::open(ccx)
+        .map_err(|e| format!("Extension introuvable ({}) : {}", ccx.display(), e))?;
+    let mut archive = zip::ZipArchive::new(fichier)
+        .map_err(|e| format!("Paquet illisible ({}) : {}", ccx.display(), e))?;
+    let mut manifeste = archive
+        .by_name("manifest.json")
+        .map_err(|e| format!("manifest.json absent du paquet : {}", e))?;
+    let mut texte = String::new();
+    {
+        use std::io::Read;
+        manifeste
+            .read_to_string(&mut texte)
+            .map_err(|e| format!("manifest.json illisible : {}", e))?;
+    }
+    let json: serde_json::Value =
+        serde_json::from_str(&texte).map_err(|e| format!("manifest.json invalide : {}", e))?;
+    json.get("version")
+        .and_then(|v| v.as_str())
+        .map(|v| v.to_string())
+        .ok_or_else(|| "manifest.json sans version".to_string())
+}
+
+/// Versions d'une extension enregistrées dans le registre UXP d'InDesign.
+fn versions_installees(id: &str) -> Vec<String> {
     let mut out = Vec::new();
     let Ok(reg) = uxp_registry_path() else { return out };
     let Ok(txt) = fs::read_to_string(&reg) else { return out };
     let Ok(json) = serde_json::from_str::<serde_json::Value>(&txt) else { return out };
     if let Some(plugins) = json.get("plugins").and_then(|p| p.as_array()) {
         for p in plugins {
-            if p.get("pluginId").and_then(|v| v.as_str()) == Some(COTES_BAT_PLUGIN_ID) {
+            if p.get("pluginId").and_then(|v| v.as_str()) == Some(id) {
                 if let Some(v) = p.get("versionString").and_then(|v| v.as_str()) {
                     out.push(v.to_string());
                 }
@@ -417,6 +534,57 @@ fn installed_plugin_versions() -> Vec<String> {
         }
     }
     out
+}
+
+/// Retire du registre UXP — et du disque — toutes les versions d'une extension
+/// sauf, éventuellement, celle à conserver.
+///
+/// ⚠ UPIA laisse cohabiter plusieurs versions ; InDesign charge alors la plus
+/// ancienne et les mises à jour semblent ne jamais prendre. Ce ménage est donc
+/// indispensable après une installation — et c'est exactement le geste d'une
+/// désinstallation, à ceci près qu'on ne garde rien.
+fn purger_versions(id: &str, garder: Option<&str>) -> usize {
+    let mut retirees = 0;
+    let Ok(reg) = uxp_registry_path() else { return 0 };
+    let Ok(txt) = fs::read_to_string(&reg) else { return 0 };
+    let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&txt) else { return 0 };
+    if let Some(plugins) = json.get_mut("plugins").and_then(|p| p.as_array_mut()) {
+        // ⚠ UPIA inscrit parfois DEUX FOIS la même version, au même chemin.
+        // GraphiDesk lisait alors « v0.7.0 + v0.7.0 installée » et proposait
+        // une mise à jour sans fin : réinstaller ajoutait un doublon de plus
+        // au lieu d'en retirer. On ne garde donc qu'UNE entrée.
+        let mut deja_gardee = false;
+        plugins.retain(|p| {
+            if p.get("pluginId").and_then(|v| v.as_str()) != Some(id) {
+                return true;
+            }
+            let version = p.get("versionString").and_then(|v| v.as_str());
+            if version == garder && !deja_gardee {
+                deja_gardee = true;
+                return true;
+            }
+            // ⚠ Un doublon pointe sur le MÊME dossier que l'entrée conservée :
+            // n'effacer le dossier que s'il appartient à une autre version.
+            if version != garder {
+                if let (Some(v), Some(uxp)) = (
+                    version,
+                    reg.parent().and_then(|p| p.parent()).and_then(|p| p.parent()),
+                ) {
+                    let dossier = uxp
+                        .join("Plugins")
+                        .join("External")
+                        .join(format!("{}_{}", id, v));
+                    let _ = fs::remove_dir_all(dossier);
+                }
+            }
+            retirees += 1;
+            false
+        });
+        if let Ok(new_txt) = serde_json::to_string_pretty(&json) {
+            let _ = fs::write(&reg, new_txt);
+        }
+    }
+    retirees
 }
 
 // CREATE_NO_WINDOW : sans ce flag, lancer un programme console (tasklist,
@@ -444,51 +612,65 @@ fn indesign_is_running() -> bool {
 
 #[derive(serde::Serialize)]
 struct IndesignPluginStatus {
+    id: String,
+    nom: String,
     embedded_version: String,
     installed_versions: Vec<String>,
     indesign_running: bool,
     upia_available: bool,
 }
 
-// État du plugin : version livrée avec GraphiDesk vs versions installées.
+// État des extensions : version livrée avec GraphiDesk vs versions installées.
 // ⚠️ async : une commande SYNCHRONE s'exécute sur le thread principal de
 // l'app et `tasklist` peut prendre plusieurs secondes → fenêtre gelée
 // (clics mis en file par Windows et rejoués après).
 #[tauri::command]
-async fn get_indesign_plugin_status(app: tauri::AppHandle) -> Result<IndesignPluginStatus, String> {
+async fn get_indesign_plugin_status(
+    app: tauri::AppHandle,
+) -> Result<Vec<IndesignPluginStatus>, String> {
     let assets = resolve_assets_dir(&app, "indesign")?;
-    let embedded_version = fs::read_to_string(assets.join("version.txt"))
-        .map_err(|e| format!("version.txt du plugin introuvable : {}", e))?
-        .trim()
-        .to_string();
-    Ok(IndesignPluginStatus {
-        embedded_version,
-        installed_versions: installed_plugin_versions(),
-        indesign_running: indesign_is_running(),
-        upia_available: std::path::Path::new(UPIA_PATH).exists(),
-    })
+    let indesign_running = indesign_is_running();
+    let upia_available = std::path::Path::new(UPIA_PATH).exists();
+    let mut sortie = Vec::new();
+    for p in PLUGINS_UXP {
+        // une extension absente des assets ne doit pas masquer les autres
+        let Ok(embedded_version) = version_embarquee(&assets.join(p.fichier)) else {
+            continue;
+        };
+        sortie.push(IndesignPluginStatus {
+            id: p.id.to_string(),
+            nom: p.nom.to_string(),
+            embedded_version,
+            installed_versions: versions_installees(p.id),
+            indesign_running,
+            upia_available,
+        });
+    }
+    Ok(sortie)
 }
 
-// Installe (ou met à jour) le plugin via UPIA puis purge les anciennes
-// versions du registre UXP (UPIA laisse les doublons -> InDesign charge
-// la plus ancienne et les mises à jour semblent ne jamais prendre).
+// Installe (ou met à jour) une extension via UPIA, puis purge les anciennes
+// versions du registre UXP.
 #[tauri::command]
-async fn install_indesign_plugin(app: tauri::AppHandle) -> Result<String, String> {
+async fn install_indesign_plugin(app: tauri::AppHandle, id: String) -> Result<String, String> {
+    let plugin = plugin_par_id(&id)?;
     if indesign_is_running() {
-        return Err("Ferme InDesign avant d'installer le plugin (sinon l'ancienne version resterait chargée).".into());
+        return Err(format!(
+            "Ferme InDesign avant d'installer « {} » (sinon l'ancienne version resterait chargée).",
+            plugin.nom
+        ));
     }
     if !std::path::Path::new(UPIA_PATH).exists() {
-        return Err("Installateur Adobe (UPIA) introuvable — Creative Cloud est-il installé ?".into());
+        return Err(
+            "Installateur Adobe (UPIA) introuvable — Creative Cloud est-il installé ?".into(),
+        );
     }
     let assets = resolve_assets_dir(&app, "indesign")?;
-    let ccx = assets.join("Cotes-BAT.ccx");
+    let ccx = assets.join(plugin.fichier);
     if !ccx.exists() {
-        return Err(format!("Plugin introuvable : {}", ccx.display()));
+        return Err(format!("Extension introuvable : {}", ccx.display()));
     }
-    let embedded = fs::read_to_string(assets.join("version.txt"))
-        .map_err(|e| format!("version.txt introuvable : {}", e))?
-        .trim()
-        .to_string();
+    let embedded = version_embarquee(&ccx)?;
 
     let output = hidden_command(UPIA_PATH)
         .arg("/install")
@@ -507,43 +689,35 @@ async fn install_indesign_plugin(app: tauri::AppHandle) -> Result<String, String
         ));
     }
 
-    // purge des anciennes versions (registre + dossiers)
-    if let Ok(reg) = uxp_registry_path() {
-        if let Ok(txt) = fs::read_to_string(&reg) {
-            if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&txt) {
-                if let Some(plugins) = json.get_mut("plugins").and_then(|p| p.as_array_mut()) {
-                    plugins.retain(|p| {
-                        let is_old = p.get("pluginId").and_then(|v| v.as_str())
-                            == Some(COTES_BAT_PLUGIN_ID)
-                            && p.get("versionString").and_then(|v| v.as_str())
-                                != Some(embedded.as_str());
-                        if is_old {
-                            // supprimer le dossier de la vieille version
-                            if let Some(v) = p.get("versionString").and_then(|v| v.as_str()) {
-                                if let Some(ext_dir) = reg
-                                    .parent() // v1
-                                    .and_then(|p| p.parent()) // PluginsInfo
-                                    .and_then(|p| p.parent()) // UXP
-                                {
-                                    let folder = ext_dir
-                                        .join("Plugins")
-                                        .join("External")
-                                        .join(format!("{}_{}", COTES_BAT_PLUGIN_ID, v));
-                                    let _ = fs::remove_dir_all(folder);
-                                }
-                            }
-                        }
-                        !is_old
-                    });
-                    if let Ok(new_txt) = serde_json::to_string_pretty(&json) {
-                        let _ = fs::write(&reg, new_txt);
-                    }
-                }
-            }
-        }
-    }
-
+    purger_versions(plugin.id, Some(embedded.as_str()));
     Ok(embedded)
+}
+
+/// Retire une extension du poste : registre UXP et dossiers.
+///
+/// ⚠ Comme l'installation, exige InDesign fermé : le registre est relu au
+/// démarrage, et retirer une extension chargée laisserait un panneau fantôme.
+#[tauri::command]
+async fn desinstaller_plugin_indesign(id: String) -> Result<String, String> {
+    let plugin = plugin_par_id(&id)?;
+    if indesign_is_running() {
+        return Err(format!(
+            "Ferme InDesign avant de désinstaller « {} ».",
+            plugin.nom
+        ));
+    }
+    let versions = versions_installees(plugin.id);
+    if versions.is_empty() {
+        return Err(format!(
+            "« {} » n'est pas installée sur ce poste.",
+            plugin.nom
+        ));
+    }
+    let retirees = purger_versions(plugin.id, None);
+    Ok(format!(
+        "« {} » retirée de ce poste ({} version(s)).",
+        plugin.nom, retirees
+    ))
 }
 
 // Obtenir le chemin des assets FabRik
@@ -583,6 +757,7 @@ pub fn run() {
     builder
         .invoke_handler(tauri::generate_handler![
             set_minimize_on_close,
+            lire_page_google,
             get_minimize_on_close,
             quit_app,
             get_illustrator_path,
@@ -599,6 +774,7 @@ pub fn run() {
             focus_main_window,
             get_indesign_plugin_status,
             install_indesign_plugin,
+            desinstaller_plugin_indesign,
             open_file_with,
             ressources::statut_ressource,
             ressources::installer_ressource,
@@ -608,7 +784,10 @@ pub fn run() {
             ressources::zipper_dossier,
             ressources::dossier_temporaire,
             ressources::supprimer_ressources_perimees,
-            ressources::creer_arborescence
+            ressources::creer_arborescence,
+            ressources::lister_archive,
+            ressources::identite_presente,
+            ressources::extraire_entree
         ])
         .setup(|app| {
             // Créer le menu du tray

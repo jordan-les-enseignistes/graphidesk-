@@ -1,6 +1,6 @@
 [package]
 name = "graphidesk"
-version = "1.9.0"
+version = "1.11.0"
 description = "Application de suivi des dossiers graphistes - Les Enseignistes"
 authors = ["Les Enseignistes"]
 license = "UNLICENSED"
@@ -33,3 +33,12 @@ tauri-plugin-updater = "2.9.0"
 tauri-plugin-single-instance = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
+# lecture des pages publiques Google (onglet Suivi VT). Requete faite ICI et
+# non depuis le webview : le CORS l'interdit cote navigateur, et un appel Rust
+# se journalise et se borne dans le temps, ce qu'un plugin ne permettait pas.
+reqwest = { version = "0.12", default-features = false, features = [
+  "rustls-tls",
+  "gzip",
+  "brotli",
+  "charset",
+] }

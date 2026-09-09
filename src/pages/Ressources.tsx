@@ -24,11 +24,11 @@ export default function Ressources() {
 
       <AtelierRessourcesCard />
 
-      {/* Le plugin InDesign suit son propre canal (il voyage avec la version de
-          GraphiDesk), mais sa place est ici : c'est la même étape d'équipement. */}
-      <div className="max-w-md">
-        <IndesignPluginCard />
-      </div>
+      {/* Les extensions suivent leur propre canal (elles voyagent avec la
+          version de GraphiDesk), mais leur place est ici : c'est la même étape
+          d'équipement. Pleine largeur, comme le reste du Kit — bridée, la carte
+          débordait et créait un défilement horizontal. */}
+      <IndesignPluginCard />
     </div>
   );
 }

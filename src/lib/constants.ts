@@ -61,6 +61,7 @@ export const ROUTES = {
   FRANCHISES: "/franchises",
   PROJETS_INTERNES: "/projets-internes",
   STATISTIQUES: "/statistiques",
+  SUIVI_VT: "/suivi-vt",
   // Mes outils
   FABRIK: "/fabrik",
   HEURES_SUPPLEMENTAIRES: "/heures-supplementaires",

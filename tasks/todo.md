@@ -354,3 +354,163 @@ Corrigés en route et à conserver : les composers doivent être redimensionnés
 (sinon cibles à 300x150) et la texture de lueur relue à chaque image
 (`setSize` recrée les cibles) ; il faut aussi une `OutputPass` finale, sans
 quoi toute l'image sort assombrie (mur à 133 au lieu de 200).
+
+## Onglet « Suivi VT » — Google Sheet intégré (09/09/2026)
+Objectif Jordan : consulter et MODIFIER le tableau partagé avec le prestataire
+sans quitter GraphiDesk. Doc en « tout le monde avec le lien → Éditeur »,
+édition anonyme acceptée (décision Jordan).
+
+Vérifié AVANT de coder, pas supposé :
+- Google n'interdit pas l'intégration : l'éditeur Sheets ne renvoie NI
+  `X-Frame-Options` NI `frame-ancestors`. Cadre chargé sans erreur de blocage.
+- Ce qui bloquait était NOTRE CSP (`default-src 'self'`, pas de `frame-src`).
+- LIMITE trouvée à l'essai : Sheets ouvre un sous-cadre `contacts.google.com`
+  que Google refuse d'afficher ailleurs que chez lui → le partage et les
+  mentions @ ne marcheront pas dans l'app. D'où le bouton « Ouvrir dans le
+  navigateur », qui n'est pas décoratif.
+
+Fait :
+- `frame-src https://docs.google.com` ajouté à la CSP, rien d'autre.
+- Page SuiviVt.tsx, route, entrée dans « Gestion de projet », permission
+  `access:suivi_vt` (admin + graphiste).
+- URL rangée dans `app_settings.suivi_vt_url` — changer de document ne doit
+  pas demander une version.
+
+RESTE — l'inconnue qui décide de tout : dans un cadre, les cookies Google sont
+TIERS. L'éditeur peut s'afficher et refuser d'enregistrer. À prouver dans la
+vraie webview Tauri : Jordan tape une valeur, et on relit le document côté
+Drive pour confirmer l'enregistrement (empreinte avant l'essai : document VIDE).
+
+## Suivi VT — lecture dans GraphiDesk + bouton navigateur (09/09/2026)
+
+Décision : l'édition intégrée est un cul-de-sac (Google bloque les navigateurs
+embarqués, politique assumée). Les gestionnaires de pose n'ont pas GraphiDesk :
+la saisie DOIT rester dans le Sheet. GraphiDesk affiche donc le tableau en
+LECTURE, et un bouton renvoie au navigateur pour modifier.
+
+Mécanismes vérifiés le 09/09 sur un document public réel :
+- [x] Noms des onglets : page `/edit` récupérée en anonyme, motif
+      `docs-sheet-tab-caption">NOM` (le bandeau d'onglets est dans le HTML servi)
+- [x] Données d'un onglet : `gviz/tq?tqx=out:csv&sheet=NOM` → 200 text/csv,
+      anonyme, CSV correct (colonnes vides en queue à rogner)
+- [x] CORS : impossible depuis le webview → passage par `tauri-plugin-http`,
+      limité par capability au seul `https://docs.google.com/*`
+
+Tâches :
+- [x] tauri-plugin-http (Cargo + npm + capability scopée)
+- [x] Retirer `ouvrir_fenetre_web` (fenêtre dédiée : échec prouvé, code mort)
+- [x] Page Suivi VT : onglets, tableau, recherche, rafraîchir, bouton navigateur
+- [x] Message clair si le document n'est pas partagé « tout le monde avec le lien »
+- [x] Bump 1.9.0 → 1.10.0
+
+Vérifié par harnais jetable (supprimé) sur un document public réel :
+analyse CSV correcte sur 31 lignes, 22 colonnes fantômes rognées, guillemets
+doublés / virgules et sauts de ligne internes préservés.
+RESTE À CONFIRMER sur le vrai document : la liste des onglets (testée sur un
+document mono-onglet seulement). Repli déjà en place : onglet actif affiché.
+
+### Suite du 09/09 — chargement sans fin, puis vrai document
+
+`tauri-plugin-http` a d'abord planté (commande absente : versions Rust/JS
+désaccordées), puis, une fois accordées, sa promesse de requête ne se terminait
+JAMAIS : écran « Lecture du tableau » perpétuel, aucune trace dans le journal.
+Plutôt que de continuer à sonder une boîte noire, le plugin a été retiré au
+profit d'une commande Rust maison `lire_page_google` :
+  - adresse bornée à docs.google.com (pas de passe-plat vers le web) ;
+  - délai maximum de 20 s : un blocage devient une erreur affichée ;
+  - chaque appel journalisé (`[suivi-vt] url -> statut (type, octets)`), donc
+    diagnosticable sans ouvrir les outils de développement du webview.
+⚠ La cause du blocage du plugin n'a PAS été identifiée — le composant a été
+supprimé, pas réparé.
+
+Durcissement de la page : plus aucun chemin ne laisse l'écran en chargement
+(adresse mal formée, onglet indéterminé).
+
+Vérifié sur le VRAI document (1MHnyUgpuOmGOWTaacLz4iH8XE-ohOyK-, un .xlsx
+déposé dans Drive et non une feuille native — les points d'accès répondent
+malgré tout) :
+- 5 onglets détectés : Mode d'emploi, Suivi VT, Anomalies, Tableau de bord, Listes
+- les 5 renvoient leurs données en CSV (200), apostrophe comprise
+- réglage `suivi_vt_url` basculé sur ce document
+- dernier onglet consulté mémorisé, pour ne pas rouvrir sur « Mode d'emploi »
+
+## Export de la maquette au 1:100e (09/09/2026)
+
+Demande de Quentin : les grands bâtiments ne rentrent pas dans le plan de
+travail Illustrator au 1:10.
+
+⚠ Piège trouvé AVANT de coder : l'échelle n'est pas une simple option
+d'export. `recale_vt.jsx` divise par 10 EN DUR (cible absolue + garde-fou de
+dérive). Une maquette exportée au 1:100 serait donc recalée dix fois trop
+grande à la suite VT. L'échelle doit voyager de l'export jusqu'au recalage.
+
+- [x] `svgExport.ts` : `SCALE` devient une option (`echelle`, défaut 10) —
+      tout passe déjà par `u()`, la propagation est acquise
+- [x] Titre du SVG : « échelle 1:N » au lieu du 1:10 écrit en dur
+- [x] `MeasureDoc.echelle?: number` — persisté avec le projet, donc disponible
+      à la suite VT sans migration (le doc est déjà sérialisé)
+- [x] Case « Échelle 1:100e » sous « Générer le PSD photomontage », libellé du
+      bouton prémaquette mis à jour
+- [~] `recale_vt.jsx` : ÉCARTÉ par Jordan le 09/09 (« on ignore la partie
+      importation et rescale après VT, ça reste hyper rare »). À la place, la
+      suite VT REFUSE le recalage d'une maquette qui n'est pas au 1:10, avec
+      un message explicite : les cotes VT restent enregistrées, le report se
+      fait à la main. Mieux vaut un refus lisible qu'un fichier détruit d'un
+      facteur 10 en silence.
+- [x] Harnais hors-ligne avant de livrer : vérifier les cotes obtenues aux
+      deux échelles (cf. [[feedback-preuve-avant-ship]])
+
+Preuve (harnais jetable, supprimé) sur une zone de 4000 × 2000 mm :
+| échelle | page | rectangle de la zone |
+|---|---|---|
+| 1:10 | 460 × 310 mm | 400 × 200 |
+| 1:100 | 46 × 31 mm | 40 × 20 |
+Rapport exactement décuplé, titre du document conforme à l'échelle.
+
+## Kit du graphiste — nouveaux BAT/VT + livraison à l'unité (09/09/2026)
+
+Vérifications AVANT de coder :
+- Nouveau `BAT_.indd` : « Jordan NEAU » ×8 et son mail ×8 → personnalisable
+  tel quel. Les repères « xxxx XXXX » que j'avais introduits ne servent plus.
+- `VT_.indd` : aucune identité. Le seul « Jordan » est dans les métadonnées
+  d'un logo Illustrator importé, hors de portée de la recherche InDesign.
+- `BAT_MR.indd` : seulement `florent@mr-enseignes.fr` → à NE PAS personnaliser
+  (contact MR ENSEIGNES, même règle que les commerciaux). À confirmer.
+- Zip : reconstruit à partir du squelette d'ORIGINE. Comparaison fichier par
+  fichier — seuls BAT_ et VT_ diffèrent, `BAT_MAIRIE_.indd` est identique à
+  l'octet près et se retrouve intact dans l'archive.
+
+Fait :
+- [x] `lister_archive` / `extraire_entree` (Rust) — mêmes normalisation et
+      garde-fou « zip slip » que `creer_arborescence`
+- [x] Bouton « Contenu » sur le squelette : chaque fichier livrable seul, un
+      `.indd` passant par la MÊME personnalisation que le dossier complet
+- [x] Bouton « Remplacer le fichier » (admin) : met à jour une ressource sur
+      place — rang, description et notification de MAJ préservés
+- [x] 3 tests unitaires : liste sans dossier racine (deux styles de zip),
+      extraction d'un seul fichier, erreur lisible sur entrée absente — 9/9
+- [ ] Téléverser les 2 fichiers dans la librairie : Jordan seul (bucket privé)
+
+## Extensions InDesign : les deux traitées pareil (09/09/2026)
+
+Remarque de Jordan : « pourquoi Cotes BAT n'est pas fait pareil ? c'est pareil
+en soi ». Vérifié sur son poste — il avait raison, et le problème était pire
+que sa question : le « Rédacteur » est bien une extension UXP
+(`com.izy.enseignistes` v6.0.0), alors que le Kit distribuait encore
+`BAT_Les_Enseignistes_V5.1.jsx`, l'ANCIEN script d'avant l'extension.
+
+- [x] Aperçu redimensionnable (Enseignistes-UXP) : `resize` CSS n'a AUCUN effet
+      sous UXP → poignée dessinée à la main + glisser à la souris. L'ajustement
+      automatique reste, et ne cède qu'après un vrai glisser ; « Réinitialiser »
+      le rétablit. Version portée à 6.1.0, paquet `BAT-Enseignistes.ccx`.
+- [x] Rust généralisé à N extensions : table `PLUGINS_UXP`, statut/installation
+      par `id`, et `desinstaller_plugin_indesign` (registre UXP + dossiers,
+      InDesign fermé exigé).
+- [x] `version.txt` supprimé : la version se lit DANS le `.ccx` (manifest.json).
+      Un fichier à tenir synchrone d'un autre finit toujours par diverger.
+- [x] Encart unique « Extensions InDesign » : installer / mettre à jour /
+      désinstaller, même vocabulaire que le reste du Kit.
+- [ ] Retirer `BAT_Les_Enseignistes_V5.1.jsx` de la librairie (suppression pour
+      toute l'équipe — geste de Jordan)
+- [ ] Décider si `Enseignistes-UXP` rejoint `plugins/` comme `cotes-bat-uxp` :
+      aujourd'hui GraphiDesk embarque un paquet dont la source vit hors dépôt.

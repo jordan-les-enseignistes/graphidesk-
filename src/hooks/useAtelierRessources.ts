@@ -328,6 +328,13 @@ export interface IdentiteReference {
   prenom: string[];
   nom: string[];
   mail: string[];
+  /** Fichiers à ne JAMAIS personnaliser, par nom de fichier.
+   *
+   *  ⚠ Nécessaire parce qu'un `.indd` conserve l'état ANTÉRIEUR du document
+   *  lors d'un enregistrement incrémental : des noms retirés d'une page
+   *  restent présents dans les octets. Ils y sont, mais plus à l'écran —
+   *  seul quelqu'un qui ouvre le document peut le dire. */
+  sansPersonnalisation: string[];
 }
 
 /** Tolère l'ancienne forme (une seule chaîne par champ) comme la nouvelle. */
@@ -353,6 +360,7 @@ export function useIdentiteReference() {
         prenom: enListe(v.prenom),
         nom: enListe(v.nom),
         mail: enListe(v.mail),
+        sansPersonnalisation: enListe(v.sansPersonnalisation),
       };
     },
     staleTime: 1000 * 60 * 30,
@@ -430,4 +438,130 @@ export async function zipPersonnalise(input: {
     : { fichiers: 0, remplacements: 0, echecs: [] };
   await invoke<string>("zipper_dossier", { dossier: racine, destination: input.destination });
   return rapport;
+}
+
+// ---------------------------------------------------------------------------
+// Contenu d'un squelette : livrer UN élément sans déplier tout le dossier
+// ---------------------------------------------------------------------------
+
+export interface EntreeArchive {
+  chemin: string;
+  taille: number;
+  /** Le fichier porte une identité à mettre au nom du graphiste. */
+  personnalisable: boolean;
+}
+
+/** Repères FORTS d'identité : nom complet et adresse e-mail. Un prénom seul
+ *  traîne dans les métadonnées des logos importés — voir `contient_repere`
+ *  côté Rust. */
+export function reperesIdentite(reference: IdentiteReference | null | undefined): string[] {
+  if (!reference) return [];
+  return [...reference.nomComplet, ...reference.mail].filter((v) => v.trim());
+}
+
+/** L'archive est mise en cache : lister puis extraire ne doit pas la
+ *  retélécharger (5 Mo à chaque clic sinon). */
+function useArchive(r: AtelierRessource | null) {
+  return useQuery({
+    queryKey: ["atelier-archive", r?.fichier_path],
+    queryFn: () => telecharger(r as AtelierRessource),
+    enabled: !!r,
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
+export function useEntreesArchive(r: AtelierRessource | null, reperes: string[]) {
+  const archive = useArchive(r);
+  return useQuery({
+    queryKey: ["atelier-archive-entrees", r?.fichier_path, reperes.join("|")],
+    queryFn: () =>
+      invoke<EntreeArchive[]>("lister_archive", { zipBase64: archive.data, reperes }),
+    enabled: !!archive.data,
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
+/** Écarte les fichiers déclarés « à ne pas personnaliser ». Le nom de fichier
+ *  suffit : c'est lui qui identifie un gabarit d'un bout à l'autre du Kit. */
+export function estExclu(
+  reference: IdentiteReference | null | undefined,
+  chemin: string
+): boolean {
+  const nom = (chemin.split("/").pop() ?? chemin).toLowerCase();
+  return (reference?.sansPersonnalisation ?? []).some((f) => f.toLowerCase() === nom);
+}
+
+/** Le fichier d'une ressource porte-t-il une identité à remplacer ? */
+export async function ressourcePersonnalisable(
+  r: AtelierRessource,
+  reperes: string[],
+  reference?: IdentiteReference | null
+): Promise<boolean> {
+  if (!reperes.length || estExclu(reference, r.fichier_nom)) return false;
+  const contenuBase64 = await telecharger(r);
+  return invoke<boolean>("identite_presente", { contenuBase64, reperes });
+}
+
+/** Extrait un seul fichier de l'archive vers `destination` (chemin complet). */
+export async function extraireElement(input: {
+  ressource: AtelierRessource;
+  entree: string;
+  destination: string;
+}): Promise<string> {
+  const zipBase64 = await telecharger(input.ressource);
+  return invoke<string>("extraire_entree", {
+    zipBase64,
+    entree: input.entree,
+    destination: input.destination,
+  });
+}
+
+/**
+ * Remplace le FICHIER d'une ressource sans toucher à la ressource elle-même.
+ *
+ * Supprimer puis recréer ferait perdre le rang, la description et l'historique
+ * de mise à jour — et laisserait la ressource absente entre les deux. La mise
+ * à jour de `maj_le` est ce qui déclenche la notification chez les graphistes.
+ */
+export async function remplacerFichierRessource(
+  ressource: AtelierRessource,
+  fichier: File
+): Promise<void> {
+  const empreinte = await empreinteDe(fichier);
+  const nouveauChemin = `${ressource.categorie}/${Date.now()}_${fichier.name}`;
+  const up = await supabase.storage.from(BUCKET).upload(nouveauChemin, fichier, {
+    upsert: false,
+  });
+  if (up.error) throw up.error;
+  const { error } = await supabase
+    .from("atelier_ressources")
+    .update({
+      fichier_nom: fichier.name,
+      fichier_path: nouveauChemin,
+      taille: fichier.size,
+      empreinte,
+      maj_le: new Date().toISOString(),
+    })
+    .eq("id", ressource.id);
+  if (error) {
+    // le nouveau fichier ne doit pas rester orphelin dans le bucket
+    await supabase.storage.from(BUCKET).remove([nouveauChemin]);
+    throw error;
+  }
+  // ⚠ l'ancien fichier n'est supprimé qu'APRÈS : si la ligne n'avait pas été
+  // mise à jour, la ressource pointerait dans le vide.
+  await supabase.storage.from(BUCKET).remove([ressource.fichier_path]);
+}
+
+export function useRemplacerFichier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { ressource: AtelierRessource; fichier: File }) =>
+      remplacerFichierRessource(input.ressource, input.fichier),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["atelier-ressources"] });
+      void qc.invalidateQueries({ queryKey: ["atelier-archive"] });
+      void qc.invalidateQueries({ queryKey: ["atelier-archive-entrees"] });
+    },
+  });
 }

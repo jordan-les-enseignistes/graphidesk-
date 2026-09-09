@@ -12,7 +12,7 @@ InDesign — Cotes BAT »).
 
 ## Publier une nouvelle version
 
-1. Modifier le code ici, puis bumper **trois** endroits :
+1. Modifier le code ici, puis bumper **deux** endroits :
    - `manifest.json` → `version`
    - `index.js` → `PANEL_VERSION` (repli d'affichage)
 2. Packager en `.ccx` (zip standard — ⚠️ PAS `Compress-Archive` qui produit
@@ -23,9 +23,11 @@ InDesign — Cotes BAT »).
    ```
    ⚠️ Passer par un nom **.zip** PUIS renommer : avec `-f xxx.ccx`, `tar -a`
    ne reconnaît pas l'extension et produit un **TAR** (UPIA échoue en -204).
-3. Copier dans les assets GraphiDesk + synchroniser la version :
-   - `src-tauri/assets/indesign/Cotes-BAT.ccx`
-   - `src-tauri/assets/indesign/version.txt`
+3. Copier le `.ccx` dans `src-tauri/assets/indesign/`. Rien d'autre à
+   synchroniser : GraphiDesk lit la version DANS le paquet (`manifest.json`).
+   L'ancien `version.txt`, qu'il fallait tenir à jour à la main, a été supprimé
+   le 09/09/2026 — un fichier qui doit rester synchrone avec un autre finit
+   toujours par diverger.
 4. Release GraphiDesk → chaque graphiste voit « Mise à jour disponible » dans
    l'encart et installe en un clic (UPIA + purge des anciennes versions du
    registre UXP — voir `install_indesign_plugin` dans `src-tauri/src/lib.rs`).

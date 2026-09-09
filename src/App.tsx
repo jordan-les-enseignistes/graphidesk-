@@ -40,6 +40,7 @@ import MaquetteVT from "@/pages/MaquetteVT";
 import Simulation3D from "@/pages/Simulation3D";
 import Bibliotheque from "@/pages/Bibliotheque";
 import Ressources from "@/pages/Ressources";
+import SuiviVt from "@/pages/SuiviVt";
 
 // Query Client
 const queryClient = new QueryClient({
@@ -215,6 +216,7 @@ function App() {
               <Route path={ROUTES.FRANCHISES} element={<Franchises />} />
               <Route path={ROUTES.PROJETS_INTERNES} element={<ProjetsInternes />} />
               <Route path={ROUTES.STATISTIQUES} element={<Statistiques />} />
+              <Route path={ROUTES.SUIVI_VT} element={<SuiviVt />} />
               <Route path={ROUTES.FABRIK} element={<FabRik />} />
               <Route path={ROUTES.HEURES_SUPPLEMENTAIRES} element={<HeuresSupplementaires />} />
               <Route path={ROUTES.PLANNING_VACANCES} element={<PlanningVacances />} />

@@ -33,6 +33,8 @@ export interface SavedDoc {
   activePlaneId: string;
   zones: Zone[];
   imageName: string | null;
+  /** Échelle de la maquette (10 = 1:10). Absente sur les projets antérieurs. */
+  echelle?: number;
 }
 
 export interface MeasureProjectRow {
@@ -76,6 +78,7 @@ function scaleDoc(
     photos,
     activePlaneId: doc.activePlaneId,
     imageName: doc.imageName,
+    echelle: doc.echelle,
     planes: doc.planes.map((p) => {
       const s = scaleByPhoto[p.photoId] || 1;
       return {

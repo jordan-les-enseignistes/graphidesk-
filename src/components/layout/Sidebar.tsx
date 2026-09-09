@@ -36,6 +36,7 @@ import {
   PencilRuler,
   Library,
   HardDriveDownload,
+  Table2,
 } from "lucide-react";
 
 interface NavItem {
@@ -77,6 +78,7 @@ const navGroups: NavGroup[] = [
       { label: "Franchises", icon: Building2, path: ROUTES.FRANCHISES, permission: "access:franchises" },
       { label: "Projets Internes", icon: ClipboardList, path: ROUTES.PROJETS_INTERNES, permission: "access:projets_internes" },
       { label: "Statistiques", icon: BarChart3, path: ROUTES.STATISTIQUES, permission: "access:statistiques" },
+      { label: "Suivi VT", icon: Table2, path: ROUTES.SUIVI_VT, permission: "access:suivi_vt" },
     ],
   },
   {

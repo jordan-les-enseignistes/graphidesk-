@@ -1,0 +1,270 @@
+html, body { height: 100%; }
+body {
+  padding: 10px;
+  font-size: 11px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Suit automatiquement le thème d'interface d'InDesign (clair/gris/sombre) */
+  color: var(--uxp-host-text-color, #d0d0d0);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.topbar label { white-space: nowrap; }
+.topbar #productSelect { flex: 1; }
+#btnReset { flex: 0 0 auto; }
+#btnEdit { flex: 0 0 auto; }
+
+/* ---- Éditeur ---- */
+#editorView .control { width: 100%; display: block; }
+#editorView label { display: block; margin: 6px 0 2px; opacity: 0.85; }
+#editorView sp-textfield { width: 100%; }
+
+.ed-section {
+  font-weight: bold;
+  margin: 12px 0 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--uxp-host-border-color, rgba(128, 128, 128, 0.3));
+}
+
+.ed-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+
+.ed-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.ed-row sp-textfield { flex: 1; min-width: 40px; }
+.ed-row sp-dropdown { flex: 1; min-width: 60px; }
+
+#edPreview {
+  border: 1px solid var(--uxp-host-border-color, rgba(128, 128, 128, 0.4));
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 6px;
+  min-height: 40px;
+  word-break: break-word;
+}
+
+#manage-row {
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--uxp-host-border-color, rgba(128, 128, 128, 0.3));
+}
+
+#edStatus { margin-top: 6px; min-height: 14px; }
+#edStatus.ok { color: #2d9d78; }
+#edStatus.error { color: #e34850; }
+
+/* ---- Navigation par écrans + tuiles ---- */
+.view-header { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.view-header .grow { flex: 1; }
+.view-header strong { font-size: 13px; }
+
+.tiles { display: flex; flex-direction: column; margin-top: 4px; }
+.row-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 6px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.22);
+  cursor: pointer;
+}
+.row-item:hover { background: rgba(128, 128, 128, 0.12); }
+.row-icon { flex: 0 0 auto; display: flex; opacity: 0.8; }
+.row-body { flex: 1; min-width: 0; }
+.row-title { font-size: 13px; word-break: break-word; }
+.row-sub { font-size: 11px; opacity: 0.55; margin-top: 1px; }
+.row-chevron { flex: 0 0 auto; display: flex; opacity: 0.45; }
+.row-add { opacity: 0.85; }
+.row-add .row-title { font-style: italic; }
+
+/* ---- Éditeur (modèle plat) ---- */
+#editView sp-textfield, #manageView sp-textfield { width: 100%; }
+#evPreview {
+  border: 1px solid var(--uxp-host-border-color, rgba(128, 128, 128, 0.45));
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 6px;
+  min-height: 40px;
+  word-break: break-word;
+}
+#evStatus { margin-top: 6px; min-height: 14px; }
+#evStatus.ok { color: #2d9d78; }
+#evStatus.error { color: #e34850; }
+
+/* ---- v3 : Produit / Sous-produit ---- */
+#pvName, #seName, #seTemplate { width: 100%; }
+#seTemplate { min-height: 56px; }
+
+.tokens { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px; }
+
+.ed-opt { margin-bottom: 8px; }
+.ed-opt-out { width: 100%; margin-top: 3px; }
+
+#sePreview {
+  border: 1px solid var(--uxp-host-border-color, rgba(128, 128, 128, 0.45));
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 6px;
+  min-height: 40px;
+  word-break: break-word;
+}
+
+#pvStatus, #seStatus { margin-top: 6px; min-height: 14px; }
+#pvStatus.ok, #seStatus.ok { color: #2d9d78; }
+#pvStatus.error, #seStatus.error { color: #e34850; }
+
+/* champ éditeur (carte) */
+.ed-field {
+  border: 0.5px solid var(--uxp-host-border-color, rgba(128, 128, 128, 0.3));
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.ed-opts { margin: 4px 0 4px 8px; }
+.ed-opt-row { display: flex; gap: 4px; align-items: center; margin-bottom: 4px; }
+.ed-opt-row sp-textfield { flex: 1; }
+
+/* lignes produit dans "Gérer la catégorie" */
+.mg-prod-row { display: flex; gap: 4px; align-items: center; margin-bottom: 4px; }
+.mg-prod-row .grow { flex: 1; }
+
+#editProductView sp-textfield,
+#manageView sp-textfield { width: 100%; }
+
+#epPreview {
+  border: 0.5px solid var(--uxp-host-border-color, rgba(128, 128, 128, 0.4));
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 6px;
+  min-height: 40px;
+  word-break: break-word;
+}
+
+#mgStatus, #epStatus { margin-top: 6px; min-height: 14px; }
+#mgStatus.ok, #epStatus.ok { color: #2d9d78; }
+#mgStatus.error, #epStatus.error { color: #e34850; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 6px;
+}
+
+.field.row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.field.row .control {
+  flex: 1;
+}
+
+.field label {
+  margin-bottom: 2px;
+  opacity: 0.85;
+}
+
+.sizes {
+  display: flex;
+  gap: 8px;
+}
+
+.sizes .half {
+  flex: 1;
+}
+
+.note {
+  opacity: 0.7;
+  font-style: italic;
+  margin: 4px 0;
+}
+
+#preview {
+  width: 100%;
+  margin-top: 6px;
+  min-height: 40px;
+  box-sizing: border-box;
+  /* `auto` et non `hidden` : une hauteur réduite doit faire défiler le texte,
+     pas en escamoter la fin sans le dire. */
+  overflow: auto;
+}
+
+/* ⚠ La poignée est dessinée à la main. `resize: vertical` en CSS n'a AUCUN
+   effet dans UXP — vérifié dans InDesign le 09/09/2026 : aucune poignée
+   n'apparaît. D'où ce petit triangle, posé sur le coin de l'aperçu. */
+.preview-wrap {
+  position: relative;
+}
+
+#previewGrip {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 12px;
+  height: 12px;
+  font-size: 10px;
+  line-height: 12px;
+  text-align: center;
+  opacity: 0.45;
+  cursor: ns-resize;
+  user-select: none;
+}
+
+#previewGrip:hover {
+  opacity: 0.9;
+}
+
+.preview-label {
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+#status {
+  margin-top: 8px;
+  min-height: 16px;
+}
+
+#status.error { color: #e34850; }
+#status.ok { color: #2d9d78; }
+#status.warn { color: #e6a700; }
+
+.ed-req { margin: 2px 0 6px; opacity: 0.9; }
+.ed-cond { margin: 2px 0 6px; }
+.ed-eq { opacity: 0.6; }
+.ed-grp { font-weight: 500; margin: 8px 0 4px; opacity: 0.9; }
+
+/* Les options avancées (.adv) ne s'affichent que si le sous-produit est en mode avancé */
+#subView:not(.show-advanced) .adv { display: none; }
+.ed-af-lab { flex: 0 0 auto; white-space: nowrap; }
+
+#io-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--uxp-host-border-color, rgba(128, 128, 128, 0.25));
+}
+
+.hidden { display: none !important; }
