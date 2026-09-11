@@ -3,7 +3,7 @@
 Panneau InDesign de génération de cotes BAT (flèches croix + losanges bleus +
 lettres vectorisées), couplé à GraphiDesk : l'outil **Mesure photo** exporte
 une fiche VT (`Documents\GraphiDesk\fiches_vt\`), le panneau la détecte
-automatiquement et remplit la page 2 du gabarit VT (photo + cotes + tableau).
+automatiquement et remplit la page 1 du gabarit VT (photo + cotes + tableau).
 
 **Ce dossier est la source de vérité du plugin.** Le `.ccx` compilé embarqué
 dans GraphiDesk (`src-tauri/assets/indesign/Cotes-BAT.ccx`) en est dérivé, et

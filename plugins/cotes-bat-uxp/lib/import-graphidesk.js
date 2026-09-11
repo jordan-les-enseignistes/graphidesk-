@@ -7,7 +7,7 @@
  *
  * Étapes :
  *   1. l'utilisateur choisit fiche_vt.json (la photo est cherchée à côté) ;
- *   2. la photo est placée dans le bloc image de la PAGE 2 du gabarit
+ *   2. la photo est placée dans le bloc image de la PAGE 1 du gabarit
  *      (script label "PHOTO_VT" prioritaire, sinon le plus grand bloc
  *      graphique de la page), ajustée proportionnellement ;
  *   3. les coins de chaque zone sont convertis px photo -> coordonnées page
@@ -241,12 +241,15 @@ async function importFiche(selectedJsonPath) {
   pagesData = pagesData.filter(function (p) { return p.zones && p.zones.length; });
 
   const doc = indesign.app.activeDocument;
-  const tpl = pageByIndex(doc, 1); // page 2 du gabarit
-  if (!tpl) return { ok: false, msg: "Page 2 introuvable dans le document." };
+  // ⚠ PAGE 1 depuis le gabarit VT de septembre 2026 : photo, cotes et tableau
+  // sont passés de la page 2 à la page 1. Un document fait sur l'ANCIEN
+  // gabarit n'est plus pris en charge (choix de Jordan, 11/09/2026).
+  const tpl = pageByIndex(doc, 0);
+  if (!tpl) return { ok: false, msg: "Page 1 introuvable dans le document." };
   if (!findPhotoFrame(tpl)) {
     return {
       ok: false,
-      msg: "Bloc photo introuvable page 2. Donne le script label PHOTO_VT au bloc image."
+      msg: "Bloc photo introuvable page 1. Donne le script label PHOTO_VT au bloc image."
     };
   }
 
