@@ -22,15 +22,6 @@
 
         var doc = app.open(f);
 
-        // ⚠️ L'ouverture d'un SVG crée TOUJOURS un document RVB — l'atelier
-        // travaille pour l'impression : conversion CMJN systématique (règle
-        // absolue : jamais de RVB). La commande de menu peut INVALIDER la
-        // référence au document ("there is no document" sur tout ce qui
-        // suit) : on resynchronise doc sur le document actif juste après.
-        try { app.executeMenuCommand("doc-color-cmyk"); } catch (eC) {}
-        try { doc = app.activeDocument; } catch (eD) {}
-        if (!doc) throw new Error("Document introuvable après conversion CMJN");
-
         // Calque d'origine (import SVG) → "Artwork"
         var artLayer = doc.layers[0];
         artLayer.name = "Artwork";
@@ -54,7 +45,17 @@
 
         try { mesLayer.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (e) {}
 
-        app.redraw();
+        try { app.redraw(); } catch (eR) {}
+
+        // ⚠️ L'ouverture d'un SVG crée TOUJOURS un document RVB — l'atelier
+        // travaille pour l'impression : conversion CMJN systématique (règle
+        // absolue : jamais de RVB).
+        //
+        // Elle se fait en TOUT DERNIER, et c'est délibéré : cette commande de
+        // menu INVALIDE la référence au document, et tout ce qui la suit échoue
+        // en « there is no document » — `app.redraw()` compris (14/09/2026).
+        // Aucune opération sur le document ne doit venir après cette ligne.
+        try { app.executeMenuCommand("doc-color-cmyk"); } catch (eC) {}
 
         if (moved === 0) {
             alert("Prémaquette ouverte.\n\n⚠️ Groupe TEXTES non trouvé : les cotes n'ont pas pu être déplacées sur leur calque (elles restent dans Artwork).");

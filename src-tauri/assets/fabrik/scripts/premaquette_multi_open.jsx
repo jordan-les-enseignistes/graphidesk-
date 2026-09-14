@@ -28,12 +28,6 @@
         if (!f0.exists) throw new Error("SVG introuvable : " + params.faces[0].svgPath);
         var doc = app.open(f0);
 
-        // conversion CMJN (jamais de RVB) — la commande peut invalider la
-        // référence document : resynchroniser (leçon v1.4.17)
-        try { app.executeMenuCommand("doc-color-cmyk"); } catch (eC) {}
-        try { doc = app.activeDocument; } catch (eD) {}
-        if (!doc) throw new Error("Document introuvable après conversion CMJN");
-
         // calques Artwork / Mesures
         var artLayer = doc.layers[0];
         artLayer.name = "Artwork";
@@ -147,7 +141,20 @@
         try { mesLayer.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (eZ) {}
         try { doc.artboards.setActiveArtboardIndex(0); } catch (eA) {}
         try { app.executeMenuCommand("fitall"); } catch (eFit) {}
-        app.redraw();
+        try { app.redraw(); } catch (eR) {}
+
+        // ⚠️ Conversion CMJN en TOUT DERNIER — trois raisons, apprises à la dure.
+        // 1. Cette commande INVALIDE la référence au document : TOUT ce qui la
+        //    suit échoue en « there is no document », y compris `app.redraw()`,
+        //    qui n'était pas protégé (14/09/2026 : les deux plans de travail
+        //    étaient corrects, et l'alerte d'erreur s'affichait quand même).
+        // 2. Placée en tête, elle empêchait carrément les faces suivantes
+        //    d'être créées.
+        // 3. Les faces suivantes sont COPIÉES depuis des documents RVB : un
+        //    collage d'un RVB vers un CMJN déplace les couleurs. Convertie à la
+        //    fin, la totalité du document traverse la même conversion.
+        // Aucune opération sur le document ne doit venir après cette ligne.
+        try { app.executeMenuCommand("doc-color-cmyk"); } catch (eC) {}
 
         var msg = "Prémaquette ouverte : " + facesOk + "/" + params.faces.length +
             " face(s), un plan de travail par face.\n" +
