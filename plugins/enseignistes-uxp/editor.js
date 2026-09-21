@@ -21,8 +21,14 @@ function applyAdvanced() {
 
 const FIELD_TYPES = [
   { value: "text", label: "Texte libre" },
-  { value: "dropdown", label: "Liste de choix" }
+  { value: "dropdown", label: "Liste de choix" },
+  { value: "checkbox", label: "Case à cocher" }
 ];
+
+function indexType(type) {
+  const i = FIELD_TYPES.map(function (t) { return t.value; }).indexOf(type);
+  return i < 0 ? 0 : i;
+}
 
 function el(id) { return document.getElementById(id); }
 
@@ -227,7 +233,7 @@ function buildFieldCard(sub, field) {
   const tMenu = document.createElement("sp-menu");
   tMenu.setAttribute("slot", "options");
   typeDd.appendChild(tMenu);
-  fillMenu(typeDd, FIELD_TYPES.map(function (t) { return t.label; }), field.type === "dropdown" ? 1 : 0);
+  fillMenu(typeDd, FIELD_TYPES.map(function (t) { return t.label; }), indexType(field.type));
 
   const del = mkBtn("✕", function () {
     sub.fields = sub.fields.filter(function (f) { return f.id !== field.id; });
@@ -303,12 +309,18 @@ function buildFieldCard(sub, field) {
       vm.setAttribute("slot", "options");
       vd.appendChild(vm);
       const opts = (onField.options || []).map(function (o) { return (o && o.label) || ""; });
-      let vsel = opts.indexOf(field.condition.value);
+      // une condition « l'une de ces valeurs » (modèles de base) s'affiche sur
+      // sa première valeur ; la modifier ici la ramène à une valeur unique
+      const actuelle = (Array.isArray(field.condition.values) && field.condition.values.length)
+        ? field.condition.values[0] : field.condition.value;
+      let vsel = opts.indexOf(actuelle);
       if (vsel < 0) vsel = 0;
       fillMenu(vd, opts, opts.length ? vsel : -1);
-      if (opts.length) field.condition.value = opts[vsel];
+      if (opts.length && !field.condition.values) field.condition.value = opts[vsel];
       vd.addEventListener("change", function () {
-        field.condition.value = opts[vd.selectedIndex]; D.save(); updatePreview();
+        field.condition.value = opts[vd.selectedIndex];
+        delete field.condition.values;
+        D.save(); updatePreview();
       });
       condRow.appendChild(vd);
     } else {
@@ -489,6 +501,19 @@ function buildFieldCard(sub, field) {
     };
     afToggle.addEventListener("change", function () { D.save(); renderAF(); updatePreview(); });
     renderAF();
+  }
+
+  // --- Case à cocher : texte écrit quand elle est cochée ---
+  if (field.type === "checkbox") {
+    const cbRow = document.createElement("div");
+    cbRow.className = "ed-opt-row";
+    const outTf = document.createElement("sp-textfield");
+    outTf.value = field.out || "";
+    outTf.setAttribute("placeholder", "Texte écrit si cochée (sinon : le libellé)");
+    outTf.addEventListener("input", function () { field.out = outTf.value; updatePreview(); });
+    outTf.addEventListener("change", function () { D.save(); });
+    cbRow.appendChild(outTf);
+    card.appendChild(cbRow);
   }
 
   typeDd.addEventListener("change", function () {

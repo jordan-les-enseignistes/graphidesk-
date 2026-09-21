@@ -150,15 +150,41 @@ async function importCatalog() {
 
 /* ------------------------------------------------------------------ génération */
 
+/*
+ * Types de champ : "text", "dropdown", "checkbox".
+ *   - checkbox : cochée, elle écrit sa sortie (out) ou, à défaut, son libellé.
+ *
+ * Propriétés facultatives d'un champ :
+ *   - condition : { on, value } ou { on, values:[…] } — le champ n'est actif que
+ *     si le champ `on` vaut l'une de ces valeurs ET est lui-même actif.
+ *   - dependsOn + optionGroups : choix d'une liste selon la valeur d'un autre champ.
+ *   - autoFill : { on, map } — valeur posée quand le champ `on` change.
+ *   - ignorer : [valeurs] traitées comme vides (ex. une quantité de « 1 »).
+ *   - plusieursParties : { largeur, hauteur, epaisseur?, long, court, seulSi? } —
+ *     case cochée d'office quand la pièce ne tient pas dans une plaque / une laize.
+ *
+ * Syntaxe du modèle (une entrée = un bloc ; les blocs sont séparés par « - ») :
+ *   - {Libellé} : valeur du champ. Vide → le bloc disparaît.
+ *   - [ … ]     : partie FACULTATIVE du bloc — retirée si l'une de ses
+ *                 étiquettes est vide, sans faire disparaître le bloc.
+ *   - A|B       : si A a une étiquette vide, on écrit B (repli).
+ *   Un bloc dont une étiquette appartient à un champ INACTIF (condition non
+ *   remplie) disparaît entièrement, repli compris : « Laqué RAL (à définir) »
+ *   ne doit s'écrire que pour un produit laqué.
+ */
+
 function defaultValues(sub) {
   const v = {};
   // 1er passage : champs indépendants
   (sub.fields || []).forEach(function (f) {
     if (f.dependsOn) return;
-    if (f.type === "dropdown") v[f.id] = (f.options && f.options.length) ? optLabel(f.options[0]) : "";
-    else v[f.id] = f.default || "";
+    if (f.type === "checkbox") v[f.id] = !!f.default;
+    else if (f.type === "dropdown") {
+      v[f.id] = (f.default != null) ? f.default
+        : ((f.options && f.options.length) ? optLabel(f.options[0]) : "");
+    } else v[f.id] = (f.default != null) ? f.default : "";
   });
-  // 2e passage : champs dépendants (les parents sont déjà résolus)
+  // 2e passage : champs dépendants, dans l'ordre (un parent peut lui-même dépendre d'un autre)
   (sub.fields || []).forEach(function (f) {
     if (!f.dependsOn) return;
     const opts = fieldOptions(f, v);
@@ -179,34 +205,151 @@ function tokensOf(sub) {
   return (sub.fields || []).map(function (f) { return "{" + (f.label || "") + "}"; });
 }
 
-/* Valeur résolue d'un champ (sortie personnalisée d'un choix, ou texte saisi). */
 /* Choix actifs d'un champ : groupe dépendant du champ parent, ou liste fixe. */
 function fieldOptions(f, values) {
   if (f.dependsOn) return (f.optionGroups && f.optionGroups[values[f.dependsOn]]) || [];
   return f.options || [];
 }
 
+/* Valeur écrite d'un champ (sortie personnalisée d'un choix, ou texte saisi). */
 function fieldValue(f, values) {
   const raw = values[f.id];
-  if (f.type === "dropdown") {
+  let val;
+  if (f.type === "checkbox") {
+    val = raw ? (f.out || f.label || "") : "";
+  } else if (f.type === "dropdown") {
     let opt = null;
     fieldOptions(f, values).forEach(function (o) { if (optLabel(o) === raw) opt = o; });
-    return opt ? (optOut(opt) || optLabel(opt)) : (raw || "");
+    val = opt ? (optOut(opt) || optLabel(opt)) : (raw || "");
+  } else {
+    val = (raw == null) ? "" : String(raw);
   }
-  return (raw == null) ? "" : String(raw);
-}
-
-/* Un champ conditionnel n'est "actif" que si son champ déclencheur a la bonne valeur. */
-function isActive(f, values) {
-  if (!f.condition || !f.condition.on) return true;
-  return values[f.condition.on] === f.condition.value;
+  if (Array.isArray(f.ignorer) && f.ignorer.indexOf(String(val).trim()) >= 0) return "";
+  return val;
 }
 
 /*
- * Génère le texte : le modèle est découpé sur les " - " ; chaque segment dont
- * une étiquette est vide est entièrement omis (avec son séparateur). Les
- * segments de texte fixe (sans étiquette) sont toujours conservés.
+ * Un champ conditionnel n'est actif que si son déclencheur a l'une des valeurs
+ * voulues ET est lui-même actif. Sans ce chaînage, un « Blanc de soutien »
+ * lié à un adhésif transparent s'écrivait sur un produit LAQUÉ dès lors que
+ * la liste Adhésif, masquée, était restée sur « Transparent ».
  */
+function isActive(f, values, fields, _vus) {
+  if (!f || !f.condition || !f.condition.on) return true;
+  const c = f.condition;
+  const attendues = (Array.isArray(c.values) && c.values.length) ? c.values : [c.value];
+  if (attendues.indexOf(values[c.on]) < 0) return false;
+  if (!fields) return true;
+  const vus = _vus || {};
+  if (vus[f.id]) return true; // conditions en boucle : on s'arrête là
+  vus[f.id] = true;
+  const parent = fields.filter(function (x) { return x.id === c.on; })[0];
+  return isActive(parent, values, fields, vus);
+}
+
+function nombre(x) {
+  const n = parseFloat(String(x == null ? "" : x).replace(/\s/g, "").replace(",", "."));
+  return isNaN(n) ? null : n;
+}
+
+/*
+ * Faut-il plusieurs parties ? Une pièce tient dans une plaque de `long` x
+ * `court` : trop longue d'un côté, ou trop grande des DEUX côtés, elle n'y
+ * tient plus. Un caisson se découpe dans une plaque plus grande que lui : ses
+ * retours pliés ajoutent son épaisseur de chaque côté.
+ */
+function plusieursPartiesRequises(regle, values) {
+  if (regle.seulSi && values[regle.seulSi.on] !== regle.seulSi.value) return false;
+  const ep = regle.epaisseur ? (nombre(values[regle.epaisseur]) || 0) : 0;
+  const w = nombre(values[regle.largeur]);
+  const h = nombre(values[regle.hauteur]);
+  if (w === null || h === null) return false;
+  const a = w + 2 * ep, b = h + 2 * ep;
+  const tropLong = regle.long ? (a > regle.long || b > regle.long) : false;
+  const tropGrand = regle.court ? (a > regle.court && b > regle.court) : false;
+  return tropLong || tropGrand;
+}
+
+/*
+ * Automatismes après une saisie : valeurs auto-remplies, puis « plusieurs
+ * parties ». `changedId` = champ modifié (null au premier affichage).
+ * `set(id, valeur)` écrit une valeur ; `lire()` relit toutes les valeurs.
+ */
+function appliquerAutomatismes(sub, values, changedId, set, lire) {
+  const fields = sub.fields || [];
+  fields.forEach(function (f) {
+    if (f.autoFill && f.autoFill.on && f.autoFill.map && (changedId === null || changedId === f.autoFill.on)) {
+      const val = f.autoFill.map[values[f.autoFill.on]];
+      set(f.id, (val != null) ? val : "");
+    }
+  });
+  const v = lire();
+  fields.forEach(function (f) {
+    const r = f.plusieursParties;
+    if (!r) return;
+    // recalcul quand une donnée de la règle change — y compris l'épaisseur
+    // posée automatiquement — mais jamais par-dessus un choix manuel de la case
+    const sources = [r.largeur, r.hauteur, r.epaisseur, r.seulSi && r.seulSi.on];
+    fields.forEach(function (g) { if (g.autoFill && g.id === r.epaisseur) sources.push(g.autoFill.on); });
+    if (changedId !== null && sources.indexOf(changedId) < 0) return;
+    set(f.id, plusieursPartiesRequises(r, v));
+  });
+}
+
+var INACTIF = { inactif: true };
+
+/*
+ * Résout un morceau de modèle : remplace ses étiquettes. Renvoie null si une
+ * étiquette est vide, INACTIF si l'une appartient à un champ inactif.
+ */
+function resoudre(texte, byLabel, values, fields) {
+  let res = texte;
+  let vide = false, inactif = false;
+  (texte.match(/\{[^{}]+\}/g) || []).forEach(function (tok) {
+    const f = byLabel[tok.substring(1, tok.length - 1)];
+    if (!f) return; // étiquette inconnue : laissée telle quelle
+    if (!isActive(f, values, fields)) { inactif = true; return; }
+    const val = String(fieldValue(f, values));
+    if (val.trim() === "") vide = true;
+    res = res.split(tok).join(val);
+  });
+  if (inactif) return INACTIF;
+  return vide ? null : res;
+}
+
+const FACULTATIF = /\[([^\[\]]*)\]/g;
+
+function buildText(sub, values) {
+  const fields = sub.fields || [];
+  const byLabel = {};
+  fields.forEach(function (f) { if (f.label) byLabel[f.label] = f; });
+
+  const out = [];
+  templateSegments(sub).forEach(function (seg) {
+    const variantes = ((seg == null) ? "" : String(seg)).split("|");
+    for (let i = 0; i < variantes.length; i++) {
+      // partie obligatoire : un champ inactif fait disparaître le bloc,
+      // repli compris ; une étiquette vide fait passer au repli suivant
+      const essentiel = resoudre(variantes[i].replace(FACULTATIF, ""), byLabel, values, fields);
+      if (essentiel === INACTIF) return;
+      if (essentiel === null) continue;
+      const complet = variantes[i].replace(FACULTATIF, function (_, dedans) {
+        const r = resoudre(dedans, byLabel, values, fields);
+        return (r === null || r === INACTIF) ? "" : r;
+      });
+      let texte = String(resoudre(complet, byLabel, values, fields) || "");
+      // une partie facultative retirée laisse des espaces orphelins ; les
+      // blocs sans crochets restent tels qu'écrits (un « RAL » suivi d'un
+      // espace attend qu'on tape le numéro derrière)
+      if (complet !== variantes[i]) texte = texte.replace(/\s+/g, " ").trim();
+      if (texte.trim() !== "") out.push(texte);
+      return;
+    }
+  });
+
+  return out.join(" - ");
+}
+
 /* Le modèle est une liste de blocs (chaînes). Tolère un ancien modèle "chaîne". */
 function templateSegments(sub) {
   let segs = sub.template;
@@ -214,39 +357,31 @@ function templateSegments(sub) {
   return Array.isArray(segs) ? segs : [];
 }
 
-function buildText(sub, values) {
-  const byLabel = {};
-  (sub.fields || []).forEach(function (f) { if (f.label) byLabel[f.label] = f; });
-
-  const out = [];
-  templateSegments(sub).forEach(function (seg) {
-    seg = (seg == null) ? "" : String(seg);
-    const tokens = seg.match(/\{[^{}]+\}/g);
-
-    if (!tokens) { if (seg.trim() !== "") out.push(seg); return; } // texte fixe
-
-    let anyEmpty = false;
-    let resolved = seg;
-    tokens.forEach(function (tok) {
-      const label = tok.substring(1, tok.length - 1);
-      const f = byLabel[label];
-      if (!f) return; // étiquette inconnue : laissée telle quelle
-      if (!isActive(f, values)) { anyEmpty = true; resolved = resolved.split(tok).join(""); return; }
-      const val = fieldValue(f, values);
-      if (String(val).trim() === "") anyEmpty = true;
-      resolved = resolved.split(tok).join(val);
-    });
-
-    if (!anyEmpty && resolved.trim() !== "") out.push(resolved);
+/*
+ * Remplace les modèles de base « rendus modifiables » d'une version antérieure
+ * (`produit` = le produit interne qui les regroupe). Renvoie les noms remplacés.
+ */
+function migrerModelesDeBase(produit, configs, version) {
+  if (!produit) return [];
+  const remplaces = [];
+  produit.subproducts = (produit.subproducts || []).map(function (s) {
+    const nom = s.builtin || s.id;
+    const cfg = configs[nom];
+    if (!cfg || (s.version || 1) >= version) return s;
+    remplaces.push(nom);
+    const neuf = JSON.parse(JSON.stringify(cfg));
+    neuf.id = s.id;
+    neuf.builtin = nom;
+    return neuf;
   });
-
-  return out.join(" - ");
+  return remplaces;
 }
 
 /* Libellés des champs obligatoires non remplis (pour l'avertissement). */
 function missingRequired(sub, values) {
-  return (sub.fields || []).filter(function (f) {
-    return f.required && isActive(f, values) && String(fieldValue(f, values)).trim() === "";
+  const fields = sub.fields || [];
+  return fields.filter(function (f) {
+    return f.required && isActive(f, values, fields) && String(fieldValue(f, values)).trim() === "";
   }).map(function (f) { return f.label || "(champ)"; });
 }
 
@@ -261,5 +396,10 @@ module.exports = {
   buildText: buildText,
   missingRequired: missingRequired,
   tokensOf: tokensOf,
-  optLabel: optLabel
+  optLabel: optLabel,
+  fieldOptions: fieldOptions,
+  isActive: isActive,
+  appliquerAutomatismes: appliquerAutomatismes,
+  plusieursPartiesRequises: plusieursPartiesRequises,
+  migrerModelesDeBase: migrerModelesDeBase
 };

@@ -21,8 +21,13 @@
     function ecrire(txt) {
         var d = new Folder(DIR);
         if (!d.exists) d.create();
-        var f = new File(DIR + "/lisses.json");
-        f.encoding = "UTF-8"; f.open("w"); f.write(txt); f.close();
+        // écriture en deux temps : GraphiDesk ne doit jamais lire un fichier
+        // à moitié écrit (voir relief3d_export_selection.jsx)
+        var tmp = new File(DIR + "/lisses.json.tmp");
+        tmp.encoding = "UTF-8"; tmp.open("w"); tmp.write(txt); tmp.close();
+        var cible = new File(DIR + "/lisses.json");
+        if (cible.exists) cible.remove();
+        tmp.rename(cible.name);
     }
 
     try { var o = new File(DIR + "/lisses.json"); if (o.exists) o.remove(); } catch (e0) {}

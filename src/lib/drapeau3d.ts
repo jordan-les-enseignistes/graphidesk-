@@ -15,6 +15,62 @@ import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
  *  pour y loger le plexi d'un ajourage à plat. */
 export const DIBOND_MM = 3;
 
+/**
+ * Parois d'une découpe faite de PLUSIEURS formes : seul le contour de leur
+ * réunion est gardé. Un segment de contour dont les deux côtés sont dans la
+ * zone est une jointure interne (le bord d'un E posé sur un losange) : la
+ * découpe réelle n'y a pas de bord. Parois de `profondeur` (unités du
+ * dessin), de z = 0 à z = profondeur, comme une extrusion.
+ */
+export function tranchesExterieures(formes: THREE.Shape[], profondeur: number): THREE.BufferGeometry {
+  const contours = formes.map((f) => ({
+    ext: f.getPoints(64),
+    trous: f.holes.map((t) => t.getPoints(64)),
+  }));
+  const dansPoly = (p: THREE.Vector2, pts: THREE.Vector2[]) => {
+    let dedans = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const a = pts[i], b = pts[j];
+      if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) {
+        dedans = !dedans;
+      }
+    }
+    return dedans;
+  };
+  const dansZone = (p: THREE.Vector2) =>
+    contours.some((c) => dansPoly(p, c.ext) && !c.trous.some((t) => dansPoly(p, t)));
+
+  const boite = new THREE.Box2();
+  for (const c of contours) for (const p of c.ext) boite.expandByPoint(p);
+  const taille = boite.getSize(new THREE.Vector2());
+  // pas de sondage : un millième de la zone, de part et d'autre du bord
+  const eps = Math.max(taille.x, taille.y) * 1e-3;
+
+  const pos: number[] = [];
+  const paroi = (a: THREE.Vector2, b: THREE.Vector2) => {
+    const d = new THREE.Vector2().subVectors(b, a);
+    const l = d.length();
+    if (l < 1e-9) return;
+    const m = new THREE.Vector2().addVectors(a, b).multiplyScalar(0.5);
+    const n = new THREE.Vector2(-d.y / l, d.x / l).multiplyScalar(eps);
+    // un bord n'existe que s'il sépare la zone de ce qui n'en est pas
+    if (dansZone(m.clone().add(n)) === dansZone(m.clone().sub(n))) return;
+    pos.push(a.x, a.y, 0, b.x, b.y, 0, b.x, b.y, profondeur);
+    pos.push(a.x, a.y, 0, b.x, b.y, profondeur, a.x, a.y, profondeur);
+  };
+  for (const c of contours) {
+    for (const boucle of [c.ext, ...c.trous]) {
+      for (let i = 0; i < boucle.length; i++) {
+        paroi(boucle[i], boucle[(i + 1) % boucle.length]);
+      }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
 export interface ContoursDrapeau {
   shapes: THREE.Shape[];
   couleurs: string[];
@@ -32,12 +88,14 @@ export interface ContoursDrapeau {
 export function masqueDessin(
   box: THREE.Box2,
   k: number,
-  dessiner: (ctx: CanvasRenderingContext2D) => void
+  dessiner: (ctx: CanvasRenderingContext2D) => void,
+  /** finesse du dessin ; 1,5 mm par pixel par défaut */
+  mmParPx = 1.5
 ): THREE.Texture | null {
   const wMm = (box.max.x - box.min.x) * k;
   const hMm = (box.max.y - box.min.y) * k;
   if (wMm <= 0 || hMm <= 0) return null;
-  const MM_PAR_PX = 1.5;
+  const MM_PAR_PX = mmParPx;
   const PAD = 6;
   const cw = Math.max(8, Math.round(wMm / MM_PAR_PX)) + 2 * PAD;
   const ch = Math.max(8, Math.round(hMm / MM_PAR_PX)) + 2 * PAD;
@@ -96,6 +154,8 @@ export interface ReglagesDrapeau {
   ecartMurMm: number;
   potence: "deuxTubes" | "monopotence";
   sectionTubeMm: number;
+  epaisseurPotenceMm: number;
+  hauteurPotenceMm: number;
   couleurChant: string;
   couleurPotence: string;
   couleurDiffusion: string;
@@ -171,6 +231,12 @@ export function construireDrapeau(
   // largeur RÉELLE du panneau : c'est l'axe autour duquel les deux faces se
   // reflètent, y compris pour une zone relevée à part
   const largeurPanneauMm = (box.max.x - box.min.x) * k;
+
+  // ⚠ Finesse des dessins PROPORTIONNELLE au caisson. À 1,5 mm par pixel, un
+  // drapeau de 300 mm tenait sur 200 pixels : le logo d'un ajourage sortait
+  // flou et le bord de la découpe crénelé, alors qu'un caisson de 3 m était
+  // net. ~2 000 pixels sur le grand côté, quelle que soit la taille.
+  const mmParPxFin = Math.max(0.1, Math.max(largeurPanneauMm, hauteurMm) / 2048);
 
   const couleurDe = (i: number) =>
     r.couleursDuFichier ? couleurs[i] ?? r.couleurFaceParDefaut : r.couleurFaceParDefaut;
@@ -264,7 +330,7 @@ export function construireDrapeau(
         ctx.fill(tracer(ctx, z), "evenodd");
         ctx.restore();
       }
-    });
+    }, mmParPxFin);
     if (percee) {
       matFace.alphaMap = percee;
       // pas de `transparent` : l'alphaTest suffit et garde la tôle dans la
@@ -280,45 +346,79 @@ export function construireDrapeau(
   // fichier — et c'est le décor qui se retourne d'un côté. Le faire suivre
   // la face avant le décalait de son épaisseur à chaque inversion.
   const corps = poser(extruder([shapes[iCaisson]], ep, k), "arriere", -ep / 2, srcPanneau);
-  corps.material = [matFace, matFace, matChant];
+  // ⚠ Orienté comme la face ARRIÈRE, le corps porte le dessin EN MIROIR sur
+  // sa face avant. Invisible sur un visuel symétrique, faux partout ailleurs :
+  // une zone ajourée dans le coin haut-gauche était percée dans le coin
+  // haut-droit de la face avant, et l'on y voyait le plexi de l'AUTRE face
+  // (constaté le 21/09/2026) ; un dégradé de fond s'y inversait de même.
+  // La face avant reçoit donc ses textures retournées autour de l'axe du
+  // panneau. Mesuré : face avant = matériau n° 1, face arrière = n° 0.
+  const retourner = (t: THREE.Texture | null): THREE.Texture | null => {
+    if (!t) return null;
+    const m = t.clone();
+    // u = x·r + o dans le repère du dessin ; x' = (min + max) − x
+    m.repeat.x = -t.repeat.x;
+    m.offset.x = t.offset.x + (box.min.x + box.max.x) * t.repeat.x;
+    m.needsUpdate = true;
+    jetables.push(m);
+    return m;
+  };
+  const matFaceAvant = matFace.clone();
+  matFaceAvant.map = retourner(matFace.map);
+  matFaceAvant.emissiveMap = retourner(matFace.emissiveMap);
+  matFaceAvant.alphaMap = retourner(matFace.alphaMap);
+  jetables.push(matFaceAvant);
+  corps.material = [matFace, matFaceAvant, matChant];
   separerCapotsDrapeau(corps.geometry, ep);
   groupe.add(corps);
 
   // ---------- visuel imprimé, À PLAT sur les deux faces ----------
   // Un adhésif n'a pas d'épaisseur : surtout pas d'extrusion, sinon le
   // logo prend un relief et des ombres qui n'existent pas.
-  const parCouleur = new Map<string, THREE.Shape[]>();
-  shapes.forEach((s, i) => {
+  //
+  // ⚠ Les couches d'adhésif sont COPLANAIRES. Leur ordre reposait sur un
+  // « décalage de profondeur » (polygonOffset) que la profondeur
+  // logarithmique du moteur NEUTRALISE : qui passait devant se décidait aux
+  // arrondis, donc selon l'angle de vue. Mesuré le 21/09/2026 sur un E posé
+  // dans un losange : 0 % du E perdu de face, mais 27 à 63 % de trois-quarts
+  // ou en plongée — « la moitié du E qui saute selon la caméra ».
+  // Elles sont donc PEINTES dans l'ordre du fichier, comme un vrai empilement
+  // de vinyles : sans écrire la profondeur, la dernière posée recouvre les
+  // précédentes, quel que soit l'angle. Elles restent testées contre le
+  // caisson et la potence, qui les masquent normalement.
+  // Une forme par couche, dans l'ordre d'Illustrator : regrouper par couleur
+  // perdait cet ordre (un détail gris posé sur un E bleu passait dessous).
+  const matsParCouleur = new Map<string, THREE.MeshStandardMaterial>();
+  const dev = ep / 2 + 0.05;
+  let ordre = 0;
+  shapes.forEach((forme, i) => {
     if (i === iCaisson) return;
-    const c = couleurDe(i);
-    const liste = parCouleur.get(c);
-    if (liste) liste.push(s);
-    else parCouleur.set(c, [s]);
+    const hex = couleurDe(i);
+    let mat = matsParCouleur.get(hex);
+    if (!mat) {
+      mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(hex),
+        roughness: 0.6,
+        metalness: 0.02,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        ...(percee ? { alphaMap: percee, alphaTest: 0.5 } : {}),
+      });
+      matsParCouleur.set(hex, mat);
+      jetables.push(mat);
+    }
+    for (const [face, x] of [["avant", dev], ["arriere", -dev]] as const) {
+      const m = poser(aplat([forme]), face, x, srcPanneau);
+      m.material = mat;
+      m.renderOrder = 1 + ordre;
+      // ⚠ Un adhésif n'a pas d'épaisseur : il ne porte pas d'ombre. Posé à
+      // 0,05 mm du caisson, il s'ombrait lui-même en bandes hachurées qui
+      // bougeaient avec la lumière (acné d'ombre).
+      m.castShadow = false;
+      groupe.add(m);
+    }
+    ordre++;
   });
-  let rang = 0;
-  for (const [hex, formes] of parCouleur) {
-    const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(hex),
-      roughness: 0.6,
-      metalness: 0.02,
-      side: THREE.DoubleSide,
-      // décalage de rendu : la seule façon propre de poser un aplat sur
-      // une surface sans qu'ils se disputent le même plan
-      polygonOffset: true,
-      polygonOffsetFactor: -2 - rang,
-      polygonOffsetUnits: -2 - rang,
-      ...(percee ? { alphaMap: percee, alphaTest: 0.5 } : {}),
-    });
-    jetables.push(mat);
-    const dev = ep / 2 + 0.05;
-    const av = poser(aplat(formes), "avant", dev, srcPanneau);
-    av.material = mat;
-    groupe.add(av);
-    const ar = poser(aplat(formes), "arriere", -dev, srcPanneau);
-    ar.material = mat;
-    groupe.add(ar);
-    rang++;
-  }
 
   // ---------- face plexi diffusante ----------
   // Le plexi couvre la face SAUF le retour du cadre alu qui le maintient.
@@ -349,33 +449,142 @@ export function construireDrapeau(
 
   // ---------- zone ajourée ----------
   if ((r.mode === "ajourageRelief" || r.mode === "ajourageAPlat") && zone) {
-    const matPlexi = new THREE.MeshStandardMaterial({
+    // ⚠ L'ADHÉSIF reste collé sur le plexi de la zone : c'est lui que la
+    // lumière traverse. Un aplat de couleur uni à la place effaçait tout ce
+    // qui se trouvait dans la zone — le « E » d'un losange ajouré disparaissait
+    // sous un losange blanc, en relief comme à plat (constaté le 21/09/2026).
+    // Le plexi porte donc le visuel du fichier, rétroéclairé : le logo s'allume
+    // dans ses propres couleurs, filtrées par la couleur des LED.
+    //
+    // La zone est ramenée dans le repère du PANNEAU : ses coordonnées de
+    // texture coïncident alors avec celles du visuel, dessiné dans ce même
+    // repère. Même transformation que celle du percement plus haut.
+    const echelle = zone.k / k;
+    const versPanneau = (pt: THREE.Vector2) =>
+      new THREE.Vector2(
+        box.min.x + zone.dxMm / k + (pt.x - zone.box.min.x) * echelle,
+        box.min.y + zone.dyMm / k + (pt.y - zone.box.min.y) * echelle
+      );
+    const formesPanneau = zone.shapes.map((forme) => {
+      const f = new THREE.Shape(forme.getPoints(SEGMENTS).map(versPanneau));
+      f.holes = forme.holes.map((t) => new THREE.Path(t.getPoints(SEGMENTS).map(versPanneau)));
+      return f;
+    });
+    // ⚠ Couleurs BRUTES du fichier, sans égaliser leur luminosité. Un adhésif
+    // bleu laisse passer bien moins de lumière qu'une zone blanche : si on les
+    // ramène au même niveau, pousser l'éclairage les brûle ENSEMBLE au blanc.
+    // Mesuré le 21/09/2026, à puissance 0,6 : luminosité égalisée, le losange
+    // ne paraissait pas allumé (224) tant que le E gardait sa teinte ; couleurs
+    // brutes, le losange est allumé (255) ET le E reste bleu (teinte 208 pour
+    // 212 dans le fichier). Un noir reste noir : l'encre bloque la lumière.
+    //
+    // ⚠ La COULEUR DE DIFFUSION est celle des LED : elle teinte la lumière qui
+    // traverse le plexi ET l'adhésif. Peinte en fond du visuel, elle restait
+    // cachée sous l'adhésif dès que la zone en était couverte — le réglage
+    // « ne faisait rien » (constaté le 21/09/2026). Elle porte donc sur
+    // l'ÉMISSION, par multiplication : le visuel dit ce que chaque endroit
+    // laisse passer (plexi nu = tout), les LED disent quelle lumière passe.
+    const visuel = masqueDessin(box, k, (ctx) => {
+      // le plexi nu laisse tout passer...
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(box.min.x, box.min.y, box.max.x - box.min.x, box.max.y - box.min.y);
+      // ...et l'adhésif posé dessus la filtre, forme par forme
+      shapes.forEach((forme, i) => {
+        if (i === iCaisson) return;
+        ctx.fillStyle = couleurDe(i);
+        ctx.fill(tracer(ctx, forme), "evenodd");
+      });
+    }, mmParPxFin);
+    if (visuel) {
+      visuel.colorSpace = THREE.SRGBColorSpace;
+      jetables.push(visuel);
+    }
+    // ⚠ Intensité ÉTALONNÉE à la mesure (21/09/2026), sur deux critères à
+    // tenir sur TOUTE la course du curseur : le plexi doit RAYONNER (halo
+    // mesurable autour de la zone) et l'adhésif doit garder SA teinte. Pour
+    // un E bleu de teinte 212 dans le fichier, à puissance 0,6 :
+    //   émission 0,58 → aucun halo, la zone ne paraît pas allumée
+    //   émission 0,9  → halo net, E à 208
+    //   émission 1,5  → E à 196 (vire au cyan) ; 2,0 → brûlé au blanc
+    // Plage retenue 0,85 → 1,15 : halo dès la puissance 0, E entre 203 et 208.
+    // L'ancienne formule (0,8 + 0,9 × puissance) brûlait l'adhésif. Celle du
+    // panneau à plat ne se transpose pas : sa scène s'assombrit en mode
+    // ajourage, celle du drapeau reste en plein jour.
+    // (Le halo des LED de COULEUR se règle côté post-traitement : voir
+    // `majBloom`, seuil par canal sur un drapeau.)
+    const intensite = 0.85 + 0.3 * r.intensite;
+    const matAdhesif = new THREE.MeshStandardMaterial({
+      // teinté lui aussi : la lumière du jour renvoyée par un plexi blanc
+      // ramenait la zone au blanc (255, 255, 244 mesuré en LED jaunes, le
+      // 21/09/2026). En LED blanches, rendu inchangé.
+      color: new THREE.Color(r.couleurDiffusion),
+      map: visuel,
+      emissive: new THREE.Color(r.couleurDiffusion),
+      emissiveMap: visuel,
+      emissiveIntensity: intensite,
+      roughness: 0.5,
+      // la rotation qui redresse le dessin retourne aussi la normale d'une
+      // surface PLANE : sans double face, un des deux côtés disparaît
+      side: THREE.DoubleSide,
+    });
+    // le chant d'un plexi en saillie n'est pas imprimé : il diffuse
+    const matChantPlexi = new THREE.MeshStandardMaterial({
       color: new THREE.Color(r.couleurDiffusion),
       emissive: new THREE.Color(r.couleurDiffusion),
-      emissiveIntensity: 0.8 + 0.9 * r.intensite,
+      emissiveIntensity: intensite,
       roughness: 0.5,
     });
-    jetables.push(matPlexi);
+    jetables.push(matAdhesif, matChantPlexi);
+
     if (r.mode === "ajourageRelief") {
-      // la zone RESSORT du caisson et s'allume sur ses deux faces
+      // la zone RESSORT du caisson et s'allume sur ses deux faces ; côté
+      // avant, l'extrusion part vers -X : pour RESSORTIR du caisson il faut
+      // donc caler son extrémité, pas son origine. Groupes d'une extrusion :
+      // 0 = les deux faces (imprimées), 1 = le chant.
       const s = Math.max(2, r.saillieMm);
-      // côté avant, l'extrusion part vers -X : pour RESSORTIR du caisson il
-      // faut donc caler son extrémité, pas son origine
-      const av = poser(extruder(zone.shapes, s, zone.k), "avant", ep / 2 + s, zone);
-      av.material = matPlexi;
-      groupe.add(av);
-      const ar = poser(extruder(zone.shapes, s, zone.k), "arriere", -ep / 2 - s, zone);
-      ar.material = matPlexi;
-      groupe.add(ar);
+      for (const [face, x] of [["avant", ep / 2 + s], ["arriere", -ep / 2 - s]] as const) {
+        const m = poser(extruder(formesPanneau, s, k), face, x, srcPanneau);
+        m.material = [matAdhesif, matChantPlexi];
+        // ⚠ Un plexi allumé n'a pas d'ombre noire à son pied : il éclaire la
+        // face autour de lui. Son ombre portée dessinait une bande sombre le
+        // long de la zone, lue comme du dibond qui dépasse (21/09/2026).
+        m.castShadow = false;
+        groupe.add(m);
+      }
     } else {
       // ajourage À PLAT : on découpe le dibond, le plexi se loge dans la
       // saignée — il est donc EN RETRAIT de l'épaisseur de la plaque.
-      const av = poser(aplat(zone.shapes), "avant", ep / 2 - DIBOND_MM, zone);
-      av.material = matPlexi;
-      groupe.add(av);
-      const ar = poser(aplat(zone.shapes), "arriere", -ep / 2 + DIBOND_MM, zone);
-      ar.material = matPlexi;
-      groupe.add(ar);
+      for (const [face, x] of [["avant", ep / 2 - DIBOND_MM], ["arriere", -ep / 2 + DIBOND_MM]] as const) {
+        const m = poser(aplat(formesPanneau), face, x, srcPanneau);
+        m.material = matAdhesif;
+        m.castShadow = false;
+        groupe.add(m);
+      }
+
+      // ⚠ TRANCHE DE LA DÉCOUPE : le bord du dibond, de la face jusqu'au
+      // plexi. Sans elle, de biais, on voyait par l'interstice l'intérieur
+      // creux du caisson (le « caisson transparent »).
+      // Elle ne suit que le contour EXTÉRIEUR de la zone : une zone relevée
+      // est souvent faite de plusieurs formes jointives (un losange et le E
+      // posé dessus), mais la découpe du dibond, elle, est d'un seul tenant.
+      // Extruder chaque forme dessinait un trait sombre le long du E
+      // (constaté le 21/09/2026).
+      // Couleur de l'âme d'un composite aluminium, que la découpe met à nu.
+      const matSaignee = new THREE.MeshStandardMaterial({
+        color: new THREE.Color("#2e2e2e"),
+        roughness: 0.7,
+        metalness: 0.1,
+        side: THREE.DoubleSide,
+      });
+      jetables.push(matSaignee);
+      // côté avant la géométrie file vers -X depuis son origine : posée au
+      // ras de la face, elle descend jusqu'au plexi ; côté arrière, l'inverse
+      for (const [face, x] of [["avant", ep / 2], ["arriere", -ep / 2]] as const) {
+        const m = poser(tranchesExterieures(formesPanneau, DIBOND_MM / k), face, x, srcPanneau);
+        m.material = matSaignee;
+        m.castShadow = false;
+        groupe.add(m);
+      }
     }
   }
 
@@ -391,11 +600,12 @@ export function construireDrapeau(
   // le bord recule à mesure qu'on monte : un tube s'arrêtant au plan du
   // caisson resterait suspendu dans le vide.
   const bordAvant = mesurerBordAvant(shapes[iCaisson], box, k);
-  const poserTube = (section: number, yCentre: number) => {
+  // `epaisseur` suit l'axe X (celui de l'épaisseur du caisson), `hauteur` l'axe Y
+  const poserTube = (epaisseur: number, hauteur: number, yCentre: number) => {
     const yDessin = H / 2 - yCentre; // repère du dessin, y vers le bas
-    const avancee = ecart + bordAvant(yDessin, section);
+    const avancee = ecart + bordAvant(yDessin, hauteur);
     if (avancee <= 0.5) return;
-    const geo = new THREE.BoxGeometry(section, section, avancee);
+    const geo = new THREE.BoxGeometry(epaisseur, hauteur, avancee);
     jetables.push(geo);
     const m = new THREE.Mesh(geo, matPotence);
     m.position.set(0, yCentre, avancee / 2);
@@ -404,12 +614,21 @@ export function construireDrapeau(
   };
   const sec = Math.max(10, r.sectionTubeMm);
   if (r.potence === "monopotence") {
-    poserTube(sec * 2.2, 0);
+    // ⚠ Dimensions PROPRES, jamais déduites de la section des tubes : elle
+    // était multipliée par 2,2 — 30 mm réglés donnaient une potence de 66 mm,
+    // plus épaisse qu'un caisson de 30 (21/09/2026). Une monopotence est
+    // souvent habillée d'un cache : c'est lui qu'on voit, et c'est lui qu'on
+    // règle. Elle ne dépasse pas le caisson en hauteur.
+    poserTube(
+      Math.max(10, r.epaisseurPotenceMm),
+      Math.min(H, Math.max(10, r.hauteurPotenceMm)),
+      0
+    );
   } else {
     // aux EXTRÉMITÉS du caisson, à 3 mm du bord : c'est là qu'on visse
     const bord = 3;
-    poserTube(sec, H / 2 - bord - sec / 2);
-    poserTube(sec, -H / 2 + bord + sec / 2);
+    poserTube(sec, sec, H / 2 - bord - sec / 2);
+    poserTube(sec, sec, -H / 2 + bord + sec / 2);
   }
 
   return jetables;

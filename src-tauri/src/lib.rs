@@ -168,6 +168,30 @@ fn save_documents_file(rel_path: String, content_base64: String) -> Result<Strin
     Ok(file_path.to_string_lossy().replace('\\', "/"))
 }
 
+/// Supprime des fichiers du dossier temp — les sorties d'un relevé Illustrator
+/// AVANT de le relancer.
+///
+/// ⚠ Sans cette purge côté application, GraphiDesk relisait la sortie du
+/// relevé PRÉCÉDENT : le script l'effaçait bien lui-même, mais seulement au
+/// moment de s'exécuter, alors que l'application commence à guetter le
+/// résultat 500 ms après le lancement — et qu'un Illustrator déjà ouvert
+/// reçoit le script en différé. Le relevé suivant lisait alors celui d'avant :
+/// « ça marche au deuxième ou au troisième essai ».
+#[tauri::command]
+fn supprimer_temp(file_names: Vec<String>) -> Result<(), String> {
+    for nom in file_names {
+        if nom.contains("..") {
+            return Err("Chemin invalide".into());
+        }
+        let chemin = env::temp_dir().join(&nom);
+        if chemin.exists() {
+            fs::remove_file(&chemin)
+                .map_err(|e| format!("Impossible d'effacer {} : {}", nom, e))?;
+        }
+    }
+    Ok(())
+}
+
 // Lit un fichier du dossier temp et le retourne en base64
 // (canal de retour des scripts Illustrator : export de sélection biblio...)
 #[tauri::command]
@@ -769,6 +793,7 @@ pub fn run() {
             save_temp_binary,
             save_documents_file,
             read_temp_binary,
+            supprimer_temp,
             save_fiche_vt,
             save_binary_to,
             focus_main_window,

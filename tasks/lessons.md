@@ -39,3 +39,70 @@ l'avais vu passer dans les journaux et je ne l'avais pas traité.
 — elles se résolvent par leur NOM au moment de l'invocation. Un harnais qui
 teste le parsage ne teste pas le transport. Tant que je ne peux pas ouvrir la
 fenêtre moi-même, cette vérification statique remplace le test à l'écran.
+
+## Le banc de test peut mentir : un instrument pollué a failli me faire corriger le mauvais bug (21/09/2026)
+
+**Erreur.** En cherchant pourquoi le E d'un drapeau disparaissait, j'ai enchaîné
+des dizaines de reconstructions de scène dans la MÊME page de test, et empilé
+des hypothèses fausses (profondeur, ordre de rendu) parce que mes mesures se
+contredisaient. Deux causes, toutes deux dans mon instrument :
+1. lecture de l'image par `drawImage(canvas)` — tampon périmé, déjà noté dans
+   les leçons du projet, et je l'ai refait ;
+2. une page de test où l'on recrée le moteur sur la même toile hérite de l'état
+   graphique laissé par les précédents.
+
+**Ironie utile :** le point 2 ÉTAIT le bug de Jordan. Mon banc reproduisait
+exactement ses « rafraîchissements qui ne marchent qu'au troisième essai ».
+
+**Règles :**
+- mesurer par `gl.readPixels` IMMÉDIATEMENT après `render()`, jamais par
+  `drawImage` ;
+- chaque mesure de référence sur une page FRAÎCHE ; si deux mesures se
+  contredisent, suspecter l'instrument AVANT d'échafauder une théorie ;
+- comparer deux images (avec / sans l'objet) plutôt que lire un pixel dont on
+  suppose la position ;
+- fixer les critères d'acceptation AVANT de mesurer (teinte à ±12°, halo
+  présent, écart entre échelles) — sinon on règle au jugé.
+
+## Plusieurs moteurs WebGL sur une même toile se partagent l'état de la carte
+
+`new THREE.WebGLRenderer({ canvas })` sur une toile déjà utilisée reprend le
+MÊME contexte, mais son cache d'état repart de zéro : il croit le mélange coupé
+alors que le moteur précédent l'a laissé en ADDITIF. Toutes les surfaces
+s'additionnaient → blanc, couleurs disparues, faces vues à travers.
+`renderer.resetState()` juste après la création suffit (vérifié sur 49
+reconstructions enchaînées).
+
+## Des données de test SYMÉTRIQUES cachent les bugs de miroir (21/09/2026)
+
+**Erreur.** J'ai validé l'ajourage du drapeau sur un losange CENTRÉ, vu de FACE.
+Jordan a trouvé en deux captures ce que mon banc ne pouvait pas voir :
+- de biais, le E perdait jusqu'à 63 % de sa surface (je n'avais testé qu'un angle) ;
+- le corps du caisson portait le dessin EN MIROIR sur sa face avant : un losange
+  centré est son propre reflet, donc le défaut était invisible — une zone
+  décentrée était percée du mauvais côté.
+
+**Règles :**
+- un test de rendu 3D se fait sur PLUSIEURS angles (face, trois-quarts, plongée,
+  contre-plongée, rasant, loin, près, DOS) — un seul angle ne prouve rien ;
+- les données de test doivent être ASYMÉTRIQUES (zone dans un coin, logo non
+  centré) : une donnée symétrique est aveugle aux inversions ;
+- une métrique « tout pixel qui change » est contaminée par les ombres et la
+  lumière : pour prouver une transparence, peindre l'objet suspect d'une couleur
+  TÉMOIN que l'éclairage ne peut pas produire (vert pur non éclairé) ;
+- quand l'utilisateur dit « vérifie TOUT », il a raison : j'avais corrigé ce qu'il
+  avait signalé, pas cherché ce qu'il n'avait pas encore vu.
+
+## 21/09/2026 — Tester avec LE fichier de l'utilisateur, pas un fichier imaginé
+- Les captures Illustrator réelles étaient dans `%TEMP%\graphidesk_3d` (lettres.svg, lettres_zone.svg, meta*.json) pendant toute la passe précédente. Mon fichier de test « équivalent » avait un E posé à part ; le vrai a un E de la MÊME couleur que le fond, et une zone faite de DEUX formes jointives. Les deux défauts (E caché par regroupement par couleur, tranche noire le long de chaque forme de la zone) n'existaient que sur le vrai fichier.
+- Règle : avant de mesurer, chercher les données réelles déjà présentes sur le poste et construire le banc dessus. Un fichier synthétique ne sert qu'EN PLUS.
+- Un correctif validé sur un mode (drapeau) doit être cherché dans les modes voisins (lettres relief) : même cause (regroupement par couleur qui perd l'ordre d'Illustrator), même symptôme.
+- Pas de requestAnimationFrame dans le banc quand le panneau navigateur est masqué : il ne se déclenche jamais.
+- Un seuil de halo sur la LUMINOSITÉ ignore les lumières colorées (rouge ≈ 0,27 du blanc) ; les pousser jusqu'au seuil les brûle au blanc (ACES). Seuil sur le canal max + force compensée = teinte ET halo.
+- Banc de test : la capture du panneau navigateur est RÉDUITE (0,622 ici) — convertir les coordonnées lues sur une capture avant de lire le tampon, sinon on mesure à côté.
+- Retour mal interprété (21/09) : « contour noir sous le E » + « dibond autour de la zone » → j'ai supprimé TOUT le bord (plexi à fleur) alors que Jordan voulait le bord sur le contour EXTÉRIEUR de la zone seulement. Règle : quand un retour mêle « ce qui ne va pas » et « ce qui va », reformuler la cible en une phrase (« bord visible sur le contour d'ensemble, pas le long du E ») avant de coder ; en cas de doute sur ce qui doit RESTER, demander.
+
+## 21/09/2026 — Deux moteurs pour un même texte = divergence garantie
+- Le Rédacteur BAT avait une version codée en dur ET une copie « modifiable » des mêmes produits ; le banc « 0 écart sur 7 488 combinaisons » ne testait pas le Caisson, précisément celui qui divergeait (Mat avant le RAL). Et il ne tournait plus depuis le rapatriement (package.json "type": "module" du dépôt).
+- Règles : une seule source par règle métier ; un test qui compare deux implémentations ne prouve rien sur ce qu'il ne couvre pas — préférer des phrases attendues écrites en clair + un balayage d'invariants ; lancer le banc après chaque déplacement de dossier.
+- Données utilisateur persistantes (copies de modèles dans PluginData) : une mise à jour du code ne les touche pas → prévoir une version + migration dès qu'on corrige un modèle.

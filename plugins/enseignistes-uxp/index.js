@@ -6,11 +6,10 @@
  */
 
 const { entrypoints } = require("uxp");
-const { PRODUCTS } = require("./products.js");
 const ID = require("./indesign.js");
 const Catalog = require("./catalog.js");
 const { setupEditor } = require("./editor.js");
-const { BUILTIN_CONFIGS } = require("./builtins-config.js");
+const { BUILTIN_CONFIGS, BUILTIN_VERSION, BUILTIN_ORDRE } = require("./builtins-config.js");
 
 const VIEWS = ["generateView", "productView", "subView", "exportView"];
 const ADD_LABEL = "+ Ajouter un produit";
@@ -23,7 +22,6 @@ let curBuiltinName = null;    // nom du produit de base sélectionné (sinon nul
 let currentProduct = null;    // runtime { fields, buildText, ... }
 let els = {};
 let optionMaps = {};
-let noteEl = null;
 let ed = null;
 let exportRows = [];          // [{ product, cb }] pour la vue d'export
 
@@ -93,20 +91,9 @@ function arraysEqual(a, b) {
   return true;
 }
 
-function defaultValue(field) {
-  if (field.type === "checkbox") return !!field.default;
-  if (field.type === "dropdown") {
-    if (field.default != null) return field.default;
-    return field.options ? Catalog.optLabel(field.options[0]) : "";
-  }
-  return field.default != null ? field.default : "";
-}
-
-/* Choix d'un champ Liste : fonction (built-ins), dépendance d'un autre champ, ou liste fixe. */
+/* Choix d'un champ Liste : dépendance d'un autre champ, ou liste fixe. */
 function computeOptions(field, values) {
-  if (typeof field.optionsFrom === "function") return field.optionsFrom(values);
-  if (field.dependsOn) return (field.optionGroups && field.optionGroups[values[field.dependsOn]]) || [];
-  return field.options || [];
+  return Catalog.fieldOptions(field, values);
 }
 
 /* --- Surcharges des produits de base (édition en place, réinitialisable) --- */
@@ -130,27 +117,33 @@ function getBuiltinOverride(name) {
   return p.subproducts.filter(function (s) { return s.id === name; })[0] || null;
 }
 
-/* Produit runtime (génération) à partir d'un sous-produit config : champs + texte + auto-remplissage. */
+/* Produit runtime (génération) à partir d'un sous-produit config : champs, texte, automatismes. */
 function makeSubRuntime(sub) {
   return {
     fields: sub.fields || [],
     buildText: function (v) { return Catalog.buildText(sub, v); },
     derive: function (v, set, changedId) {
-      (sub.fields || []).forEach(function (f) {
-        if (f.autoFill && f.autoFill.on && f.autoFill.map && (changedId === null || changedId === f.autoFill.on)) {
-          const val = f.autoFill.map[v[f.autoFill.on]];
-          set(f.id, (val != null) ? val : "");
-        }
-      });
+      Catalog.appliquerAutomatismes(sub, v, changedId, set, readValues);
     }
   };
+}
+
+/*
+ * Met à jour les modèles de base « rendus modifiables » d'une version
+ * antérieure. Ces copies vivent dans les données du plugin, sur chaque poste :
+ * une mise à jour du plugin ne les touche pas, et sans ce remplacement aucune
+ * correction de rédaction n'atteindrait les graphistes qui en ont une.
+ * Renvoie les noms remplacés. Les produits sur-mesure ne sont jamais touchés.
+ */
+function migrerModelesDeBase() {
+  return Catalog.migrerModelesDeBase(builtinsProduct(false), BUILTIN_CONFIGS, BUILTIN_VERSION);
 }
 
 /* ----------------------------------------------------- liste de produits */
 
 function buildProductEntries() {
   productEntries = [];
-  Object.keys(PRODUCTS).forEach(name => productEntries.push({ label: name, builtin: true, product: PRODUCTS[name] }));
+  BUILTIN_ORDRE.forEach(name => productEntries.push({ label: name, builtin: true }));
   (catalog.products || []).forEach(p => {
     if (p.id === BUILTINS_PROD_ID) return; // produit interne (surcharges) : non listé
     productEntries.push({ label: p.name, userId: p.id, prod: p });
@@ -245,6 +238,10 @@ async function init() {
   try {
     try { catalog = await Catalog.loadCatalog(); }
     catch (e) { catalog = Catalog.emptyCatalog(); }
+    const modelesMisAJour = migrerModelesDeBase();
+    if (modelesMisAJour.length) {
+      try { await persist(); } catch (e) { /* nouvelle tentative au prochain enregistrement */ }
+    }
 
     ed = setupEditor({
       catalog: catalog,
@@ -272,6 +269,9 @@ async function init() {
     el("exDoExport").addEventListener("click", doExport);
 
     selectProductEntry(0);
+    if (modelesMisAJour.length) {
+      setStatus("Modèles de base mis à jour : " + modelesMisAJour.join(", ") + ".", "ok");
+    }
   } catch (e) {
     showFatal("ERREUR INIT : " + (e && e.message ? e.message : e) + (e && e.stack ? "\n" + e.stack : ""));
   }
@@ -296,14 +296,10 @@ function selectProductEntry(idx) {
     el("btnEdit").classList.add("hidden");
     el("btnCopyBuiltin").classList.toggle("hidden", !BUILTIN_CONFIGS[entry.label]);
     el("subRow").classList.add("hidden");
-    const override = getBuiltinOverride(entry.label);
-    if (override) {
-      curSub = override;
-      currentProduct = makeSubRuntime(override); // version modifiée par l'utilisateur
-    } else {
-      curSub = null;
-      currentProduct = entry.product; // version verrouillée d'origine
-    }
+    // version modifiée par l'utilisateur, sinon modèle d'origine verrouillé :
+    // les deux passent par le même moteur
+    curSub = getBuiltinOverride(entry.label) || BUILTIN_CONFIGS[entry.label];
+    currentProduct = makeSubRuntime(curSub);
     renderFields();
     refresh(null);
     return;
@@ -347,16 +343,8 @@ function renderFields() {
   container.innerHTML = "";
   els = {};
   optionMaps = {};
-  noteEl = null;
 
-  const defaults = {};
-  currentProduct.fields.forEach(f => { if (!f.dependsOn) defaults[f.id] = defaultValue(f); });
-  currentProduct.fields.forEach(f => {
-    if (f.dependsOn) {
-      const o = computeOptions(f, defaults).map(Catalog.optLabel);
-      defaults[f.id] = o.length ? o[0] : "";
-    }
-  });
+  const defaults = Catalog.defaultValues({ fields: currentProduct.fields });
 
   currentProduct.fields.forEach(field => {
     const wrapper = document.createElement("div");
@@ -408,12 +396,6 @@ function renderFields() {
     els[field.id] = { control, wrapper, field };
     container.appendChild(wrapper);
   });
-
-  if (typeof currentProduct.note === "function") {
-    noteEl = document.createElement("div");
-    noteEl.className = "note";
-    container.appendChild(noteEl);
-  }
 }
 
 function readValues() {
@@ -448,29 +430,30 @@ function setVal(id, val) {
   }
 }
 
+/*
+ * Recalcule les listes qui dépendent d'un autre champ, dans l'ordre des champs :
+ * une liste peut dépendre d'une autre (lettres : option → matière → épaisseur).
+ * Le choix en cours est gardé s'il existe encore — changer d'option ne doit
+ * pas ramener la matière au premier choix.
+ */
 function rebuildDynamicOptions(v) {
-  for (const id in els) {
-    const { control, field } = els[id];
-    if (field.type === "dropdown" && (field.optionsFrom || field.dependsOn)) {
-      const newOpts = computeOptions(field, v).map(Catalog.optLabel);
-      if (!arraysEqual(optionMaps[id], newOpts)) {
-        fillMenu(control, newOpts, 0);
-        optionMaps[id] = newOpts;
-      }
+  currentProduct.fields.forEach(function (field) {
+    const e = els[field.id];
+    if (!e || field.type !== "dropdown" || !field.dependsOn) return;
+    const newOpts = computeOptions(field, v).map(Catalog.optLabel);
+    if (!arraysEqual(optionMaps[field.id], newOpts)) {
+      const garde = newOpts.indexOf(v[field.id]);
+      fillMenu(e.control, newOpts, garde >= 0 ? garde : 0);
+      optionMaps[field.id] = newOpts;
+      v[field.id] = newOpts[garde >= 0 ? garde : 0] || "";
     }
-  }
+  });
 }
 
 function applyVisibility(v) {
   for (const id in els) {
     const { wrapper, field } = els[id];
-    let visible = true;
-    if (typeof field.visibleWhen === "function") {
-      visible = field.visibleWhen(v);
-    } else if (field.condition && field.condition.on) {
-      visible = (v[field.condition.on] === field.condition.value);
-    }
-    wrapper.classList.toggle("hidden", !visible);
+    wrapper.classList.toggle("hidden", !Catalog.isActive(field, v, currentProduct.fields));
   }
 }
 
@@ -487,10 +470,6 @@ function refresh(changedId) {
   v = readValues();
 
   applyVisibility(v);
-
-  if (noteEl && typeof currentProduct.note === "function") {
-    noteEl.textContent = currentProduct.note(v);
-  }
 
   el("preview").value = currentProduct.buildText(v);
   autoGrowPreview();

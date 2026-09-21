@@ -10,7 +10,9 @@ un vrai panneau ancré, qui remplace les fenêtres modales (à l'origine du bug 
 | `manifest.json` | Déclaration du plugin (panneau, version hôte InDesign 21+) |
 | `index.html` | Structure du panneau |
 | `index.js` | Moteur d'interface (champs dynamiques, aperçu, boutons) |
-| `products.js` | Les 4 produits + génération du texte (logique portée de la V5) |
+| `builtins-config.js` | Les 4 produits de base (modèles de texte) — **source unique** |
+| `catalog.js` | Moteur de rédaction (modèles, conditions, automatismes) + stockage |
+| `editor.js` | Éditeur des produits sur-mesure et des modèles rendus modifiables |
 | `indesign.js` | Opérations sur le document (écriture, ajustement, duplication) |
 | `styles.css` | Mise en forme |
 
@@ -49,8 +51,13 @@ un vrai panneau ancré, qui remplace les fenêtres modales (à l'origine du bug 
 - **Correction** : dans « Lettres reliefs », l'option de fixation « Tige filetée » de la V5 avait
   un espace parasite qui la rendait inactive — corrigée ici (génère « Sur tiges filetées »).
 - La section « Potences » du Caisson, jamais affichée en V5 (donc sans effet), n'a pas été reportée.
-- Architecture **pilotée par configuration** (`products.js`) : base prévue pour la future
-  fonctionnalité « produits/catégories créés par l'utilisateur ».
+- Depuis la 6.2.0, **un seul moteur de rédaction** : les produits de base sont des modèles
+  (`builtins-config.js`) passés au même moteur que les produits sur-mesure (`catalog.js`).
+  L'ancienne version codée en dur (`products.js`) divergeait de sa copie modifiable sans
+  que rien ne le signale. Toute modification des modèles : incrémenter `BUILTIN_VERSION`
+  (les copies « rendues modifiables » des postes sont alors remplacées au lancement).
+- Vérifier la rédaction : `node plugins/enseignistes-uxp/tests/redaction.test.js`
+  (phrases attendues validées avec Jordan + balayage de toutes les combinaisons).
 
 ## Publier une nouvelle version (depuis GraphiDesk)
 
@@ -62,12 +69,13 @@ donc sans historique, alors que GraphiDesk en embarquait le paquet.
 2. Packager en `.ccx` (zip standard — ⚠ PAS `Compress-Archive`, qui produit des
    `\` invalides ; utiliser le tar de Windows) :
    ```
-   C:\Windows\System32	ar.exe -a -c -f plugin.zip manifest.json index.html index.js styles.css catalog.js editor.js indesign.js products.js builtins-config.js icons
+   C:\Windows\System32\tar.exe -a -c -f plugin.zip manifest.json index.html index.js styles.css catalog.js editor.js indesign.js builtins-config.js icons
    ren plugin.zip BAT-Enseignistes.ccx
    ```
    ⚠ Passer par un nom **.zip** PUIS renommer : avec `-f xxx.ccx`, `tar -a` ne
    reconnaît pas l'extension et produit un **TAR** (UPIA échoue en -204).
-   `tasks/` et `tests/` restent dehors : rien n'en dépend à l'exécution.
+   `tasks/`, `tests/` et `package.json` restent dehors : rien n'en dépend à l'exécution
+   (`package.json` sert seulement à lancer les tests avec Node).
 3. Copier le `.ccx` dans `src-tauri/assets/indesign/`. Rien d'autre à
    synchroniser : GraphiDesk lit la version DANS le paquet.
 4. Release GraphiDesk → chaque graphiste voit « Mettre à jour » dans l'encart

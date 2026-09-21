@@ -514,3 +514,24 @@ que sa question : le « Rédacteur » est bien une extension UXP
       toute l'équipe — geste de Jordan)
 - [ ] Décider si `Enseignistes-UXP` rejoint `plugins/` comme `cotes-bat-uxp` :
       aujourd'hui GraphiDesk embarque un paquet dont la source vit hors dépôt.
+
+## Rédacteur BAT (plugin UXP 6.2.0) — refonte de la logique d'écriture (21/09/2026)
+Validé par Jordan point par point (1,2,3,4,5,6,7,8,9,11,12a,13,15,16,17 ; 10 et 14 abandonnés).
+- [x] UN seul moteur : produits de base = configs (builtins-config) passées au moteur catalog.js ; products.js supprimé
+- [x] Moteur : case à cocher, condition multi-valeurs + en chaîne, blocs optionnels `[ … ]`, repli `A|B`, valeurs ignorées (quantité 1), plusieurs parties auto
+- [x] Finition collée à l'élément (« Laqué RAL 7016 mat », « Adhésif occultant mat contrecollé »)
+- [x] (en attente de dimension) / case « Dimension provisoire »
+- [x] Fixations : Vissé panneau ; caisson simple face (Vissé / entretoises / lisses) et double face (potence / monopotence + RAL)
+- [x] RAL vide → « (à définir) » ; teinté masse sans réf conservé ; dépoli sans lamination par défaut
+- [x] Plusieurs parties : > 3050 ou (> 1500 et > 1500) ; caisson = plaque (L + 2 ép.) × (H + 2 ép.)
+- [x] Caisson : face plexi, ajourage relief PMMA 30 mm, « Rétroéclairage LED » ; lettres « Rétroéclairées », tranches laquées RAL, adhésif contrecollé sur la face
+- [x] Harmonisation « 3 mm », « 1200 x 300 mm », tiret normal
+- [x] Migration : modèles de base déjà rendus modifiables remplacés par la v2 au premier lancement
+- [x] Banc de test réparé : spécification (phrases attendues) + balayage de toutes les combinaisons
+- [x] Paquet .ccx 6.2.0 embarqué dans GraphiDesk
+
+### Revue (21/09/2026)
+- `node plugins/enseignistes-uxp/tests/redaction.test.js` : 82 phrases conformes, 200 312 combinaisons sans phrase cassée, migration conforme.
+- Catalogue réel de Jordan : produits sur-mesure (Temporis) → 0 différence sur 100 combinaisons, ancien vs nouveau moteur.
+- Panneau chargé hors InDesign (UXP simulé, navigateur de test) : migration v1 → v2 + message, saisies réelles sur les 4 produits, éditeur « Modifier » sans erreur.
+- Paquet 6.2.0 dans src-tauri/assets/indesign/. Reste : essai de Jordan dans InDesign (installation via GraphiDesk).

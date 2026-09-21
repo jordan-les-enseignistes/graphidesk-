@@ -23,11 +23,17 @@
   var NOM_SVG = "/lettres" + SUF + ".svg";
   var NOM_META = "/meta" + SUF + ".json";
 
+  // ⚠ Écriture en DEUX TEMPS : un fichier provisoire, puis un renommage, qui
+  // est instantané. GraphiDesk guette ce fichier pendant qu'on l'écrit : lu à
+  // moitié, il donnait un JSON tronqué et un relevé en échec.
   function ecrireMeta(objStr) {
     var d = new Folder(DIR);
     if (!d.exists) d.create();
-    var f = new File(DIR + NOM_META);
-    f.encoding = "UTF-8"; f.open("w"); f.write(objStr); f.close();
+    var tmp = new File(DIR + NOM_META + ".tmp");
+    tmp.encoding = "UTF-8"; tmp.open("w"); tmp.write(objStr); tmp.close();
+    var cible = new File(DIR + NOM_META);
+    if (cible.exists) cible.remove();
+    tmp.rename(cible.name);
   }
 
   // purge des sorties précédentes (sinon GraphiDesk relirait l'export d'avant)

@@ -401,6 +401,13 @@ function chargerTexture(url: string, couleur: boolean): THREE.Texture {
   img.onload = () => {
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
+    // ⚠ La carte graphique a réservé cette texture à 2 × 2 pixels, et cette
+    // réservation ne s'agrandit pas : un simple `needsUpdate` échouait en
+    // silence (erreur « valeur invalide ») et le mur restait uni jusqu'à la
+    // scène suivante — la matière choisie n'apparaissait qu'au deuxième essai
+    // (mesuré le 21/09/2026). Libérer la texture la fait recréer à la bonne
+    // taille au prochain rendu.
+    tex.dispose();
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(img, 0, 0);
@@ -613,13 +620,17 @@ export interface Relief3dOptions {
   /* ---------- enseigne drapeau ---------- */
   typeEnseigne: TypeEnseigne;
   modeDrapeau: ModeDrapeau;
-  /** épaisseur du caisson : 40 mm en non lumineux, 70 mm en lumineux */
+  /** épaisseur du caisson : 45 mm en non lumineux, 70 mm en lumineux */
   epaisseurCaissonMm: number;
   /** écart entre le mur et le début du caisson (longueur des tubes) */
   ecartMurMm: number;
   potence: Potence;
   /** section des tubes de potence (30 × 30 standard) */
   sectionTubeMm: number;
+  /** monopotence : dimensions VISIBLES de la potence — celles du cache
+   *  potence quand le tube en est habillé */
+  epaisseurPotenceMm: number;
+  hauteurPotenceMm: number;
   /** chant du caisson, en aluminium laqué */
   couleurChant: string;
   /** peinture de la potence */
@@ -693,10 +704,12 @@ export const RELIEF3D_DEFAUTS: Relief3dOptions = {
   motifMur: "uni",
   typeEnseigne: "lettres",
   modeDrapeau: "nonLumineux",
-  epaisseurCaissonMm: 40,
+  epaisseurCaissonMm: 45,
   ecartMurMm: 100,
   potence: "deuxTubes",
   sectionTubeMm: 30,
+  epaisseurPotenceMm: 30,
+  hauteurPotenceMm: 30,
   couleurChant: "#c9ccd1",
   // la potence est en métal brut par défaut, indépendamment du caisson
   couleurPotence: "#9aa0a6",
@@ -706,6 +719,68 @@ export const RELIEF3D_DEFAUTS: Relief3dOptions = {
   couleurLumiereRampe: "#ffffff",
   couleurLumiereSpots: "#ffffff",
 };
+
+/**
+ * Ajourage à plat : masque les PAROIS du décor situées à l'intérieur de la
+ * zone découpée. Une zone faite de plusieurs formes (un E posé sur un
+ * losange) laissait voir par le trou les parois de chacune — des barres
+ * grises le long du E (21/09/2026). La découpe réelle n'a qu'un bord : son
+ * contour extérieur. Une paroi est interne quand ses DEUX côtés sont dans la
+ * zone ; le bord de la découpe, lui, a la face d'un côté et reste visible.
+ * Le test lit le masque de percement, dans le repère des lettres.
+ */
+function masquerParoisInternes(
+  mat: THREE.Material,
+  percee: THREE.Texture,
+  contours: { box: THREE.Box2; k: number }
+): void {
+  const { box, k } = contours;
+  const echelle = new THREE.Vector2(percee.repeat.x / k, percee.repeat.y / k);
+  const decalage = new THREE.Vector2(
+    percee.offset.x + box.min.x * percee.repeat.x,
+    percee.offset.y + box.min.y * percee.repeat.y
+  );
+  mat.customProgramCacheKey = () => "parois-internes";
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.masqueZone = { value: percee };
+    shader.uniforms.masqueEchelle = { value: echelle };
+    shader.uniforms.masqueDecalage = { value: decalage };
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        varying vec2 vPosDessin;
+        varying vec2 vNormDessin;`
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+        vPosDessin = position.xy;
+        vNormDessin = normal.xy;`
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        uniform sampler2D masqueZone;
+        uniform vec2 masqueEchelle;
+        uniform vec2 masqueDecalage;
+        varying vec2 vPosDessin;
+        varying vec2 vNormDessin;`
+      )
+      .replace(
+        "#include <clipping_planes_fragment>",
+        // 3 mm de part et d'autre : au-delà d'un pixel du masque (1,5 mm)
+        `#include <clipping_planes_fragment>
+        if ( length( vNormDessin ) > 0.5 ) {
+          vec2 n = normalize( vNormDessin ) * 3.0;
+          float a = textureLod( masqueZone, ( vPosDessin + n ) * masqueEchelle + masqueDecalage, 0.0 ).r;
+          float b = textureLod( masqueZone, ( vPosDessin - n ) * masqueEchelle + masqueDecalage, 0.0 ).r;
+          if ( a < 0.5 && b < 0.5 ) discard;
+        }`
+      );
+  };
+}
 
 /** Silhouette floutée des lettres → texture de halo projetée sur le mur.
  *  (Le vrai rétroéclairage — une source lumineuse par lettre — coûterait
@@ -1209,6 +1284,9 @@ export class Relief3dScene {
    * la lumière : la zone doit s'allumer AUX COULEURS DU FICHIER, dégradé
    * compris. La faire briller en blanc était l'erreur commise sur le drapeau.
    */
+  /** avance de la couche de lettres la plus en avant (ordre d'Illustrator) :
+   *  le plexi d'un ajourage se pose au-dessus */
+  private avanceFaceMax = 0;
   private zonesLumineuses: {
     shapes: THREE.Shape[];
     couleurs: string[];
@@ -1401,6 +1479,8 @@ export class Relief3dScene {
         ecartMurMm: o.ecartMurMm,
         potence: o.potence,
         sectionTubeMm: o.sectionTubeMm,
+        epaisseurPotenceMm: o.epaisseurPotenceMm,
+        hauteurPotenceMm: o.hauteurPotenceMm,
         couleurChant: o.couleurChant,
         couleurPotence: o.potenceCommeCaisson ? o.couleurChant : o.couleurPotence,
         couleurDiffusion: o.couleurDiffusion,
@@ -1495,6 +1575,18 @@ export class Relief3dScene {
       // disputent le même plan et clignotent selon l'angle.
       logarithmicDepthBuffer: true,
     });
+    // ⚠ Chaque capture crée un NOUVEAU moteur de rendu sur la MÊME toile, donc
+    // sur le même contexte graphique. Or un moteur ne connaît que l'état qu'il
+    // a lui-même posé : le précédent, en quittant un mode lumineux, laisse la
+    // carte en mélange ADDITIF (le halo se compose ainsi), que le nouveau croit
+    // coupé. Toutes les surfaces opaques s'additionnaient alors : l'image
+    // partait au blanc, des couleurs du décor disparaissaient et le caisson
+    // semblait transparent, laissant voir sa face arrière.
+    // Mesuré le 21/09/2026 : la MÊME scène rendue après six reconstructions
+    // passait de (11, 74, 152) à (255, 255, 255) pour le « E » d'un losange.
+    // C'est la cause des rendus qui « ne se rafraîchissent qu'au troisième
+    // essai ». On repart donc toujours d'un état de carte vierge.
+    this.renderer.resetState();
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1666,6 +1758,17 @@ export class Relief3dScene {
         this.renderer.domElement.height
       );
       this.bloom = new UnrealBloomPass(taille, 0.6, 0.7, 0.85);
+      // Seuil au choix : sur la LUMINOSITÉ (par défaut) ou sur le canal le
+      // plus fort (drapeau, voir plus bas).
+      const passeHaute = this.bloom.materialHighPassFilter;
+      passeHaute.uniforms.parCanal = { value: 0 };
+      passeHaute.fragmentShader = passeHaute.fragmentShader
+        .replace("uniform float smoothWidth;", "uniform float smoothWidth;\nuniform float parCanal;")
+        .replace(
+          "float v = luminance( texel.xyz );",
+          "float v = mix( luminance( texel.xyz ), max( texel.r, max( texel.g, texel.b ) ), parCanal );"
+        );
+      passeHaute.needsUpdate = true;
       this.composer.addPass(this.bloom);
     }
     if (this.renderPass) this.renderPass.scene = this.scene;
@@ -1678,12 +1781,35 @@ export class Relief3dScene {
       // à moitié éteinte
       const fort = drapeau || o.eclairage === "face" || estAjourage(o.eclairage);
       const dose = fort ? o.haloIntensite * 0.7 : o.haloIntensite;
-      this.bloom.strength = (fort ? 0.22 : 0.3) * Math.max(0.3, dose);
+      // ⚠ Sur un drapeau, le halo est PLAFONNÉ au niveau d'une puissance de
+      // 0,6 : au-delà, il débordait de la zone blanche sur le logo qu'elle
+      // entoure et le délavait (mesuré le 21/09/2026, E bleu de teinte 212 :
+      // halo 0,154 → 190 ; plafonné → 203). Passé ce seuil, le curseur ne fait
+      // plus monter que la lumière de la zone elle-même.
+      const doseRetenue = drapeau ? Math.min(dose, 0.6 * 0.7) : dose;
+      this.bloom.strength = (fort ? 0.22 : 0.3) * Math.max(0.3, doseRetenue);
+      if (drapeau) {
+        // Le halo reprend la lumière de la zone : une LED de COULEUR, moins
+        // lumineuse que la blanche, en produisait deux à trois fois moins
+        // (mesuré à 5 mm du bord, 21/09/2026 : +48 en blanc, +18 en rouge).
+        // Compensé selon la luminosité de la teinte ; blanc : facteur 1.
+        const led = new THREE.Color(o.couleurDiffusion);
+        const clarte = 0.2126 * led.r + 0.7152 * led.g + 0.0722 * led.b;
+        this.bloom.strength *= Math.min(2.5, 1 / Math.sqrt(Math.max(0.16, clarte)));
+      }
       // ⚠ Sur un drapeau le MUR occupe la moitié de l'image : un seuil bas le
       // faisait déborder et le crépi virait à l'aplat blanc. Les faces
       // diffusantes étant franchement émissives, un seuil haut ne leur retire
       // rien.
       this.bloom.threshold = drapeau ? 0.95 : fort ? 0.45 : 0.8;
+      // ⚠ Sur un drapeau, le seuil porte sur le CANAL LE PLUS FORT et non sur
+      // la luminosité : une LED rouge ou bleue à pleine puissance est trois à
+      // huit fois moins « lumineuse » qu'une blanche et ne déclenchait jamais
+      // le halo — la zone changeait de teinte sans paraître allumée
+      // (21/09/2026). La pousser jusqu'au seuil la brûlait au blanc. Sur du
+      // blanc ou du gris, les deux mesures sont égales : rendu inchangé. Les
+      // lettres relief gardent le seuil de luminosité.
+      this.bloom.materialHighPassFilter.uniforms.parCanal.value = drapeau ? 1 : 0;
       this.bloom.radius = fort ? 0.4 : 0.35;
     }
   }
@@ -1790,23 +1916,29 @@ export class Relief3dScene {
     if (!z || z.shapes.length === 0) return;
 
     const relief = o.eclairage === "ajourageRelief";
-    // à plat : le plexi se loge dans la saignée du dibond, donc EN RETRAIT ;
-    // en relief : la zone dépasse de la face avant.
+    // à plat : le plexi se loge dans la saignée du dibond, donc EN RETRAIT
+    // de la face la plus en avant ; en relief : la zone dépasse de cette face.
+    // (Les parois du décor internes à la zone sont masquées : voir
+    // `masquerParoisInternes`.)
     const saillie = Math.max(2, o.saillieAjourageMm);
-    const zAvant = o.epaisseurMm;
-    const zZone = relief ? zAvant + saillie : zAvant - DIBOND_MM;
+    const zAvant = o.epaisseurMm + this.avanceFaceMax;
+    const zBase = relief ? zAvant + saillie : zAvant - DIBOND_MM;
 
-    // une géométrie par couleur, comme pour la face : un logo bicolore
-    // s'allume bicolore
-    const parCouleur = new Map<string, { formes: THREE.Shape[]; ref: string | null }>();
+    // une géométrie par SUITE de formes de même couleur, dans l'ordre
+    // d'Illustrator — comme pour la face. Toutes au même plan, le losange et
+    // le E de la zone se disputaient chaque pixel (grésillement bleu/blanc,
+    // 21/09/2026) : chaque couche passe devant la précédente d'un pas.
+    const parCouleur: [string, { formes: THREE.Shape[]; ref: string | null }][] = [];
     z.shapes.forEach((forme, i) => {
       const hex = z.couleurs[i] ?? o.couleurFace;
       const ref = z.refsDegrade[i] ?? null;
       const cle = ref ? `deg:${ref}` : hex;
-      const entree = parCouleur.get(cle);
-      if (entree) entree.formes.push(forme);
-      else parCouleur.set(cle, { formes: [forme], ref });
+      const derniere = parCouleur[parCouleur.length - 1];
+      if (derniere && derniere[0] === cle) derniere[1].formes.push(forme);
+      else parCouleur.push([cle, { formes: [forme], ref }]);
     });
+    const PAS_ZONE = 0.12;
+    let rangZone = 0;
 
     // Dosage retenu à l'essai : assez pour lire une découpe allumée, pas
     // assez pour saturer la teinte à blanc.
@@ -1855,7 +1987,7 @@ export class Relief3dScene {
       const mesh = new THREE.Mesh(geo, mat);
       mesh.rotation.x = Math.PI;
       // le relevé de zone est repéré depuis le coin haut-gauche du dessin
-      mesh.position.set(-W / 2 + dx, H / 2 - dy, zZone);
+      mesh.position.set(-W / 2 + dx, H / 2 - dy, zBase + rangZone++ * PAS_ZONE);
       // seule la découpe rayonne : le mur, si clair soit-il, ne peut pas
       mesh.layers.enable(CALQUE_LUEUR);
       this.groupe.add(mesh);
@@ -1929,6 +2061,14 @@ export class Relief3dScene {
     // purge du contenu précédent (changement de réglage = reconstruction)
     for (const d of this.disposables) d.dispose();
     this.disposables = [];
+    // ⚠ Les lumières de la scène précédente doivent être LIBÉRÉES : chacune
+    // porteuse d'ombre garde une carte d'ombre de 2 048 × 2 048 en mémoire
+    // graphique. Abandonnées avec la scène, elles s'accumulaient à chaque
+    // mouvement de curseur (mesuré le 21/09/2026 : 17 → 77 textures en
+    // 30 réglages), jusqu'à épuiser la carte graphique.
+    this.scene?.traverse((objet) => {
+      if ((objet as THREE.Light).isLight) (objet as THREE.Light).dispose();
+    });
     // Repartir d'une scène NEUVE plutôt que de vider l'ancienne : c'est la
     // seule façon de garantir qu'aucune lumière, aucun matériel d'éclairage
     // ni aucun réglage de rendu du mode précédent ne survive (passer de
@@ -1974,14 +2114,19 @@ export class Relief3dScene {
     // profondeur convertie, puis on met TOUTE la géométrie à l'échelle mm.
     // Une géométrie PAR COULEUR du fichier : un logo bicolore reste bicolore.
     const k = this.contours.k;
-    const parCouleur = new Map<string, THREE.Shape[]>();
+    // ⚠ Regroupées par SUITE de formes de même couleur, pas par couleur : un
+    // regroupement par couleur rangeait un E bleu posé sur un losange gris
+    // avec le FOND bleu, donc sous le losange — le E disparaissait (constaté
+    // le 21/09/2026 sur un fond bleu / losange gris / E bleu). Chaque changement
+    // de couleur ouvre une nouvelle couche, dans l'ordre d'Illustrator.
+    const parCouleur: [string, THREE.Shape[]][] = [];
     this.contours.shapes.forEach((s, i) => {
       const c = o.couleursDuFichier
         ? this.contours.couleurs[i] ?? o.couleurFace
         : o.couleurFace;
-      const liste = parCouleur.get(c);
-      if (liste) liste.push(s);
-      else parCouleur.set(c, [s]);
+      const derniere = parCouleur[parCouleur.length - 1];
+      if (derniere && derniere[0] === c) derniere[1].push(s);
+      else parCouleur.push([c, [s]]);
     });
     this.couleursFichier = [...new Set(this.contours.couleurs)];
     // Le SVG est en repère « y vers le bas » : il faut retourner l'axe Y.
@@ -2011,6 +2156,7 @@ export class Relief3dScene {
     // suffisent à départager deux surfaces posées l'une sur l'autre.
     const PAS_SUPERPOSITION = 0.12;
     let rangCouleur = 0;
+    this.avanceFaceMax = (parCouleur.length - 1) * PAS_SUPERPOSITION;
     for (const [hex, formes] of parCouleur) {
       const avance = rangCouleur++ * PAS_SUPERPOSITION;
       // tranche : soit une couleur commune, soit celle de la lettre
@@ -2022,6 +2168,7 @@ export class Relief3dScene {
           })
         : matTrancheCommune;
       if (o.trancheCommeFace) this.disposables.push(matTranche);
+      if (perceeAjour) masquerParoisInternes(matTranche, perceeAjour, this.contours);
 
       const geo = new THREE.ExtrudeGeometry(formes, {
         depth: k > 0 ? o.epaisseurMm / k : o.epaisseurMm,
@@ -2342,10 +2489,25 @@ export class Relief3dScene {
       // ajourage à l'autre : c'est l'ÉMISSION du caisson qui doit varier,
       // pas la lumière du jour qui tombe sur la façade.
       this.scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+      // ⚠ Direction de lumière FIXE, visée sur le CENTRE du caisson.
+      // Les lampes étaient placées par des formules qui ne suivaient pas la
+      // taille au même rythme (écart latéral bloqué à 1 200 mm, hauteur et
+      // profondeur proportionnelles) : sur un petit drapeau la lumière
+      // arrivait de face, sur un grand de biais. Mesuré le 21/09/2026 : à
+      // 300 mm la face recevait ~35 % de lumière en plus qu'à 3 000 mm, et
+      // l'adhésif d'un ajourage partait au blanc. Une enseigne ne doit pas
+      // changer de teinte avec sa taille. La direction retenue reproduit
+      // l'éclairage des grands caissons, qui rendait juste.
+      const centre = new THREE.Vector3(0, 0, o.ecartMurMm + W / 2);
+      const portee = Math.max(W, H) * 3;
+      const viser = (l: THREE.DirectionalLight, direction: THREE.Vector3) => {
+        l.position.copy(centre).addScaledVector(direction.normalize(), portee);
+        l.target.position.copy(centre);
+        this.scene.add(l, l.target);
+      };
       const cote = (signe: number, force: number) => {
         const l = new THREE.DirectionalLight(0xffffff, force);
-        l.position.set(signe * Math.max(W, 1200), H * 0.8, o.ecartMurMm + W * 0.6);
-        this.scene.add(l);
+        viser(l, new THREE.Vector3(signe, 0.7, 0.1));
         return l;
       };
       const principale = cote(1, 1);
@@ -2361,8 +2523,7 @@ export class Relief3dScene {
       cote(-1, 0.7);
       // rasante depuis le mur, pour détacher le caisson de la façade
       const rasante = new THREE.DirectionalLight(0xffffff, 0.3);
-      rasante.position.set(0, H * 0.4, -Math.max(W, 800));
-      this.scene.add(rasante);
+      viser(rasante, new THREE.Vector3(0, 0.3, -1));
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.majBloom(o);
@@ -2598,8 +2759,15 @@ export class Relief3dScene {
     // rendu à une définition supérieure à l'affichage : le BAT part souvent
     // en impression, une capture d'écran ne suffirait pas
     const canvas = this.renderer.domElement;
-    const wAff = canvas.width;
-    const hAff = canvas.height;
+    // ⚠ Taille d'AFFICHAGE, pas celle de la toile. `canvas.width` est en
+    // pixels réels (affichage × zoom de l'écran) : la rendre à `setSize`, qui
+    // attend des pixels d'affichage, la re-multipliait par le zoom. Sur un
+    // écran à 125 %, la toile grossissait de 25 % à CHAQUE export (mesuré le
+    // 21/09/2026 : 1 125 → 1 406 → 1 757 → 2 196 px), le rendu ralentissait
+    // jusqu'à faire tomber la carte graphique.
+    const affichage = this.renderer.getSize(new THREE.Vector2());
+    const wAff = affichage.x;
+    const hAff = affichage.y;
     const agrandir = facteur > 1;
     if (agrandir) {
       const w = Math.round(canvas.clientWidth * facteur);

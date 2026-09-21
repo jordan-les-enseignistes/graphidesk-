@@ -42,6 +42,7 @@ import {
   type Relief3dOptions,
 } from "@/lib/relief3d";
 import { DEFAULT_ILLUSTRATOR_PATH } from "./types";
+import { analyserZone } from "@/lib/drapeau3d";
 import { importerFichier } from "@/lib/importVectoriel";
 import { ChoixCouleurDialog } from "./ChoixCouleurDialog";
 
@@ -304,11 +305,65 @@ function Pastilles({
 
 /* ---------- studio ---------- */
 
+/**
+ * Lance un relevé dans Illustrator et attend SA réponse — pas celle d'avant.
+ *
+ * ⚠ Deux pièges, constatés le 21/09/2026 :
+ *   - les sorties du relevé précédent n'étaient effacées que par le script
+ *     lui-même, au moment de s'exécuter. GraphiDesk guette la réponse 500 ms
+ *     après le lancement ; un Illustrator déjà ouvert reçoit le script en
+ *     différé : on relisait donc le relevé PRÉCÉDENT, et chaque essai rendait
+ *     le résultat du précédent (« ça marche au deuxième essai »). On purge
+ *     désormais AVANT de lancer.
+ *   - la réponse peut être lue pendant qu'Illustrator l'écrit : un JSON
+ *     incomplet ne signifie pas un échec, on repasse le lire.
+ */
+async function releverDansIllustrator(o: {
+  scriptName: string;
+  params: unknown;
+  /** fichier JSON écrit EN DERNIER par le script : il signale la fin */
+  reponse: string;
+  /** toutes les sorties du relevé, à effacer avant de le lancer */
+  sorties: string[];
+  messageVide: string;
+}): Promise<string> {
+  const illustratorPath =
+    localStorage.getItem(ILLUSTRATOR_PATH_KEY) ?? DEFAULT_ILLUSTRATOR_PATH;
+  await invoke("supprimer_temp", { fileNames: o.sorties });
+  await invoke<string>("run_illustrator_script", {
+    illustratorPath,
+    scriptName: o.scriptName,
+    params: JSON.stringify(o.params),
+  });
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    let b64: string;
+    try {
+      b64 = await invoke<string>("read_temp_binary", { fileName: o.reponse });
+    } catch {
+      continue; // pas encore écrit
+    }
+    const texte = b64Texte(b64);
+    try {
+      JSON.parse(texte);
+      return texte;
+    } catch {
+      // en cours d'écriture : on repasse
+    }
+  }
+  throw new Error(o.messageVide);
+}
+
 export function Relief3dStudio() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<Relief3dScene | null>(null);
   const [input, setInput] = useState<Relief3dInput | null>(null);
   const [busy, setBusy] = useState(false);
+  // copie de `busy` lisible dans les rappels sans dépendre de leur fermeture
+  const occupeRef = useRef(false);
+  useEffect(() => {
+    occupeRef.current = busy;
+  }, [busy]);
   const [envoi, setEnvoi] = useState(false);
   const [opts, setOpts] = useState<Relief3dOptions>(RELIEF3D_DEFAUTS);
   // le 1:10 est l'usage courant de l'atelier : c'est lui la valeur par défaut
@@ -320,6 +375,19 @@ export function Relief3dStudio() {
   const [plusDeReglages, setPlusDeReglages] = useState(false);
   /** repère du fichier (origine des lettres) — sert au relevé des lisses */
   const [repere, setRepere] = useState<{ origX: number; origY: number; sf: number } | null>(null);
+  // ⚠ La zone d'un drapeau est mémorisée à sa position DANS LE DOCUMENT
+  // Illustrator, et non par rapport au panneau. Recapturer le panneau (pour
+  // une retouche de couleur, typiquement) la faisait disparaître en silence :
+  // il fallait la recapturer, encore un essai de plus. On recalcule désormais
+  // son décalage sur le nouveau panneau.
+  const zoneAbsolueRef = useRef<{
+    svg: string;
+    origX: number;
+    origY: number;
+    sf: number;
+    wMm: number;
+    hMm: number;
+  } | null>(null);
   /** échelle du plan de travail créé dans Illustrator à l'export */
   const [exportAu10e, setExportAu10e] = useState(true);
   /** garde-fou : la sélection Illustrator doit être faite AVANT le relevé */
@@ -344,27 +412,15 @@ export function Relief3dStudio() {
     setBusy(true);
     try {
       toast.info("Récupération de ta sélection Illustrator…");
-      const illustratorPath =
-        localStorage.getItem(ILLUSTRATOR_PATH_KEY) ?? DEFAULT_ILLUSTRATOR_PATH;
-      await invoke<string>("run_illustrator_script", {
-        illustratorPath,
-        scriptName: "relief3d_export_selection.jsx",
-        params: JSON.stringify({}),
-      });
-
-      let metaB64: string | null = null;
-      for (let i = 0; i < 40 && !metaB64; i++) {
-        await new Promise((r) => setTimeout(r, 500));
-        try {
-          metaB64 = await invoke<string>("read_temp_binary", {
-            fileName: "graphidesk_3d/meta.json",
-          });
-        } catch {
-          metaB64 = null;
-        }
-      }
-      if (!metaB64) throw new Error("Illustrator n'a rien exporté (sélection vide ?)");
-      const meta = JSON.parse(b64Texte(metaB64)) as MetaExport;
+      const meta = JSON.parse(
+        await releverDansIllustrator({
+          scriptName: "relief3d_export_selection.jsx",
+          params: {},
+          reponse: "graphidesk_3d/meta.json",
+          sorties: ["graphidesk_3d/meta.json", "graphidesk_3d/lettres.svg"],
+          messageVide: "Illustrator n'a rien exporté (sélection vide ?)",
+        })
+      ) as MetaExport;
       if (meta.erreur) throw new Error(meta.erreur);
 
       const svgB64 = await invoke<string>("read_temp_binary", {
@@ -383,11 +439,38 @@ export function Relief3dStudio() {
         origY: meta.origY ?? 0,
         sf: meta.sf ?? 1,
       });
+      const largeurPanneau = (meta.wMm ?? 1000) * k;
+      const hauteurPanneau = (meta.hMm ?? 300) * k;
+      let zoneLumineuse: Relief3dInput["zoneLumineuse"];
+      const za = zoneAbsolueRef.current;
+      if (za) {
+        const PT_MM = 25.4 / 72;
+        const dx = (za.origX - (meta.origX ?? 0)) * za.sf * PT_MM * k;
+        const dy = ((meta.origY ?? 0) - za.origY) * za.sf * PT_MM * k;
+        const TOL = 1;
+        const surLePanneau =
+          dx >= -TOL &&
+          dy >= -TOL &&
+          dx + za.wMm * k <= largeurPanneau + TOL &&
+          dy + za.hMm * k <= hauteurPanneau + TOL;
+        if (surLePanneau) {
+          zoneLumineuse = {
+            svg: za.svg,
+            decalageXMm: dx,
+            decalageYMm: dy,
+            largeurMm: za.wMm * k,
+          };
+        } else {
+          zoneAbsolueRef.current = null;
+          toast.info("La zone lumineuse n'est plus sur ce panneau : recapture-la.");
+        }
+      }
       setInput({
         svg: b64Texte(svgB64),
-        wMm: (meta.wMm ?? 1000) * k,
-        hMm: (meta.hMm ?? 300) * k,
+        wMm: largeurPanneau,
+        hMm: hauteurPanneau,
         entretoises: ents,
+        ...(zoneLumineuse ? { zoneLumineuse } : {}),
       });
       await revenirSurGraphiDesk();
       toast.success("Enseigne récupérée — couleurs reprises de ton fichier");
@@ -400,12 +483,19 @@ export function Relief3dStudio() {
 
   // ---- import d'un fichier (sans Illustrator) ----
   const chargerFichier = useCallback(async (fichier: File) => {
+    // ⚠ Un fichier déposé PENDANT une capture Illustrator était ensuite écrasé
+    // par le résultat de la capture, sans que rien ne le signale.
+    if (occupeRef.current) {
+      toast.info("Une récupération est en cours : attends qu'elle se termine.");
+      return;
+    }
     setBusy(true);
     try {
       const { svg, wMm, hMm, nom } = await importerFichier(fichier);
       const k = echelle10 ? 10 : 1;
       setDuFichier(false);
       setRepere(null);
+      zoneAbsolueRef.current = null;
       setSource("fichier");
       setInput({ svg, wMm: wMm * k, hMm: hMm * k, entretoises: [] });
       toast.success(
@@ -426,33 +516,38 @@ export function Relief3dStudio() {
     }
     setBusy(true);
     try {
-      const illustratorPath =
-        localStorage.getItem(ILLUSTRATOR_PATH_KEY) ?? DEFAULT_ILLUSTRATOR_PATH;
-      await invoke<string>("run_illustrator_script", {
-        illustratorPath,
-        scriptName: "relief3d_export_selection.jsx",
-        params: JSON.stringify({ suffixe: "_zone" }),
-      });
-      let metaB64: string | null = null;
-      for (let i = 0; i < 40 && !metaB64; i++) {
-        await new Promise((r) => setTimeout(r, 500));
-        try {
-          metaB64 = await invoke<string>("read_temp_binary", {
-            fileName: "graphidesk_3d/meta_zone.json",
-          });
-        } catch {
-          metaB64 = null;
-        }
-      }
-      if (!metaB64) throw new Error("Illustrator n'a rien exporté (sélection vide ?)");
-      const meta = JSON.parse(b64Texte(metaB64)) as MetaExport;
+      const meta = JSON.parse(
+        await releverDansIllustrator({
+          scriptName: "relief3d_export_selection.jsx",
+          params: { suffixe: "_zone" },
+          reponse: "graphidesk_3d/meta_zone.json",
+          sorties: ["graphidesk_3d/meta_zone.json", "graphidesk_3d/lettres_zone.svg"],
+          messageVide: "Illustrator n'a rien exporté (sélection vide ?)",
+        })
+      ) as MetaExport;
       if (meta.erreur) throw new Error(meta.erreur);
       const svgB64 = await invoke<string>("read_temp_binary", {
         fileName: "graphidesk_3d/lettres_zone.svg",
       });
+      // ⚠ Une forme illisible (tracé ouvert, groupe vide…) était ignorée en
+      // silence par le moteur, pendant que l'écran annonçait « Zone relevée » :
+      // le graphiste cherchait pourquoi rien ne s'allumait.
+      if (!analyserZone(b64Texte(svgB64), 0, 0, undefined, 1)) {
+        throw new Error(
+          "la forme sélectionnée ne donne aucun contour fermé — sélectionne le tracé plein de la zone"
+        );
+      }
       const k = echelle10 ? 10 : 1;
       const PT_MM = 25.4 / 72;
       const sf = meta.sf ?? 1;
+      zoneAbsolueRef.current = {
+        svg: b64Texte(svgB64),
+        origX: meta.origX ?? 0,
+        origY: meta.origY ?? 0,
+        sf,
+        wMm: meta.wMm ?? 100,
+        hMm: meta.hMm ?? 100,
+      };
       // décalage de la zone par rapport au coin haut-gauche du panneau
       const dx = ((meta.origX ?? 0) - repere.origX) * sf * PT_MM * k;
       const dy = (repere.origY - (meta.origY ?? 0)) * sf * PT_MM * k;
@@ -483,26 +578,15 @@ export function Relief3dStudio() {
     setBusy(true);
     try {
       toast.info("Sélectionne tes lisses dans Illustrator…");
-      const illustratorPath =
-        localStorage.getItem(ILLUSTRATOR_PATH_KEY) ?? DEFAULT_ILLUSTRATOR_PATH;
-      await invoke<string>("run_illustrator_script", {
-        illustratorPath,
-        scriptName: "relief3d_export_lisses.jsx",
-        params: JSON.stringify(repere ?? {}),
-      });
-      let b64: string | null = null;
-      for (let i = 0; i < 40 && !b64; i++) {
-        await new Promise((r) => setTimeout(r, 500));
-        try {
-          b64 = await invoke<string>("read_temp_binary", {
-            fileName: "graphidesk_3d/lisses.json",
-          });
-        } catch {
-          b64 = null;
-        }
-      }
-      if (!b64) throw new Error("Illustrator n'a rien renvoyé");
-      const data = JSON.parse(b64Texte(b64)) as {
+      const data = JSON.parse(
+        await releverDansIllustrator({
+          scriptName: "relief3d_export_lisses.jsx",
+          params: repere ?? {},
+          reponse: "graphidesk_3d/lisses.json",
+          sorties: ["graphidesk_3d/lisses.json"],
+          messageVide: "Illustrator n'a rien renvoyé",
+        })
+      ) as {
         lisses?: LisseFichier[];
         erreur?: string;
       };
@@ -637,6 +721,7 @@ export function Relief3dStudio() {
     setEchelle10(true);
     setInput(null);
     setRepere(null);
+    zoneAbsolueRef.current = null;
     setSource(null);
     setDuFichier(false);
     setNonTenus(0);
@@ -863,11 +948,11 @@ export function Relief3dStudio() {
               onChange={(e) => {
                 const m = e.target.value as ModeDrapeau;
                 const lum = MODES_DRAPEAU.find((x) => x.valeur === m)?.lumineux;
-                // standards atelier : 40 mm en non lumineux, 70 en lumineux ;
+                // standards atelier : 45 mm en non lumineux, 70 en lumineux ;
                 // 0,6 de puissance est le dosage jugé bon à l'usage
                 maj({
                   modeDrapeau: m,
-                  epaisseurCaissonMm: lum ? 70 : 40,
+                  epaisseurCaissonMm: lum ? 70 : 45,
                   ...(lum ? { haloIntensite: 0.6 } : {}),
                 });
               }}
@@ -944,15 +1029,39 @@ export function Relief3dStudio() {
               ]}
               onChange={(v) => maj({ potence: v })}
             />
-            <Curseur
-              label="Section des tubes"
-              valeur={opts.sectionTubeMm}
-              min={15}
-              max={80}
-              pas={5}
-              suffixe=" mm"
-              onChange={(n) => maj({ sectionTubeMm: n })}
-            />
+            {opts.potence === "monopotence" ? (
+              <>
+                {/* dimensions VISIBLES : celles du cache potence s'il y en a un */}
+                <Curseur
+                  label="Épaisseur de la potence"
+                  valeur={opts.epaisseurPotenceMm}
+                  min={10}
+                  max={150}
+                  pas={5}
+                  suffixe=" mm"
+                  onChange={(n) => maj({ epaisseurPotenceMm: n })}
+                />
+                <Curseur
+                  label="Hauteur de la potence"
+                  valeur={Math.min(opts.hauteurPotenceMm, Math.round(input.hMm))}
+                  min={10}
+                  max={Math.max(10, Math.round(input.hMm))}
+                  pas={5}
+                  suffixe=" mm"
+                  onChange={(n) => maj({ hauteurPotenceMm: n })}
+                />
+              </>
+            ) : (
+              <Curseur
+                label="Section des tubes"
+                valeur={opts.sectionTubeMm}
+                min={15}
+                max={80}
+                pas={5}
+                suffixe=" mm"
+                onChange={(n) => maj({ sectionTubeMm: n })}
+              />
+            )}
             <div className="space-y-1.5">
               <span className="text-xs text-slate-600 dark:text-slate-300">
                 Chant du caisson
