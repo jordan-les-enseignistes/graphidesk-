@@ -47,7 +47,7 @@ import {
 import { buildPremaquetteSvg, downloadSvg, gdZoneName, gdProjetKey } from "@/measure/engine/svgExport";
 import { ECHELLE_PAR_DEFAUT } from "@/measure/state/types";
 import { roundTo5Mm } from "@/measure/engine/zones";
-import { buildPhotomontagePsd, toBase64 } from "@/measure/engine/psdExport";
+import { buildPhotomontagePsd, toBase64, refletVitrineActif } from "@/measure/engine/psdExport";
 import { DEFAULT_ILLUSTRATOR_PATH } from "@/components/fabrik/types";
 import type { Zone } from "@/measure/state/types";
 import { formatDate } from "@/lib/utils";
@@ -710,7 +710,9 @@ function ProjectDetail({
         toast.info(`Génération du PSD ${vues.length > 1 ? `${i + 1}/${vues.length}` : ""}...`, {
           duration: 2500,
         });
-        const psdBytes = await buildPhotomontagePsd(zonesPhoto, vue.canvas);
+        const psdBytes = await buildPhotomontagePsd(zonesPhoto, vue.canvas, {
+          refletVitrine: refletVitrineActif(),
+        });
         const suffix = vues.length > 1 ? `_${i + 1}` : "";
         const psdPath = await invoke<string>("save_temp_binary", {
           fileName: `photomontage_vt_${project.nom.replace(/[^a-zA-Z0-9]/g, "_")}${suffix}.psd`,

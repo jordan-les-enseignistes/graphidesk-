@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Zap } from "lucide-react";
+import { Zap, Bookmark, Check } from "lucide-react";
 
 export interface NeonFlexParams {
   couleur: { r: number; g: number; b: number };
@@ -21,10 +21,19 @@ export interface NeonFlexParams {
    *  (la sélection EST le tracé, dessiné à la plume / police single-line) */
   trace: "contour" | "simple";
   cotes: boolean;
+  /** néon deux couleurs : couleur des éléments de la 2e sélection */
+  couleur2: { r: number; g: number; b: number } | null;
+  /** "memoriser" : marque la sélection courante comme couleur `numero`, sans rien générer */
+  etape?: "memoriser";
+  numero?: 1 | 2;
 }
 
 interface Props {
-  onGenerate: (params: NeonFlexParams) => void;
+  /** renvoie vrai si le script s'est exécuté */
+  onGenerate: (params: NeonFlexParams) => Promise<boolean>;
+  /** mémorise la sélection Illustrator comme couleur n ; renvoie le nombre
+   *  d'éléments mémorisés, ou null si Illustrator n'a pas répondu */
+  onMemoriser: (params: NeonFlexParams, numero: 1 | 2) => Promise<number | null>;
   isProcessing: boolean;
 }
 
@@ -51,13 +60,55 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   };
 }
 
+/** Pastilles de couleur néon + couleur libre */
+function ChoixCouleur({ hex, onChange }: { hex: string; onChange: (hex: string) => void }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {PRESETS.map((p) => (
+        <button
+          key={p.hex}
+          type="button"
+          title={p.nom}
+          onClick={() => onChange(p.hex)}
+          className={`h-9 w-9 rounded-full border-2 transition-all ${
+            hex === p.hex
+              ? "border-slate-900 dark:border-white scale-110 shadow"
+              : "border-slate-200 dark:border-slate-600 hover:scale-105"
+          }`}
+          style={{ backgroundColor: p.hex }}
+        />
+      ))}
+      <label
+        className="h-9 px-2 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center gap-1.5 cursor-pointer text-xs text-slate-500 dark:text-slate-400 hover:border-slate-400"
+        title="Couleur personnalisée"
+      >
+        <input
+          type="color"
+          value={hex}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-6 w-6 rounded cursor-pointer border-0 bg-transparent p-0"
+        />
+        libre
+      </label>
+      <span className="ml-1 text-xs font-mono text-slate-500 dark:text-slate-400">
+        {hex.toUpperCase()}
+      </span>
+    </div>
+  );
+}
+
 /**
  * Néon Flex : transforme le texte/logo sélectionné dans Illustrator en
  * maquette néon (tube pastel + cœur blanc + lueur + plaque + fixations),
  * construite SOUS l'original, selon la recette maison.
  */
-export function NeonFlexForm({ onGenerate, isProcessing }: Props) {
+export function NeonFlexForm({ onGenerate, onMemoriser, isProcessing }: Props) {
   const [hex, setHex] = useState("#FF3EB5");
+  const [deuxCouleurs, setDeuxCouleurs] = useState(false);
+  const [hex2, setHex2] = useState("#3CB4FF");
+  // nombre d'éléments mémorisés par couleur (null = pas encore fait)
+  const [memo, setMemo] = useState<{ 1: number | null; 2: number | null }>({ 1: null, 2: null });
+  const deuxPretes = (memo[1] ?? 0) > 0 && (memo[2] ?? 0) > 0;
   const [tubeMm, setTubeMm] = useState(1.06);
   const [coeurMm, setCoeurMm] = useState(0.3);
   const [padPlaquePct, setPadPlaquePct] = useState(12);
@@ -69,6 +120,22 @@ export function NeonFlexForm({ onGenerate, isProcessing }: Props) {
   const [trace, setTrace] = useState<"contour" | "simple">("contour");
   const [cotes, setCotes] = useState(true);
 
+  const parametres = (): NeonFlexParams => ({
+    couleur: hexToRgb(hex),
+    tubeMm,
+    coeurMm,
+    lueur,
+    plaque,
+    fixations,
+    padPlaquePct,
+    largeurReelleMm: parseFloat(largeurStr) > 0 ? parseFloat(largeurStr) : null,
+    hauteurReelleMm: parseFloat(hauteurStr) > 0 ? parseFloat(hauteurStr) : null,
+    echelle: 10,
+    trace,
+    cotes,
+    couleur2: deuxCouleurs ? hexToRgb(hex2) : null,
+  });
+
   return (
     <Card className="p-6 space-y-5">
       <div>
@@ -79,42 +146,97 @@ export function NeonFlexForm({ onGenerate, isProcessing }: Props) {
         </p>
       </div>
 
-      {/* Couleur du néon */}
+      {/* Couleur(s) du néon */}
       <div className="space-y-2">
-        <Label className="text-xs">Couleur du néon</Label>
-        <div className="flex items-center gap-2 flex-wrap">
-          {PRESETS.map((p) => (
-            <button
-              key={p.hex}
-              type="button"
-              title={p.nom}
-              onClick={() => setHex(p.hex)}
-              className={`h-9 w-9 rounded-full border-2 transition-all ${
-                hex === p.hex
-                  ? "border-slate-900 dark:border-white scale-110 shadow"
-                  : "border-slate-200 dark:border-slate-600 hover:scale-105"
-              }`}
-              style={{ backgroundColor: p.hex }}
-            />
-          ))}
-          <label
-            className="h-9 px-2 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center gap-1.5 cursor-pointer text-xs text-slate-500 dark:text-slate-400 hover:border-slate-400"
-            title="Couleur personnalisée"
-          >
-            <input
-              type="color"
-              value={hex}
-              onChange={(e) => setHex(e.target.value)}
-              className="h-6 w-6 rounded cursor-pointer border-0 bg-transparent p-0"
-            />
-            libre
-          </label>
-          <span
-            className="ml-1 text-xs font-mono text-slate-500 dark:text-slate-400"
-          >
-            {hex.toUpperCase()}
-          </span>
-        </div>
+        <Label className="text-xs">{deuxCouleurs ? "Couleur 1" : "Couleur du néon"}</Label>
+        <ChoixCouleur hex={hex} onChange={setHex} />
+        <label className="flex items-center gap-2 cursor-pointer text-sm dark:text-slate-200">
+          <input
+            type="checkbox"
+            checked={deuxCouleurs}
+            onChange={(e) => setDeuxCouleurs(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-pink-600 focus:ring-pink-500"
+          />
+          Néon deux couleurs
+        </label>
+        {deuxCouleurs && (
+          <>
+            <Label className="text-xs">Couleur 2</Label>
+            <ChoixCouleur hex={hex2} onChange={setHex2} />
+            {/* mini tuto — un vrai flux en trois temps (Jordan, 05/10/2026) :
+                chaque couleur se mémorise puis se grise, et le néon se fait
+                à la fin, sans rien resélectionner */}
+            <div className="rounded-md border border-pink-200 bg-pink-50 p-3 text-xs text-slate-600 dark:border-pink-900/50 dark:bg-pink-950/30 dark:text-slate-300 space-y-2">
+              <p className="font-medium">En trois étapes :</p>
+              {([1, 2] as const).map((n) => {
+                const nb = memo[n];
+                const fait = nb !== null && nb > 0;
+                const accessible = n === 1 || (memo[1] ?? 0) > 0;
+                const teinte = n === 1 ? hex : hex2;
+                return (
+                  <div
+                    key={n}
+                    className={`flex flex-wrap items-center gap-2 ${accessible ? "" : "opacity-50"}`}
+                  >
+                    <span className="font-medium">{n}.</span>
+                    {fait ? (
+                      <>
+                        <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                          <Check className="h-3.5 w-3.5" />
+                          Couleur {n} mémorisée ({nb} élément{nb > 1 ? "s" : ""})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setMemo((m) => ({ ...m, [n]: null }))}
+                          className="underline text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
+                        >
+                          recommencer
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          Dans Illustrator, sélectionne <strong>les éléments de la couleur {n}</strong>,
+                          puis :
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={isProcessing || !accessible}
+                          onClick={async () => {
+                            const r = await onMemoriser(parametres(), n);
+                            setMemo((m) => ({ ...m, [n]: r }));
+                          }}
+                          className="flex gap-2 text-white"
+                          style={{ backgroundColor: teinte }}
+                        >
+                          <Bookmark className="h-3.5 w-3.5" />
+                          Mémoriser la couleur {n}
+                        </Button>
+                        {nb === 0 && (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            rien n'était sélectionné dans Illustrator
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+              <div className={`flex items-center gap-2 ${deuxPretes ? "" : "opacity-50"}`}>
+                <span className="font-medium">3.</span>
+                <span>
+                  Clique <strong>« 3. Faire le Néon Flex »</strong> en bas — pas besoin de
+                  resélectionner.
+                </span>
+              </div>
+              <p className="text-slate-500 dark:text-slate-400">
+                Tu obtiens un seul néon : une plaque, une échelle et des cotes communes, chaque
+                couleur avec son tube et sa lueur.
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Style de tracé */}
@@ -229,28 +351,17 @@ export function NeonFlexForm({ onGenerate, isProcessing }: Props) {
       </div>
 
       <Button
-        disabled={isProcessing}
-        onClick={() =>
-          onGenerate({
-            couleur: hexToRgb(hex),
-            tubeMm,
-            coeurMm,
-            lueur,
-            plaque,
-            fixations,
-            padPlaquePct,
-            largeurReelleMm: parseFloat(largeurStr) > 0 ? parseFloat(largeurStr) : null,
-            hauteurReelleMm: parseFloat(hauteurStr) > 0 ? parseFloat(hauteurStr) : null,
-            echelle: 10,
-            trace,
-            cotes,
-          })
-        }
-        className="w-full gap-2 h-11 text-white"
-        style={{ backgroundColor: hex }}
+        // en deux couleurs, rien à faire tant que les deux ne sont pas mémorisées
+        disabled={isProcessing || (deuxCouleurs && !deuxPretes)}
+        onClick={async () => {
+          // la génération consomme les mémorisations : le néon suivant repart de l'étape 1
+          if ((await onGenerate(parametres())) && deuxCouleurs) setMemo({ 1: null, 2: null });
+        }}
+        className={`w-full gap-2 h-11 text-white ${deuxCouleurs && deuxPretes ? "ring-2 ring-offset-2 ring-pink-400 dark:ring-offset-slate-900" : ""}`}
+        style={{ background: deuxCouleurs ? `linear-gradient(90deg, ${hex}, ${hex2})` : hex }}
       >
         <Zap className="h-4 w-4" />
-        Transformer en Néon Flex
+        {deuxCouleurs ? "3. Faire le Néon Flex" : "Transformer en Néon Flex"}
       </Button>
 
       <p className="text-[11px] text-gray-400 dark:text-slate-500">

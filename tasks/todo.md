@@ -535,3 +535,15 @@ Validé par Jordan point par point (1,2,3,4,5,6,7,8,9,11,12a,13,15,16,17 ; 10 et
 - Catalogue réel de Jordan : produits sur-mesure (Temporis) → 0 différence sur 100 combinaisons, ancien vs nouveau moteur.
 - Panneau chargé hors InDesign (UXP simulé, navigateur de test) : migration v1 → v2 + message, saisies réelles sur les 4 produits, éditeur « Modifier » sans erreur.
 - Paquet 6.2.0 dans src-tauri/assets/indesign/. Reste : essai de Jordan dans InDesign (installation via GraphiDesk).
+
+## Lot feedbacks 05/10/2026 (v1.13.0, Rédacteur 6.3.0) — en test chez Jordan
+- [x] 3D : zoom +/− (tablette de Carole)
+- [x] 3D : platines murales systématiques au pied des tubes, débord réglable (40 mm)
+- [x] 3D : cotes largeur × hauteur avec flèches (case), aussi dans le PNG ; dessinées hors chaîne du halo
+- [x] Photomontage : reflet de vitrine (image de Carole) en calque Écran 45 % sur les zones vitrage — case décochée par défaut, mémorisée par poste ; prouvé par lecture des octets du PSD
+- [x] Rédacteur : caisson rond (« Diamètre 600 mm » en toutes lettres) ; double face adhésivé « x 2 (recto/verso) » (coché d'office, décochable) ; lettres rétroéclairées sur entretoises d'office + choix « Entretoises + lisses » — 95 phrases conformes
+- [x] Retours Jordan : molette de zoom continue (curseur) ; cotes réorganisées (une par côté, petites cotes nommées en bas), textes alignés sur leur ligne et pivotant autour d'elle, jamais masqués ; profondeur de potence + épaisseur caisson ; cotes de profondeur des lettres (épaisseur, déport)
+- [x] Reflet vitrine : l'image de Carole devient le contenu à 100 % (bleu conservé en calque masqué)
+- [x] Rédacteur 6.3.1 : adhésif diffusant (dos blanc) d'office en caisson lumineux — 98 phrases conformes
+- [x] FabRik Néon flex : deux couleurs en deux sélections (marquage couleur 1, puis génération) — un seul néon (plaque/échelle/cotes communes), fusion et habillage par couleur ; mini tuto. Syntaxe vérifiée, PAS testé dans Illustrator
+- [ ] Plus tard : néon multicolore dans la 3D, bâches (nouveau produit, à spécifier) ; Mesure photo : ne pas toucher pour l'instant (tag `mesure-photo-avant-fiabilisation`)

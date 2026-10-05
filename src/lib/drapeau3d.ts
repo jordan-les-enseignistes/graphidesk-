@@ -156,6 +156,8 @@ export interface ReglagesDrapeau {
   sectionTubeMm: number;
   epaisseurPotenceMm: number;
   hauteurPotenceMm: number;
+  /** débord de la platine autour du tube, de chaque côté */
+  debordPlatineMm: number;
   couleurChant: string;
   couleurPotence: string;
   couleurDiffusion: string;
@@ -611,6 +613,19 @@ export function construireDrapeau(
     m.position.set(0, yCentre, avancee / 2);
     m.castShadow = true;
     groupe.add(m);
+    {
+      // platine vissée au mur, SYSTÉMATIQUE sur une potence (son absence
+      // était un oubli, 05/10/2026) : le tube y est soudé, elle déborde autour
+      const debord = Math.max(0, r.debordPlatineMm);
+      const EP_PLATINE = 8;
+      const geoP = new THREE.BoxGeometry(epaisseur + 2 * debord, hauteur + 2 * debord, EP_PLATINE);
+      jetables.push(geoP);
+      const p = new THREE.Mesh(geoP, matPotence);
+      p.position.set(0, yCentre, EP_PLATINE / 2);
+      p.castShadow = true;
+      p.receiveShadow = true;
+      groupe.add(p);
+    }
   };
   const sec = Math.max(10, r.sectionTubeMm);
   if (r.potence === "monopotence") {

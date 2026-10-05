@@ -17,6 +17,68 @@ import { writePsdUint8Array, type Psd, type Layer } from "ag-psd";
 import { writeDataRLE } from "ag-psd/dist-es/helpers.js";
 import { roundTo5Mm, orderQuadInImage, zoneNom } from "./zones";
 import type { Zone } from "../state/types";
+import refletVitrineUrl from "@/assets/photomontage/reflet-vitrine.jpg";
+
+// ============================================================
+// REFLET DE VITRINE — facultatif, mémorisé par poste
+// ============================================================
+// Photo de reflet (façade d'en face) fournie par Carole : elle DEVIENT le
+// contenu des zones « vitrage », à 100 %. Posée en mode Écran par-dessus le
+// bleu, elle disparaissait sous lui (retour de Jordan, 05/10/2026) ; le bleu
+// reste dans le fichier, en calque masqué, pour qui voudrait y revenir.
+// Seule Carole s'en sert : décoché par défaut, et le choix reste sur SON poste.
+
+const REFLET_KEY = "graphidesk_photomontage_reflet_vitrine";
+
+export function refletVitrineActif(): boolean {
+  try {
+    return localStorage.getItem(REFLET_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function memoriserRefletVitrine(actif: boolean): void {
+  try {
+    localStorage.setItem(REFLET_KEY, actif ? "1" : "0");
+  } catch {
+    // stockage indisponible : le choix vaut pour la séance
+  }
+}
+
+function chargerReflet(): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = refletVitrineUrl;
+  });
+}
+
+/** Dessine l'image en la faisant COUVRIR la zone (recadrée, jamais déformée) */
+function dessinerCouvrant(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): void {
+  const s = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const dw = img.naturalWidth * s;
+  const dh = img.naturalHeight * s;
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+/** Calque de reflet au format du contenu (1 px = 1 mm) */
+function renderReflet(img: HTMLImageElement, w: number, h: number): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (ctx) dessinerCouvrant(ctx, img, 0, 0, w, h);
+  return canvas;
+}
 
 // ============================================================
 // CMJN NATIF — le photomontage est écrit DIRECTEMENT en CMJN
@@ -128,7 +190,8 @@ function renderZoneContent(wMm: number, hMm: number, vitrage: boolean): HTMLCanv
 /** Aperçu du calque dans le document photo : quad rempli (approximation) */
 function renderPreview(
   zone: Zone,
-  vitrage: boolean
+  vitrage: boolean,
+  reflet: HTMLImageElement | null
 ): { canvas: HTMLCanvasElement; left: number; top: number } {
   const xs = zone.corners.map((c) => c.x);
   const ys = zone.corners.map((c) => c.y);
@@ -157,6 +220,14 @@ function renderPreview(
     }
     ctx.closePath();
     ctx.fill();
+    if (vitrage && reflet) {
+      // aperçu seulement (Photoshop le recalcule à la 1re édition) : le
+      // reflet est posé à plat dans le quad, sans la perspective
+      ctx.save();
+      ctx.clip();
+      dessinerCouvrant(ctx, reflet, 0, 0, w, h);
+      ctx.restore();
+    }
   }
   return { canvas, left, top };
 }
@@ -168,10 +239,13 @@ function renderPreview(
  */
 export async function buildPhotomontagePsd(
   zones: Zone[],
-  photo: HTMLCanvasElement
+  photo: HTMLCanvasElement,
+  options: { refletVitrine?: boolean } = {}
 ): Promise<Uint8Array> {
   const linkedFiles: NonNullable<Psd["linkedFiles"]> = [];
   const children: Layer[] = [];
+  const reflet =
+    options.refletVitrine && zones.some((z) => z.fill === "vitrage") ? await chargerReflet() : null;
 
   // Calque de fond : la photo (canaux CMJN natifs)
   children.push(calqueCmyk("Photo façade", photo, 0, 0, false));
@@ -198,7 +272,13 @@ export async function buildPhotomontagePsd(
         width: content.width,
         height: content.height,
         colorMode: 4, // CMJN natif (ag-psd patché)
-        children: [calqueCmyk("Fond", content, 0, 0, true)],
+        children: [
+          // avec le reflet, le bleu reste disponible mais masqué
+          calqueCmyk("Fond", content, 0, 0, true, vitrage && reflet ? { hidden: true } : undefined),
+          ...(vitrage && reflet
+            ? [calqueCmyk("Reflet vitrine", renderReflet(reflet, content.width, content.height), 0, 0, true)]
+            : []),
+        ],
       } as Psd,
       { psb: true }
     );
@@ -208,7 +288,7 @@ export async function buildPhotomontagePsd(
     linkedFiles.push({ id: fileId, name: fileName, data: contenuPsb });
 
     // Aperçu dans le document (quad rempli, approximation du rendu)
-    const preview = renderPreview(zone, vitrage);
+    const preview = renderPreview(zone, vitrage, reflet);
 
     // Transformation : les 4 coins photo (HG, HD, BD, BG) — perspective.
     // ⚠️ Réordonnés dans l'ESPACE IMAGE : les coins stockés ont pu être

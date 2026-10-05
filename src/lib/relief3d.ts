@@ -631,6 +631,10 @@ export interface Relief3dOptions {
    *  potence quand le tube en est habillé */
   epaisseurPotenceMm: number;
   hauteurPotenceMm: number;
+  /** débord des platines autour du tube, de chaque côté */
+  debordPlatineMm: number;
+  /** cotes largeur × hauteur avec flèches, à l'écran et dans le PNG */
+  cotes: boolean;
   /** chant du caisson, en aluminium laqué */
   couleurChant: string;
   /** peinture de la potence */
@@ -710,6 +714,8 @@ export const RELIEF3D_DEFAUTS: Relief3dOptions = {
   sectionTubeMm: 30,
   epaisseurPotenceMm: 30,
   hauteurPotenceMm: 30,
+  debordPlatineMm: 40,
+  cotes: false,
   couleurChant: "#c9ccd1",
   // la potence est en métal brut par défaut, indépendamment du caisson
   couleurPotence: "#9aa0a6",
@@ -1249,6 +1255,9 @@ export class Relief3dScene {
     k: 1,
   };
   private disposables: { dispose: () => void }[] = [];
+  /** cotes, dessinées PAR-DESSUS le rendu : hors de la chaîne du halo, qui
+   *  les ferait baver comme une source lumineuse */
+  private sceneCotes = new THREE.Scene();
   private composer: EffectComposer | null = null;
   private renderPass: RenderPass | null = null;
   private bloom: UnrealBloomPass | null = null;
@@ -1481,6 +1490,7 @@ export class Relief3dScene {
         sectionTubeMm: o.sectionTubeMm,
         epaisseurPotenceMm: o.epaisseurPotenceMm,
         hauteurPotenceMm: o.hauteurPotenceMm,
+        debordPlatineMm: o.debordPlatineMm,
         couleurChant: o.couleurChant,
         couleurPotence: o.potenceCommeCaisson ? o.couleurChant : o.couleurPotence,
         couleurDiffusion: o.couleurDiffusion,
@@ -1715,6 +1725,208 @@ export class Relief3dScene {
     if (this.haloSelectif) this.dessinerHaloSelectif();
     else if (this.avecBloom && this.composer) this.composer.render();
     else this.renderer.render(this.scene, this.camera);
+    this.dessinerCotes();
+  }
+
+  /** Superpose les cotes à l'image déjà rendue, sans effacer celle-ci. */
+  private dessinerCotes(): void {
+    if (!this.options.cotes || this.sceneCotes.children.length === 0) return;
+    // Chaque texte est ALIGNÉ SUR SA LIGNE et en suit la perspective (une
+    // étiquette tournée vers la caméra se décollait de sa ligne dès qu'on
+    // tournait la vue — retour de Jordan, 05/10/2026). Il pivote seulement
+    // AUTOUR de sa ligne pour se présenter à la caméra : couché dans un plan
+    // fixe, un texte de profondeur était vu par la tranche. Le sens de
+    // lecture est choisi à chaque image : de gauche à droite (de bas en haut
+    // pour une cote verticale), jamais à l'envers ni en miroir.
+    this.camera.updateMatrixWorld();
+    const ecran = (p: THREE.Vector3) => {
+      const v = p.clone().project(this.camera);
+      return new THREE.Vector2(v.x * this.camera.aspect, v.y);
+    };
+    for (const g of this.sceneCotes.children) {
+      for (const enfant of g.children) {
+        const t = enfant.userData as {
+          milieu?: THREE.Vector3; sens?: THREE.Vector3; dehors?: THREE.Vector3; degage?: number;
+        };
+        if (!t.milieu || !t.sens || !t.dehors) continue;
+        const centre = ecran(t.milieu);
+        const s = ecran(t.milieu.clone().add(t.sens)).sub(centre);
+        if (s.lengthSq() < 1e-12) continue; // vue dans l'axe : on garde la pose précédente
+        const n = s.length();
+        const lireALEnvers = s.x < -0.2 * n || (Math.abs(s.x) <= 0.2 * n && s.y < 0);
+        const droite = lireALEnvers ? t.sens.clone().negate() : t.sens.clone();
+        const sd = lireALEnvers ? s.clone().negate() : s;
+        // plan du texte : contient la ligne, et fait face à la caméra autant
+        // que possible
+        const versCamera = this.camera.position.clone().sub(t.milieu);
+        versCamera.addScaledVector(t.sens, -versCamera.dot(t.sens));
+        if (versCamera.lengthSq() < 1e-9) continue;
+        const haut = new THREE.Vector3().crossVectors(versCamera.normalize(), droite).normalize();
+        // haut du texte = vers le haut de l'écran, quel que soit le côté vu
+        const u = ecran(t.milieu.clone().add(haut)).sub(centre);
+        if (sd.x * u.y - sd.y * u.x < 0) haut.negate();
+        const normale = new THREE.Vector3().crossVectors(droite, haut).normalize();
+        enfant.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(droite, haut, normale));
+        // décalé hors de la ligne, du côté opposé à l'objet
+        const cote = haut.dot(t.dehors) >= 0 ? haut : haut.clone().negate();
+        enfant.position.copy(t.milieu).addScaledVector(cote, t.degage ?? 0);
+      }
+    }
+    const auto = this.renderer.autoClear;
+    this.renderer.autoClear = false;
+    this.renderer.setRenderTarget(null);
+    this.renderer.clearDepth();
+    this.renderer.render(this.sceneCotes, this.camera);
+    this.renderer.autoClear = auto;
+  }
+
+  /**
+   * Cotes avec lignes d'attache et flèches (demande de Carole, 01/10/2026).
+   * Disposition pensée pour que rien ne se chevauche (05/10/2026) : une cote
+   * par côté de l'objet, les petites (potence, épaisseur, déport) nommées et
+   * posées en bas, loin des grandes ; toutes les étiquettes À L'EXTÉRIEUR de
+   * leur ligne. La couleur s'oppose à celle du mur.
+   */
+  private construireCotes(o: Relief3dOptions, W: number, H: number): void {
+    this.sceneCotes.clear();
+    if (!o.cotes) return;
+    const taille = Math.max(W, H, 100);
+    const ecart = taille * 0.08;
+    const rayon = taille * 0.0026;
+    const longFleche = rayon * 12;
+    // couleur opposée à celle du mur : traits sombres sur mur clair
+    const mur = new THREE.Color(o.couleurMur);
+    const clair = 0.2126 * mur.r + 0.7152 * mur.g + 0.0722 * mur.b > 0.45;
+    const trait = clair ? "#1f2937" : "#f8fafc";
+    const texteEtiquette = clair ? "#f8fafc" : "#111827";
+    const mat = new THREE.MeshBasicMaterial({ color: trait, toneMapped: false, depthTest: false });
+    this.disposables.push(mat);
+
+    const segment = (g: THREE.Group, a: THREE.Vector3, b: THREE.Vector3, r = rayon) => {
+      const dir = b.clone().sub(a);
+      const geo = new THREE.CylinderGeometry(r, r, dir.length(), 8);
+      this.disposables.push(geo);
+      const m = new THREE.Mesh(geo, mat);
+      m.position.copy(a).add(b).multiplyScalar(0.5);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      m.renderOrder = 1;
+      g.add(m);
+    };
+    const fleche = (g: THREE.Group, pointe: THREE.Vector3, vers: THREE.Vector3) => {
+      const geo = new THREE.ConeGeometry(rayon * 4.5, longFleche, 12);
+      this.disposables.push(geo);
+      const m = new THREE.Mesh(geo, mat);
+      const dir = vers.clone().normalize();
+      m.position.copy(pointe).addScaledVector(dir, -longFleche / 2);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+      m.renderOrder = 1;
+      g.add(m);
+    };
+    /** Étiquette posée à l'EXTÉRIEUR de la ligne, côté opposé à l'objet */
+    const etiquette = (
+      g: THREE.Group,
+      texte: string,
+      milieu: THREE.Vector3,
+      dehors: THREE.Vector3,
+      sens: THREE.Vector3
+    ) => {
+      const toile = document.createElement("canvas");
+      const ctx = toile.getContext("2d");
+      if (!ctx) return;
+      const police = "600 64px Inter, Segoe UI, sans-serif";
+      ctx.font = police;
+      const l = Math.ceil(ctx.measureText(texte).width) + 56;
+      toile.width = l;
+      toile.height = 104;
+      ctx.font = police;
+      ctx.fillStyle = trait;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, l, 104, 52);
+      ctx.fill();
+      ctx.fillStyle = texteEtiquette;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(texte, l / 2, 54);
+      const tex = new THREE.CanvasTexture(toile);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const m = new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        toneMapped: false,
+        depthTest: false,
+        side: THREE.DoubleSide,
+      });
+      const geo = new THREE.PlaneGeometry(1, 1);
+      this.disposables.push(tex, m, geo);
+      const plaque = new THREE.Mesh(geo, m);
+      const h = taille * 0.055;
+      plaque.scale.set((h * l) / 104, h, 1);
+      // couché le long de la ligne, juste au-delà (côté opposé à l'objet) :
+      // seule sa demi-hauteur est à dégager
+      const degage = h / 2 + ecart * 0.08;
+      plaque.userData = { milieu: milieu.clone(), sens: sens.clone(), dehors: dehors.clone(), degage };
+      plaque.position.copy(milieu).addScaledVector(dehors, degage);
+      plaque.renderOrder = 2;
+      g.add(plaque);
+    };
+    /** cote de a à b, décalée de `decale` (lignes d'attache comprises) */
+    const cote = (a: THREE.Vector3, b: THREE.Vector3, decale: THREE.Vector3, texte: string) => {
+      const g = new THREE.Group();
+      const pa = a.clone().add(decale);
+      const pb = b.clone().add(decale);
+      const unite = decale.clone().normalize();
+      // lignes d'attache : du bord de l'objet (petit jour) jusqu'au-delà de la cote
+      segment(g, a.clone().addScaledVector(unite, ecart * 0.15), pa.clone().addScaledVector(unite, ecart * 0.2), rayon * 0.6);
+      segment(g, b.clone().addScaledVector(unite, ecart * 0.15), pb.clone().addScaledVector(unite, ecart * 0.2), rayon * 0.6);
+      const sens = pb.clone().sub(pa).normalize();
+      if (pa.distanceTo(pb) < longFleche * 2.6) {
+        // petite cote : les flèches passent dehors et pointent vers
+        // l'intérieur, comme sur un plan
+        segment(g, pa.clone().addScaledVector(sens, -longFleche * 2.2), pb.clone().addScaledVector(sens, longFleche * 2.2));
+        fleche(g, pa, sens);
+        fleche(g, pb, sens.clone().negate());
+      } else {
+        segment(g, pa, pb);
+        fleche(g, pa, sens.clone().negate());
+        fleche(g, pb, sens);
+      }
+      etiquette(g, texte, pa.clone().add(pb).multiplyScalar(0.5), unite, sens);
+      this.sceneCotes.add(g);
+    };
+    const mm = (v: number) => Math.round(v) + " mm";
+    const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+
+    if (o.typeEnseigne === "drapeau") {
+      // le caisson est perpendiculaire au mur : sa face regarde +X, sa
+      // largeur file le long de Z depuis l'écart au mur
+      const ep = Math.max(5, o.epaisseurCaissonMm);
+      const x = ep / 2 + 1;
+      const z0 = Math.max(0, o.ecartMurMm);
+      // en haut : la largeur seule
+      cote(V(x, H / 2, z0), V(x, H / 2, z0 + W), V(0, ecart, 0), mm(W));
+      // côté opposé au mur : la hauteur
+      cote(V(x, H / 2, z0 + W), V(x, -H / 2, z0 + W), V(0, 0, ecart), mm(H));
+      // en bas, chacune à un bout : potence contre le mur, épaisseur au milieu
+      if (z0 > 1) cote(V(x, -H / 2, 0), V(x, -H / 2, z0), V(0, -ecart, 0), "Potence " + mm(z0));
+      cote(V(-ep / 2, -H / 2, z0 + W / 2), V(ep / 2, -H / 2, z0 + W / 2), V(0, -ecart, 0), "Épaisseur " + mm(ep));
+      return;
+    }
+    // lettres : largeur en haut et hauteur à gauche, dans le plan de la face
+    // la plus en avant ; profondeur en bas (épaisseur à droite, déport à gauche)
+    const boite = new THREE.Box3();
+    this.groupe.traverse((obj) => {
+      const m = obj as THREE.Mesh;
+      if (!m.isMesh || !m.geometry || m.geometry.type === "PlaneGeometry") return;
+      boite.expandByObject(m);
+    });
+    const z = boite.isEmpty() ? o.epaisseurMm : boite.max.z;
+    const deport = o.fixation === "aplat" ? 0 : o.deportMm;
+    cote(V(-W / 2, H / 2, z), V(W / 2, H / 2, z), V(0, ecart, 0), mm(W));
+    cote(V(-W / 2, H / 2, z), V(-W / 2, -H / 2, z), V(-ecart, 0, 0), mm(H));
+    cote(V(W / 2, -H / 2, z - o.epaisseurMm), V(W / 2, -H / 2, z), V(0, -ecart, 0), "Épaisseur " + mm(o.epaisseurMm));
+    if (deport > 1) {
+      cote(V(-W / 2, -H / 2, -deport), V(-W / 2, -H / 2, z - o.epaisseurMm), V(0, -ecart, 0), "Déport " + mm(deport));
+    }
   }
 
   /** Le débordement lumineux n'a de sens que si quelque chose émet. */
@@ -2481,6 +2693,7 @@ export class Relief3dScene {
     H: number,
     deport: number
   ): void {
+    this.construireCotes(o, W, H);
     // Un drapeau se regarde de part et d'autre : ses deux faces doivent
     // être éclairées, sinon celle qui tourne le dos à la lumière rend noire.
     if (o.typeEnseigne === "drapeau") {
@@ -2730,6 +2943,44 @@ export class Relief3dScene {
     this.controls.update();
   }
 
+  /**
+   * Zoom par boutons : rapproche (facteur < 1) ou éloigne la caméra de ce
+   * qu'elle regarde. Sur une tablette tactile au stylet, il n'y a ni molette
+   * ni pincement fiable (demande de Carole, 01/10/2026).
+   */
+  /** Distances de caméra permises : ni à travers l'enseigne, ni au point de la perdre de vue */
+  private bornesZoom(): [number, number] {
+    const taille = Math.max(this.input.wMm, this.hauteurRendue, 100);
+    return [taille * 0.15, taille * 15];
+  }
+
+  /**
+   * Niveau de zoom, de 0 (le plus loin) à 1 (le plus près), sur une échelle
+   * LOGARITHMIQUE : chaque cran de la molette à l'écran rapproche d'autant,
+   * de loin comme de près — c'est ce que fait une vraie molette.
+   */
+  niveauZoom(): number {
+    const [mini, maxi] = this.bornesZoom();
+    const d = this.camera.position.distanceTo(this.controls.target);
+    const n = 1 - (Math.log(d) - Math.log(mini)) / (Math.log(maxi) - Math.log(mini));
+    return Math.min(1, Math.max(0, n));
+  }
+
+  /** Molette à l'écran : une tablette au stylet n'a pas de molette (Carole, 01/10/2026) */
+  reglerZoom(niveau: number): void {
+    const [mini, maxi] = this.bornesZoom();
+    const n = Math.min(1, Math.max(0, niveau));
+    const d = Math.exp(Math.log(maxi) - n * (Math.log(maxi) - Math.log(mini)));
+    const ecart = this.camera.position.clone().sub(this.controls.target).setLength(d);
+    this.camera.position.copy(this.controls.target).add(ecart);
+    this.controls.update();
+  }
+
+  /** Prévient à chaque mouvement de caméra (molette, rotation, vue choisie) */
+  surMouvementCamera(rappel: () => void): void {
+    this.controls.addEventListener("change", rappel);
+  }
+
   setOptions(options: Relief3dOptions): void {
     this.options = options;
     this.build();
@@ -2801,6 +3052,7 @@ export class Relief3dScene {
     this.renderer.setClearAlpha(0);
     // rendu direct : la chaîne de post-traitement écraserait la transparence
     this.renderer.render(this.scene, this.camera);
+    this.dessinerCotes();
     const url = canvas.toDataURL("image/png");
     for (const c of caches) c.visible = true;
     this.scene.background = fond;

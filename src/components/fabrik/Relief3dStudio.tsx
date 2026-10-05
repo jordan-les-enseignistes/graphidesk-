@@ -25,6 +25,8 @@ import {
   FileUp,
   ImageIcon,
   Flag,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import {
   Relief3dScene,
@@ -369,6 +371,7 @@ export function Relief3dStudio() {
   // le 1:10 est l'usage courant de l'atelier : c'est lui la valeur par défaut
   const [echelle10, setEchelle10] = useState(true);
   const [vue, setVue] = useState<VueNom>("troisQuartsGauche");
+  const [niveauZoom, setNiveauZoom] = useState(0.5);
   const [nbFix, setNbFix] = useState(0);
   const [nonTenus, setNonTenus] = useState(0);
   const [duFichier, setDuFichier] = useState(false);
@@ -616,7 +619,10 @@ export function Relief3dStudio() {
     try {
       const scene = new Relief3dScene(canvasRef.current, input, opts);
       sceneRef.current = scene;
+      // la molette à l'écran suit aussi la souris et les vues prédéfinies
+      scene.surMouvementCamera(() => setNiveauZoom(scene.niveauZoom()));
       scene.vue(vue);
+      setNiveauZoom(scene.niveauZoom());
       majDiagnostic(scene);
     } catch (err) {
       toast.error(`Simulation impossible : ${String(err)}`);
@@ -637,7 +643,9 @@ export function Relief3dStudio() {
   }, [opts]);
 
   useEffect(() => {
-    sceneRef.current?.vue(vue);
+    const scene = sceneRef.current;
+    scene?.vue(vue);
+    if (scene) setNiveauZoom(scene.niveauZoom());
   }, [vue]);
 
   useEffect(() => {
@@ -863,6 +871,29 @@ export function Relief3dStudio() {
                 </button>
               ))}
             </div>
+            {/* molette à l'écran : une tablette au stylet n'en a pas. Un
+                curseur continu, aussi fin qu'une vraie molette — des boutons
+                ne faisaient que des sauts (retour de Jordan, 05/10/2026) */}
+            <div className="absolute right-3 bottom-3 flex flex-col items-center gap-1.5 rounded-lg bg-black/50 backdrop-blur px-1.5 py-2">
+              <ZoomIn className="h-3.5 w-3.5 text-slate-300" />
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.002}
+                value={niveauZoom}
+                title="Zoom"
+                aria-label="Zoom"
+                onChange={(e) => {
+                  const n = parseFloat(e.target.value);
+                  setNiveauZoom(n);
+                  sceneRef.current?.reglerZoom(n);
+                }}
+                className="h-40 w-4 cursor-pointer accent-violet-500"
+                style={{ writingMode: "vertical-lr", direction: "rtl" }}
+              />
+              <ZoomOut className="h-3.5 w-3.5 text-slate-300" />
+            </div>
             <div className="absolute left-3 bottom-3 rounded-lg bg-black/50 backdrop-blur px-2.5 py-1.5 text-[11px] text-slate-200">
               <span className="font-medium">
                 {Math.round(input.wMm)} × {Math.round(input.hMm)} mm
@@ -913,6 +944,15 @@ export function Relief3dStudio() {
                 <span className="text-xs text-slate-500 shrink-0">mm</span>
               </div>
             </div>
+            <label className="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300">
+              <input
+                type="checkbox"
+                checked={opts.cotes}
+                onChange={(e) => maj({ cotes: e.target.checked })}
+                className="h-3.5 w-3.5 rounded accent-violet-600"
+              />
+              Afficher les cotes (aussi dans le PNG)
+            </label>
           </Section>
         )}
 
@@ -1062,6 +1102,15 @@ export function Relief3dStudio() {
                 onChange={(n) => maj({ sectionTubeMm: n })}
               />
             )}
+            <Curseur
+              label="Débord des platines murales"
+              valeur={opts.debordPlatineMm}
+              min={10}
+              max={150}
+              pas={5}
+              suffixe=" mm"
+              onChange={(n) => maj({ debordPlatineMm: n })}
+            />
             <div className="space-y-1.5">
               <span className="text-xs text-slate-600 dark:text-slate-300">
                 Chant du caisson

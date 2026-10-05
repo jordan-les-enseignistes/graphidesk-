@@ -151,6 +151,33 @@ attendu("Caisson", [["f_larg", "2970"], ["f_haut", "500"]], "Caisson - Simple-fa
 attendu("Caisson", [["f_larg", "1450"], ["f_haut", "1450"]], "Caisson - Simple-face - 1450 x 1450 mm - En plusieurs parties - Épaisseur 45 mm - Non lumineux");
 attendu("Caisson", [["f_larg", "1400"], ["f_haut", "1400"]], "Caisson - Simple-face - 1400 x 1400 mm - Épaisseur 45 mm - Non lumineux");
 attendu("Caisson", [...DC, ["f_qty", "2"]], C + " - Épaisseur 45 mm - Non lumineux - x 2 exemplaires");
+// caisson lumineux : adhésif diffusant d'office, occultant toujours possible
+attendu("Caisson", [["f_larg", "800"], ["f_haut", "800"], ["f_lum", "Lumineux"], ["f_opt", "Adhésivé"], ["f_lam", "Mat"]],
+  "Caisson - Simple-face - 800 x 800 mm - Épaisseur 70 mm - Lumineux - Ajourage à plat - Plexi contrecollé - Rétroéclairage LED - Adhésif diffusant mat contrecollé");
+attendu("Caisson", [["f_larg", "800"], ["f_haut", "800"], ["f_lum", "Lumineux"], ["f_opt", "Adhésivé"], ["f_adh", "Dos gris"]],
+  "Caisson - Simple-face - 800 x 800 mm - Épaisseur 70 mm - Lumineux - Ajourage à plat - Plexi contrecollé - Rétroéclairage LED - Adhésif occultant contrecollé");
+attendu("Caisson", [["f_type", "Double-face"], ["f_larg", "800"], ["f_haut", "800"], ["f_lum", "Lumineux"], ["f_opt", "Adhésivé"]],
+  "Caisson - Double-face - 800 x 800 mm - Épaisseur 70 mm - Lumineux - Ajourage à plat - Plexi contrecollé - Rétroéclairage LED - Adhésif diffusant contrecollé x 2 (recto/verso)");
+// double face adhésivé : un adhésif par face
+attendu("Caisson", [["f_type", "Double-face"], ...DC, ["f_opt", "Adhésivé"], ["f_lam", "Mat"]],
+  "Caisson - Double-face - 2000 x 500 mm - Épaisseur 45 mm - Non lumineux - Adhésif occultant mat contrecollé x 2 (recto/verso)");
+attendu("Caisson", [...DC, ["f_opt", "Adhésivé"], ["f_lam", "Mat"], ["f_type", "Double-face"]],
+  "Caisson - Double-face - 2000 x 500 mm - Épaisseur 45 mm - Non lumineux - Adhésif occultant mat contrecollé x 2 (recto/verso)");
+attendu("Caisson", [["f_type", "Double-face"], ...DC, ["f_opt", "Adhésivé"], ["f_rv", false]],
+  "Caisson - Double-face - 2000 x 500 mm - Épaisseur 45 mm - Non lumineux - Adhésif occultant contrecollé");
+attendu("Caisson", [["f_type", "Double-face"], ["f_type", "Simple-face"], ...DC, ["f_opt", "Adhésivé"]],
+  C + " - Épaisseur 45 mm - Non lumineux - Adhésif occultant contrecollé");
+// caisson rond : le diamètre en toutes lettres
+attendu("Caisson", [["f_type", "Double-face"], ["f_forme", "Rond"], ["f_diam", "600"]],
+  "Caisson - Double-face - Rond - Diamètre 600 mm - Épaisseur 45 mm - Non lumineux");
+attendu("Caisson", [["f_forme", "Rond"]], "Caisson - Simple-face - Rond - (en attente de dimension) - Épaisseur 45 mm - Non lumineux");
+attendu("Caisson", [["f_forme", "Rond"], ["f_diam", "800"], ["f_dimProv", true]],
+  "Caisson - Simple-face - Rond - Diamètre 800 mm (dimension provisoire) - Épaisseur 45 mm - Non lumineux");
+attendu("Caisson", [["f_forme", "Rond"], ["f_diam", "1450"]],
+  "Caisson - Simple-face - Rond - Diamètre 1450 mm - En plusieurs parties - Épaisseur 45 mm - Non lumineux");
+// des cotes saisies en rectangulaire ne s'écrivent pas sur un rond
+attendu("Caisson", [...DC, ["f_forme", "Rond"], ["f_diam", "700"]],
+  "Caisson - Simple-face - Rond - Diamètre 700 mm - Épaisseur 45 mm - Non lumineux");
 
 /* ============================================================ LETTRES RELIEFS */
 const DL = [["f_larg", "1200"], ["f_haut", "300"]];
@@ -163,8 +190,19 @@ attendu("Lettres reliefs", [["f_matiere", "PVC blanc"], ["f_ep", "19 mm"], ["f_o
 attendu("Lettres reliefs", [["f_matiere", "Lettres boitiers"], ["f_ep", "60 mm"], ["f_lum", "Lumineux"], ["f_opt", "Face adhésivée"],
   ["f_adh", "Dos blanc"], ["f_lam", "Mat"], ["f_tranches", "7016"], ...DL, ["f_fix", "Entretoises"]],
   "Lettres reliefs - Boitiers - 60 mm - Lumineuses - Éclairage face avant - Adhésif diffusant mat contrecollé sur la face - Tranches laquées RAL 7016 - 1200 x 300 mm - Sur entretoises");
+// rétroéclairées : forcément sur entretoises (choisi d'office, modifiable)
 attendu("Lettres reliefs", [["f_matiere", "Lettres boitiers"], ["f_lum", "Lumineux"], ["f_eclairage", "Rétroéclairage"], ...DL],
-  "Lettres reliefs - Boitiers - 30 mm - Lumineuses - Rétroéclairées - 1200 x 300 mm");
+  "Lettres reliefs - Boitiers - 30 mm - Lumineuses - Rétroéclairées - 1200 x 300 mm - Sur entretoises");
+attendu("Lettres reliefs", [["f_matiere", "Lettres boitiers"], ["f_lum", "Lumineux"], ["f_eclairage", "Rétroéclairage"], ...DL,
+  ["f_fix", "Entretoises + lisses"], ["f_lissesRal", "7016"]],
+  "Lettres reliefs - Boitiers - 30 mm - Lumineuses - Rétroéclairées - 1200 x 300 mm - Sur entretoises et sur lisses RAL 7016");
+attendu("Lettres reliefs", [["f_matiere", "Lettres boitiers"], ["f_lum", "Lumineux"], ["f_eclairage", "Rétroéclairage"], ...DL, ["f_fix", "Vissée"]],
+  "Lettres reliefs - Boitiers - 30 mm - Lumineuses - Rétroéclairées - 1200 x 300 mm - Vissées");
+// les autres éclairages ne touchent pas à la fixation
+attendu("Lettres reliefs", [["f_matiere", "Lettres boitiers"], ["f_lum", "Lumineux"], ...DL],
+  "Lettres reliefs - Boitiers - 30 mm - Lumineuses - Éclairage face avant - 1200 x 300 mm");
+attendu("Lettres reliefs", [...DL, ["f_fix", "Entretoises + lisses"]],
+  "Lettres reliefs - Panneau aluminium composite - 3 mm - Non lumineuses - 1200 x 300 mm - Sur entretoises et sur lisses");
 attendu("Lettres reliefs", [["f_matiere", "Lettres bloc LED"], ["f_lum", "Lumineux"], ["f_eclairage", "Face avant et chant lumineux (Bloc LED)"], ...DL],
   "Lettres reliefs - Bloc LED - 30 mm - Lumineuses - Face et chant lumineux - 1200 x 300 mm");
 attendu("Lettres reliefs", [["f_matiere", "PVC blanc"], ["f_ep", "Autres"], ["f_epAutre", "12"], ...DL],

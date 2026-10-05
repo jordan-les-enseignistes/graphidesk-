@@ -23,7 +23,12 @@ import { formatDims, zoneNom } from "../engine/zones";
 import { ECHELLE_PAR_DEFAUT } from "../state/types";
 import type { Zone } from "../state/types";
 import { buildPremaquetteSvg, downloadSvg } from "../engine/svgExport";
-import { buildPhotomontagePsd, toBase64 } from "../engine/psdExport";
+import {
+  buildPhotomontagePsd,
+  toBase64,
+  refletVitrineActif,
+  memoriserRefletVitrine,
+} from "../engine/psdExport";
 import { getOffscreenCanvas } from "../engine/offscreen";
 import { DEFAULT_ILLUSTRATOR_PATH } from "@/components/fabrik/types";
 import { useState } from "react";
@@ -114,7 +119,9 @@ function PsdExportButton() {
           toast.error(`Photo « ${grp.nom} » non disponible — recharge la page`);
           continue;
         }
-        const psdBytes = await buildPhotomontagePsd(grp.zones, canvas);
+        const psdBytes = await buildPhotomontagePsd(grp.zones, canvas, {
+          refletVitrine: refletVitrineActif(),
+        });
         const suffix = parPhoto.length > 1 ? `_${i + 1}` : "";
         const psdPath = await invoke<string>("save_temp_binary", {
           fileName: `photomontage_provisoire${suffix}.psd`,
@@ -382,6 +389,8 @@ export function ZoneList() {
         </label>
       )}
 
+      {zones.length > 0 && <CaseRefletVitrine />}
+
       {zones.length > 0 && (
         <div className="rounded bg-slate-50 dark:bg-slate-800/60 p-2 space-y-1 text-[11px] text-gray-500 dark:text-slate-400">
           <div className="flex items-center gap-1.5">
@@ -550,5 +559,28 @@ export function ZoneList() {
         </div>
       )}
     </Card>
+  );
+}
+
+/** Reflet de vitrine dans le photomontage : décoché par défaut, mémorisé
+ *  sur le poste (seule Carole s'en sert). */
+function CaseRefletVitrine() {
+  const [actif, setActif] = useState(refletVitrineActif);
+  return (
+    <label className="flex cursor-pointer items-start gap-2 px-0.5 text-[11px] text-gray-500 dark:text-slate-400">
+      <input
+        type="checkbox"
+        className="mt-0.5 h-3 w-3 shrink-0 accent-blue-500"
+        checked={actif}
+        onChange={(e) => {
+          setActif(e.target.checked);
+          memoriserRefletVitrine(e.target.checked);
+        }}
+      />
+      <span>
+        <strong>Reflet sur les vitrines</strong> dans le PSD photomontage — un calque de reflet
+        réglable sur chaque zone vitrage (choix mémorisé sur ce poste)
+      </span>
+    </label>
   );
 }

@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "com.izy.enseignistes",
   "name": "BAT Les Enseignistes",
-  "version": "6.2.0",
+  "version": "6.3.1",
   "main": "index.html",
   "host": {
     "app": "ID",

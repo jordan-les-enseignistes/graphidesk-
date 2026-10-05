@@ -158,10 +158,13 @@ async function importCatalog() {
  *   - condition : { on, value } ou { on, values:[…] } — le champ n'est actif que
  *     si le champ `on` vaut l'une de ces valeurs ET est lui-même actif.
  *   - dependsOn + optionGroups : choix d'une liste selon la valeur d'un autre champ.
- *   - autoFill : { on, map } — valeur posée quand le champ `on` change.
+ *   - autoFill : { on, map, partiel? } — valeur posée quand le champ `on` change.
+ *     `partiel` : une valeur absente de la table ne touche à rien (sinon le
+ *     champ est vidé) — pour un choix par défaut qui ne vaut que dans un cas.
  *   - ignorer : [valeurs] traitées comme vides (ex. une quantité de « 1 »).
- *   - plusieursParties : { largeur, hauteur, epaisseur?, long, court, seulSi? } —
- *     case cochée d'office quand la pièce ne tient pas dans une plaque / une laize.
+ *   - plusieursParties : { largeur, hauteur, epaisseur?, long, court, seulSi? }
+ *     (ou une liste de ces règles) — case cochée d'office quand la pièce ne
+ *     tient pas dans une plaque / une laize.
  *
  * Syntaxe du modèle (une entrée = un bloc ; les blocs sont séparés par « - ») :
  *   - {Libellé} : valeur du champ. Vide → le bloc disparaît.
@@ -193,6 +196,10 @@ function defaultValues(sub) {
   // 3e passage : valeurs auto-remplies selon un autre champ
   (sub.fields || []).forEach(function (f) {
     if (f.autoFill && f.autoFill.on && f.autoFill.map) {
+      // un champ inactif ne déclenche rien (ex. un éclairage alors que le
+      // produit n'est pas lumineux)
+      const declencheur = (sub.fields || []).filter(function (x) { return x.id === f.autoFill.on; })[0];
+      if (declencheur && !isActive(declencheur, v, sub.fields)) return;
       const val = f.autoFill.map[v[f.autoFill.on]];
       if (val != null && val !== "") v[f.id] = val;
     }
@@ -280,19 +287,23 @@ function appliquerAutomatismes(sub, values, changedId, set, lire) {
   fields.forEach(function (f) {
     if (f.autoFill && f.autoFill.on && f.autoFill.map && (changedId === null || changedId === f.autoFill.on)) {
       const val = f.autoFill.map[values[f.autoFill.on]];
+      if (val == null && f.autoFill.partiel) return;
       set(f.id, (val != null) ? val : "");
     }
   });
   const v = lire();
   fields.forEach(function (f) {
-    const r = f.plusieursParties;
-    if (!r) return;
-    // recalcul quand une donnée de la règle change — y compris l'épaisseur
+    if (!f.plusieursParties) return;
+    const regles = Array.isArray(f.plusieursParties) ? f.plusieursParties : [f.plusieursParties];
+    // recalcul quand une donnée d'une règle change — y compris l'épaisseur
     // posée automatiquement — mais jamais par-dessus un choix manuel de la case
-    const sources = [r.largeur, r.hauteur, r.epaisseur, r.seulSi && r.seulSi.on];
-    fields.forEach(function (g) { if (g.autoFill && g.id === r.epaisseur) sources.push(g.autoFill.on); });
+    const sources = [];
+    regles.forEach(function (r) {
+      sources.push(r.largeur, r.hauteur, r.epaisseur, r.seulSi && r.seulSi.on);
+      fields.forEach(function (g) { if (g.autoFill && g.id === r.epaisseur) sources.push(g.autoFill.on); });
+    });
     if (changedId !== null && sources.indexOf(changedId) < 0) return;
-    set(f.id, plusieursPartiesRequises(r, v));
+    set(f.id, regles.some(function (r) { return plusieursPartiesRequises(r, v); }));
   });
 }
 

@@ -22,7 +22,7 @@
  * - syntaxe des modèles ([ … ] facultatif, A|B repli) : voir catalog.js.
  */
 
-const BUILTIN_VERSION = 2;
+const BUILTIN_VERSION = 4;
 
 /* Ordre d'affichage dans le menu Produit */
 const BUILTIN_ORDRE = ["Panneau", "Adhésif", "Caisson", "Lettres reliefs"];
@@ -216,12 +216,27 @@ const BUILTIN_CONFIGS = {
     version: BUILTIN_VERSION,
     fields: [
       { id: "f_type", label: "Type de caisson", type: "dropdown",
-        options: [{ label: "Simple-face", out: "" }, { label: "Double-face", out: "" }] }
-    ].concat(champsDimensions(), [
+        options: [{ label: "Simple-face", out: "" }, { label: "Double-face", out: "" }] },
+      { id: "f_forme", label: "Forme", type: "dropdown",
+        options: [{ label: "Rectangulaire", out: " " }, { label: "Rond", out: "Rond" }] },
+      { id: "f_larg", label: "Largeur", type: "text",
+        condition: { on: "f_forme", value: "Rectangulaire" } },
+      { id: "f_haut", label: "Hauteur", type: "text",
+        condition: { on: "f_forme", value: "Rectangulaire" } },
+      // un caisson rond se cote par son diamètre, écrit en toutes lettres :
+      // le symbole ne parle pas à tous les clients (Jordan, 05/10/2026)
+      { id: "f_diam", label: "Diamètre", type: "text",
+        condition: { on: "f_forme", value: "Rond" } },
+      { id: "f_dimProv", label: "Dimension provisoire", type: "checkbox", out: "(dimension provisoire)" },
       // plaque nécessaire = (largeur + 2 épaisseurs) x (hauteur + 2 épaisseurs) :
       // les retours pliés se prennent dans la même plaque
       { id: "f_parts", label: "En plusieurs parties", type: "checkbox",
-        plusieursParties: { largeur: "f_larg", hauteur: "f_haut", epaisseur: "f_ep", long: 3050, court: 1500 } },
+        plusieursParties: [
+          { largeur: "f_larg", hauteur: "f_haut", epaisseur: "f_ep", long: 3050, court: 1500,
+            seulSi: { on: "f_forme", value: "Rectangulaire" } },
+          { largeur: "f_diam", hauteur: "f_diam", epaisseur: "f_ep", long: 3050, court: 1500,
+            seulSi: { on: "f_forme", value: "Rond" } }
+        ] },
       { id: "f_lum", label: "Lumineux", type: "dropdown",
         options: [{ label: "Non lumineux", out: "" }, { label: "Lumineux", out: "" }] },
       { id: "f_ep", label: "Épaisseur", type: "text", default: "45",
@@ -237,13 +252,23 @@ const BUILTIN_CONFIGS = {
         options: [{ label: "Sans option", out: "" }, { label: "Laqué", out: "" }, { label: "Adhésivé", out: "" }] },
       { id: "f_ral", label: "RAL", type: "text",
         condition: { on: "f_opt", value: "Laqué" } },
+      // un caisson lumineux se recouvre d'un adhésif DIFFUSANT (dos blanc) :
+      // choisi d'office en lumineux, l'occultant reste possible pour masquer
+      // une partie de la face (Jordan, 05/10/2026)
       { id: "f_adh", label: "Adhésif", type: "dropdown",
         condition: { on: "f_opt", value: "Adhésivé" },
         options: [
           { label: "Dos gris", out: "Adhésif occultant" },
+          { label: "Dos blanc", out: "Adhésif diffusant" },
           { label: "Teinté masse", out: "Adhésif teinté masse" },
           { label: "Transparent", out: "Adhésif transparent" }
-        ] },
+        ],
+        autoFill: { on: "f_lum", map: { "Lumineux": "Dos blanc", "Non lumineux": "Dos gris" } } },
+      // un double face porte un adhésif sur chaque face : coché d'office en
+      // double face, décochable (Carole, 01/10/2026 ; écriture validée par Jordan)
+      { id: "f_rv", label: "Adhésif recto/verso", type: "checkbox", out: "x 2 (recto/verso)",
+        condition: { on: "f_opt", value: "Adhésivé" },
+        autoFill: { on: "f_type", map: { "Simple-face": false, "Double-face": true } } },
       champFinition(["Laqué", "Adhésivé"], false),
       // un simple face se fixe au mur ; un double face (drapeau) sur potence
       { id: "f_fix", label: "Fixation", type: "dropdown", dependsOn: "f_type",
@@ -263,17 +288,19 @@ const BUILTIN_CONFIGS = {
       { id: "f_fixRal", label: "RAL fixation", type: "text",
         condition: { on: "f_fix", values: ["Sur lisses", "Potence", "Monopotence"] } },
       champQuantite()
-    ]),
+    ],
     template: [
       "Caisson",
       "{Type de caisson}",
+      "{Forme}",
       DIMENSIONS,
+      "Diamètre {Diamètre} mm[ {Dimension provisoire}]|(en attente de dimension)",
       "{En plusieurs parties}",
       "Épaisseur {Épaisseur} mm",
       "{Lumineux}",
       "{Éclairage}",
       "Laqué RAL {RAL}[ {Lamination}]|Laqué RAL (à définir)[ {Lamination}]",
-      "{Adhésif}[ {Lamination}] contrecollé",
+      "{Adhésif}[ {Lamination}] contrecollé[ {Adhésif recto/verso}]",
       "{Fixation}[ RAL {RAL fixation}]",
       QUANTITE
     ]
@@ -357,17 +384,22 @@ const BUILTIN_CONFIGS = {
       { id: "f_tranches", label: "RAL tranches", type: "text",
         condition: { on: "f_matiere", value: "Lettres boitiers" } }
     ].concat(champsDimensions(), [
+      // une lettre rétroéclairée est forcément sur entretoises : choisi
+      // d'office, modifiable. Entretoises ET lisses reste un choix explicite :
+      // toutes les lettres sur entretoises ne sont pas sur lisses (Jordan, 05/10/2026)
       { id: "f_fix", label: "Fixation", type: "dropdown",
         options: [
           { label: "Sans", out: " " },
           { label: "Entretoises", out: "Sur entretoises" },
+          { label: "Entretoises + lisses", out: "Sur entretoises et sur lisses" },
           { label: "Tige filetée", out: "Sur tiges filetées" },
           { label: "Double face", out: "Fixation double-face" },
           { label: "Sur lisses", out: "Sur lisses" },
           { label: "Vissée", out: "Vissées" }
-        ] },
+        ],
+        autoFill: { on: "f_eclairage", map: { "Rétroéclairage": "Entretoises" }, partiel: true } },
       { id: "f_lissesRal", label: "RAL lisses", type: "text",
-        condition: { on: "f_fix", value: "Sur lisses" } },
+        condition: { on: "f_fix", values: ["Sur lisses", "Entretoises + lisses"] } },
       champQuantite()
     ]),
     template: [

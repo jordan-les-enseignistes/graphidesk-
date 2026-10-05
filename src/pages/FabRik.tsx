@@ -178,7 +178,8 @@ export default function FabRik() {
   };
 
   // Exécuter un script Illustrator
-  const runScript = async (scriptName: string, params: object) => {
+  /** Lance un script Illustrator ; renvoie vrai s'il s'est exécuté sans erreur */
+  const runScript = async (scriptName: string, params: object): Promise<boolean> => {
     setIsProcessing(true);
 
     try {
@@ -190,9 +191,11 @@ export default function FabRik() {
       });
 
       toast.success(retour?.trim() || "Script exécuté avec succès !", { duration: 6000 });
+      return true;
     } catch (error) {
       const errorMsg = String(error);
       toast.error(errorMsg, { duration: 8000 });
+      return false;
     } finally {
       setIsProcessing(false);
     }
@@ -235,11 +238,49 @@ export default function FabRik() {
     runScript("oeillets_fab.jsx", params);
   };
 
-  const handleNeonGenerate = (params: NeonFlexParams) => {
+  /**
+   * Néon deux couleurs : marque la sélection Illustrator comme couleur n.
+   * Le script écrit le nombre d'éléments marqués dans un petit fichier que
+   * l'on relit — c'est lui qui permet d'afficher l'étape comme faite.
+   */
+  const handleNeonMemoriser = async (params: NeonFlexParams, numero: 1 | 2): Promise<number | null> => {
+    const MEMO = "graphidesk_neon_memo.json";
+    setIsProcessing(true);
+    try {
+      await invoke("supprimer_temp", { fileNames: [MEMO] });
+      await invoke<string>("run_illustrator_script", {
+        illustratorPath,
+        scriptName: "neon_flex.jsx",
+        params: JSON.stringify({ ...params, etape: "memoriser", numero }),
+      });
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        try {
+          const b64 = await invoke<string>("read_temp_binary", { fileName: MEMO });
+          const octets = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+          const r = JSON.parse(new TextDecoder().decode(octets)) as { numero: number; nb: number };
+          if (r.numero === numero) {
+            if (r.nb === 0) toast.warning("Rien n'était sélectionné dans Illustrator.");
+            return r.nb;
+          }
+        } catch {
+          // pas encore écrit (ou en cours d'écriture) : on repasse
+        }
+      }
+      toast.error("Illustrator n'a pas répondu — vérifie qu'un document est ouvert.");
+      return null;
+    } catch (error) {
+      toast.error(String(error), { duration: 8000 });
+      return null;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleNeonGenerate = (params: NeonFlexParams) =>
     // contour = texte/logo vectorisé ; simple = la sélection EST le tracé
     // (lignes à la plume ou police monoligne) — le script gère les deux
     runScript("neon_flex.jsx", params);
-  };
 
   return (
     <div className="space-y-6">
@@ -426,7 +467,11 @@ export default function FabRik() {
           )}
 
           {fabType === "neon" && (
-            <NeonFlexForm onGenerate={handleNeonGenerate} isProcessing={isProcessing} />
+            <NeonFlexForm
+                onGenerate={handleNeonGenerate}
+                onMemoriser={handleNeonMemoriser}
+                isProcessing={isProcessing}
+              />
           )}
 
           {fabType === "" && (
