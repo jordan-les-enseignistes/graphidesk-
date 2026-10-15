@@ -12,14 +12,17 @@ import {
   Loader2,
   ChevronDown,
   Trash2,
+  Pencil,
   MessageSquare,
   Filter,
   X,
 } from "lucide-react";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
+import { useAuthStore } from "@/stores/authStore";
 import {
   useFeedbacks,
   useCreateFeedback,
+  useEditFeedback,
   useUpdateFeedbackStatut,
   useDeleteFeedback,
   FEEDBACK_TYPES,
@@ -51,27 +54,33 @@ const STATUT_ICONS: Record<FeedbackStatut, React.ElementType> = {
   termine: CheckCircle2,
 };
 
-// Modal de création de feedback
+type FeedbackSaisie = {
+  titre: string;
+  description: string;
+  type: FeedbackType;
+  priorite: FeedbackPriorite;
+};
+
+// Modal de création de feedback — ou de modification, avec `initial`
 function CreateFeedbackModal({
   onClose,
   onCreate,
   isLoading,
+  initial,
 }: {
   onClose: () => void;
-  onCreate: (data: {
-    titre: string;
-    description: string;
-    type: FeedbackType;
-    priorite: FeedbackPriorite;
-  }) => void;
+  onCreate: (data: FeedbackSaisie) => void;
   isLoading: boolean;
+  initial?: FeedbackSaisie;
 }) {
-  const [formData, setFormData] = useState({
-    titre: "",
-    description: "",
-    type: "amelioration" as FeedbackType,
-    priorite: "normale" as FeedbackPriorite,
-  });
+  const [formData, setFormData] = useState<FeedbackSaisie>(
+    initial ?? {
+      titre: "",
+      description: "",
+      type: "amelioration",
+      priorite: "normale",
+    }
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +97,7 @@ function CreateFeedbackModal({
         <div className="p-6 border-b border-gray-200 dark:border-slate-700">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
-              Nouveau feedback
+              {initial ? "Modifier le feedback" : "Nouveau feedback"}
             </h2>
             <button
               onClick={onClose}
@@ -203,7 +212,7 @@ function CreateFeedbackModal({
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-              Envoyer
+              {initial ? "Enregistrer" : "Envoyer"}
             </button>
           </div>
         </form>
@@ -219,6 +228,7 @@ function FeedbackDetailModal({
   isAdmin,
   onUpdateStatut,
   onDelete,
+  onEdit,
   isUpdating,
 }: {
   feedback: FeedbackWithAuthor;
@@ -226,6 +236,8 @@ function FeedbackDetailModal({
   isAdmin: boolean;
   onUpdateStatut: (statut: FeedbackStatut, comment?: string) => void;
   onDelete: () => void;
+  /** Présent seulement si l'utilisateur peut encore corriger ce feedback */
+  onEdit?: () => void;
   isUpdating: boolean;
 }) {
   const [adminComment, setAdminComment] = useState(
@@ -412,10 +424,19 @@ function FeedbackDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 dark:border-slate-700">
+        <div className="p-6 border-t border-gray-200 dark:border-slate-700 flex gap-3">
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+            >
+              <Pencil className="w-4 h-4" />
+              Modifier
+            </button>
+          )}
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+            className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
           >
             Fermer
           </button>
@@ -498,9 +519,12 @@ function FeedbackCard({
 
 export default function Feedbacks() {
   const { isAdmin } = useEffectiveRole();
+  const monId = useAuthStore((state) => state.profile?.id);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedFeedback, setSelectedFeedback] =
+    useState<FeedbackWithAuthor | null>(null);
+  const [editingFeedback, setEditingFeedback] =
     useState<FeedbackWithAuthor | null>(null);
   const [statutFilter, setStatutFilter] = useState<FeedbackStatut | "all">(
     "all"
@@ -512,16 +536,24 @@ export default function Feedbacks() {
   const createFeedback = useCreateFeedback();
   const updateStatut = useUpdateFeedbackStatut();
   const deleteFeedback = useDeleteFeedback();
+  const editFeedback = useEditFeedback();
 
-  const handleCreate = (data: {
-    titre: string;
-    description: string;
-    type: FeedbackType;
-    priorite: FeedbackPriorite;
-  }) => {
+  const handleCreate = (data: FeedbackSaisie) => {
     createFeedback.mutate(data, {
       onSuccess: () => setShowCreateModal(false),
     });
+  };
+
+  // l'auteur corrige son feedback tant que personne ne l'a pris en charge
+  const peutModifier = (f: FeedbackWithAuthor) =>
+    !!monId && f.created_by === monId && f.statut === "en_attente";
+
+  const handleEdit = (data: FeedbackSaisie) => {
+    if (!editingFeedback) return;
+    editFeedback.mutate(
+      { id: editingFeedback.id, data },
+      { onSuccess: () => setEditingFeedback(null) }
+    );
   };
 
   const handleUpdateStatut = (statut: FeedbackStatut, comment?: string) => {
@@ -794,7 +826,29 @@ export default function Feedbacks() {
           isAdmin={isAdmin}
           onUpdateStatut={handleUpdateStatut}
           onDelete={handleDelete}
+          onEdit={
+            peutModifier(selectedFeedback)
+              ? () => {
+                  setEditingFeedback(selectedFeedback);
+                  setSelectedFeedback(null);
+                }
+              : undefined
+          }
           isUpdating={updateStatut.isPending}
+        />
+      )}
+
+      {editingFeedback && (
+        <CreateFeedbackModal
+          initial={{
+            titre: editingFeedback.titre,
+            description: editingFeedback.description,
+            type: editingFeedback.type,
+            priorite: editingFeedback.priorite,
+          }}
+          onClose={() => setEditingFeedback(null)}
+          onCreate={handleEdit}
+          isLoading={editFeedback.isPending}
         />
       )}
     </div>

@@ -65,9 +65,9 @@ attendu("Panneau", [["f_dimProv", true]], P + " - (en attente de dimension)");
 attendu("Panneau", [...D, ["f_decoupe", "Découpe à la forme"]], P + " - Découpé à la forme - 1500 x 500 mm");
 attendu("Panneau", [["f_matiere", "PVC 5 mm"], ...D], "Panneau - PVC 5 mm - 1500 x 500 mm");
 // finition collée à ce qu'elle qualifie
-attendu("Panneau", [...D, ["f_opt", "Laqué"], ["f_ral", "7016"], ["f_lam", "Mat"]], P + " - 1500 x 500 mm - Laqué RAL 7016 mat");
+attendu("Panneau", [...D, ["f_opt", "Laqué"], ["f_ral", "7016"], ["f_fin", "Mat"]], P + " - 1500 x 500 mm - Laqué RAL 7016 mat");
 attendu("Panneau", [...D, ["f_opt", "Laqué"]], P + " - 1500 x 500 mm - Laqué RAL (à définir)");
-attendu("Panneau", [...D, ["f_opt", "Laqué"], ["f_lam", "Brillant"]], P + " - 1500 x 500 mm - Laqué RAL (à définir) brillant");
+attendu("Panneau", [...D, ["f_opt", "Laqué"], ["f_fin", "Brillant"]], P + " - 1500 x 500 mm - Laqué RAL (à définir) brillant");
 attendu("Panneau", [...D, ["f_opt", "Adhésivé"], ["f_lam", "Mat"]], P + " - 1500 x 500 mm - Adhésif occultant mat contrecollé");
 attendu("Panneau", [...D, ["f_opt", "Adhésivé"]], P + " - 1500 x 500 mm - Adhésif occultant contrecollé");
 attendu("Panneau", [...D, ["f_opt", "Adhésivé"], ["f_adh", "Transparent"], ["f_bs", "Blanc de soutien sélectif"]],
@@ -91,6 +91,17 @@ attendu("Panneau", [["f_larg", "1500"], ["f_haut", "1500"]], P + " - 1500 x 1500
 attendu("Panneau", [["f_larg", "2000"], ["f_haut", "2000"], ["f_parts", false]], P + " - 2000 x 2000 mm");
 attendu("Panneau", [...D, ["f_opt", "Adhésivé"], ["f_lam", "Velleda"], ["f_fix", "Perforation"], ["f_qty", "2"]],
   P + " - 1500 x 500 mm - Adhésif occultant Velleda contrecollé - Perforé - x 2 exemplaires");
+// laqué ET adhésivé : une seule phrase, deux finitions (Jordan, 15/10/2026)
+attendu("Panneau", [...D, ["f_opt", "Laqué + adhésivé"], ["f_ral", "7016"], ["f_fin", "Mat"], ["f_lam", "Brillant"]],
+  P + " - 1500 x 500 mm - Laqué RAL 7016 mat avec adhésif occultant brillant contrecollé");
+attendu("Panneau", [...D, ["f_opt", "Laqué + adhésivé"]],
+  P + " - 1500 x 500 mm - Laqué RAL (à définir) avec adhésif occultant contrecollé");
+attendu("Panneau", [...D, ["f_opt", "Laqué + adhésivé"], ["f_adh", "Transparent"], ["f_bs", "Blanc de soutien total"], ["f_ral", "9016"]],
+  P + " - 1500 x 500 mm - Laqué RAL 9016 avec adhésif transparent contrecollé - Blanc de soutien total");
+// une finition de laquage restée choisie ne qualifie pas l'adhésif
+attendu("Panneau", [...D, ["f_opt", "Laqué"], ["f_fin", "Mat"], ["f_opt", "Adhésivé"]],
+  P + " - 1500 x 500 mm - Adhésif occultant contrecollé");
+attendu("Panneau", [...D, ["f_fix", "Filins métalliques"]], P + " - 1500 x 500 mm - Suspendu par filins métalliques");
 
 /* =================================================================== ADHÉSIF */
 const DA = [["f_larg", "500"], ["f_haut", "300"]];
@@ -112,6 +123,13 @@ attendu("Adhésif", [["f_decoupe", "à la forme"]], "Adhésif - Occultant - Mat 
 attendu("Adhésif", [["f_larg", "1600"], ["f_haut", "1600"]], "Adhésif - Occultant - Mat - Découpe droite - 1600 x 1600 mm - En plusieurs parties avec raccord - Pose en extérieur");
 attendu("Adhésif", [["f_larg", "3000"], ["f_haut", "1000"]], "Adhésif - Occultant - Mat - Découpe droite - 3000 x 1000 mm - Pose en extérieur");
 attendu("Adhésif", [["f_decoupe", "à la forme"], ["f_larg", "1600"], ["f_haut", "1600"]], "Adhésif - Occultant - Mat - Découpe à la forme - Pour vitrine 1600 x 1600 mm - Pose en extérieur");
+// un transparent posé en intérieur s'imprime en miroir (Carole, 07/10/2026 ; écriture validée par Jordan)
+attendu("Adhésif", [["f_matiere", "Transparent"], ...DA, ["f_pose", "Intérieur"]],
+  "Adhésif - Transparent - Mat - Découpe droite - 500 x 300 mm - Pose en intérieur (impression miroir, lecture depuis l'extérieur)");
+attendu("Adhésif", [["f_pose", "Intérieur"], ["f_matiere", "Transparent"], ...DA],
+  "Adhésif - Transparent - Mat - Découpe droite - 500 x 300 mm - Pose en intérieur (impression miroir, lecture depuis l'extérieur)");
+attendu("Adhésif", [["f_matiere", "Dépoli imprimé"], ...DA, ["f_pose", "Intérieur"]],
+  "Adhésif - Dépoli imprimé - Sans lamination - Découpe droite - 500 x 300 mm - Pose en intérieur");
 attendu("Adhésif", [...DA, ["f_qty", "4"]], "Adhésif - Occultant - Mat - Découpe droite - 500 x 300 mm - Pose en extérieur - x 4 exemplaires");
 
 /* =================================================================== CAISSON */
@@ -119,7 +137,7 @@ const DC = [["f_larg", "2000"], ["f_haut", "500"]];
 const C = "Caisson - Simple-face - 2000 x 500 mm";
 attendu("Caisson", DC, C + " - Épaisseur 45 mm - Non lumineux");
 attendu("Caisson", [], "Caisson - Simple-face - (en attente de dimension) - Épaisseur 45 mm - Non lumineux");
-attendu("Caisson", [...DC, ["f_opt", "Laqué"], ["f_ral", "7016"], ["f_lam", "Mat"]], C + " - Épaisseur 45 mm - Non lumineux - Laqué RAL 7016 mat");
+attendu("Caisson", [...DC, ["f_opt", "Laqué"], ["f_ral", "7016"], ["f_fin", "Mat"]], C + " - Épaisseur 45 mm - Non lumineux - Laqué RAL 7016 mat");
 attendu("Caisson", [...DC, ["f_opt", "Laqué"]], C + " - Épaisseur 45 mm - Non lumineux - Laqué RAL (à définir)");
 attendu("Caisson", [...DC, ["f_opt", "Adhésivé"], ["f_lam", "Mat"]], C + " - Épaisseur 45 mm - Non lumineux - Adhésif occultant mat contrecollé");
 attendu("Caisson", [...DC, ["f_opt", "Adhésivé"], ["f_adh", "Transparent"]], C + " - Épaisseur 45 mm - Non lumineux - Adhésif transparent contrecollé");
@@ -183,7 +201,7 @@ attendu("Caisson", [...DC, ["f_forme", "Rond"], ["f_diam", "700"]],
 const DL = [["f_larg", "1200"], ["f_haut", "300"]];
 attendu("Lettres reliefs", DL, "Lettres reliefs - Panneau aluminium composite - 3 mm - Non lumineuses - 1200 x 300 mm");
 attendu("Lettres reliefs", [], "Lettres reliefs - Panneau aluminium composite - 3 mm - Non lumineuses - (en attente de dimension)");
-attendu("Lettres reliefs", [["f_opt", "Laquées"], ["f_matiere", "PVC blanc"], ["f_ep", "19 mm"], ["f_ral", "9016"], ["f_lam", "Mat"], ...DL],
+attendu("Lettres reliefs", [["f_opt", "Laquées"], ["f_matiere", "PVC blanc"], ["f_ep", "19 mm"], ["f_ral", "9016"], ["f_fin", "Mat"], ...DL],
   "Lettres reliefs - PVC - 19 mm - Non lumineuses - Laquées RAL 9016 mat - 1200 x 300 mm");
 attendu("Lettres reliefs", [["f_matiere", "PVC blanc"], ["f_ep", "19 mm"], ["f_opt", "Laquées"], ...DL],
   "Lettres reliefs - PVC - 19 mm - Non lumineuses - Laquées RAL (à définir) - 1200 x 300 mm");
@@ -221,10 +239,8 @@ attendu("Lettres reliefs", [...DL, ["f_fix", "Tige filetée"], ["f_qty", "2"]], 
 console.log("Spécification : " + reussis + " phrases conformes, " + echecs + " écart(s).");
 
 /* ================================================================= BALAYAGE */
-function combinaisons(listes) {
-  let out = [[]];
-  listes.forEach((l) => { const n = []; out.forEach((c) => l.forEach((x) => n.push(c.concat([x])))); out = n; });
-  return out;
+function combinaison(listes, i) {
+  return listes.map((l) => { const x = l[i % l.length]; i = Math.floor(i / l.length); return x; });
 }
 const DEFAUTS = /undefined|null|\{|\}|\[|\]|\||  | - - |^ | $| -$|^- |RAL  |RAL -|RAL$| x  |NaN/;
 let balayees = 0, cassees = 0;
@@ -243,11 +259,14 @@ Object.keys(BUILTIN_CONFIGS).forEach((nom) => {
     return ["", "7016"];
   });
   // l'espace complet est trop grand : on garde un échantillon régulier, toujours le même
-  const tout = combinaisons(axes);
-  const pas = Math.max(1, Math.floor(tout.length / 60000));
-  for (let i = 0; i < tout.length; i += pas) {
+  const taille = axes.reduce((n, l) => n * l.length, 1);
+  // pas premier avec chaque base : l'échantillon parcourt tous les choix de chaque champ
+  let pas = Math.max(1, Math.floor(taille / 60000));
+  while (axes.some((l) => l.length > 1 && pas % l.length === 0) || [2, 3, 5, 7].some((q) => pas > q && pas % q === 0)) pas++;
+  for (let i = 0; i < taille; i += pas) {
     const v = {};
-    sub.fields.forEach((f, j) => { v[f.id] = tout[i][j]; });
+    const c = combinaison(axes, i);
+    sub.fields.forEach((f, j) => { v[f.id] = c[j]; });
     // une liste dépendante ne peut valoir qu'un choix de son groupe
     let incoherent = false;
     sub.fields.forEach((f) => {

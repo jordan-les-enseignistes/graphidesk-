@@ -171,6 +171,10 @@ async function importCatalog() {
  *   - [ … ]     : partie FACULTATIVE du bloc — retirée si l'une de ses
  *                 étiquettes est vide, sans faire disparaître le bloc.
  *   - A|B       : si A a une étiquette vide, on écrit B (repli).
+ *   - {Libellé=Choix} : garde, n'écrit rien. La variante (ou la partie
+ *                 facultative) ne s'écrit que si ce champ est sur ce choix ;
+ *                 sinon elle cède à son repli. Ex. un panneau « Laqué +
+ *                 adhésivé » s'écrit en une phrase, pas en deux blocs.
  *   Un bloc dont une étiquette appartient à un champ INACTIF (condition non
  *   remplie) disparaît entièrement, repli compris : « Laqué RAL (à définir) »
  *   ne doit s'écrire que pour un produit laqué.
@@ -317,6 +321,15 @@ function resoudre(texte, byLabel, values, fields) {
   let res = texte;
   let vide = false, inactif = false;
   (texte.match(/\{[^{}]+\}/g) || []).forEach(function (tok) {
+    const garde = /^\{([^{}=]+)=([^{}]*)\}$/.exec(tok);
+    if (garde && byLabel[garde[1]]) {
+      // garde {Libellé=Choix} : n'écrit rien ; si le champ (actif) n'est pas
+      // sur ce choix, la variante compte comme vide et cède à son repli
+      const g = byLabel[garde[1]];
+      if (!isActive(g, values, fields) || String(values[g.id]) !== garde[2]) vide = true;
+      res = res.split(tok).join("");
+      return;
+    }
     const f = byLabel[tok.substring(1, tok.length - 1)];
     if (!f) return; // étiquette inconnue : laissée telle quelle
     if (!isActive(f, values, fields)) { inactif = true; return; }

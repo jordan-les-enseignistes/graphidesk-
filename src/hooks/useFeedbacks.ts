@@ -137,6 +137,43 @@ export function useCreateFeedback() {
   });
 }
 
+// Hook pour que l'auteur corrige son feedback tant qu'il n'est pas pris en
+// charge (Caroline, 14/10/2026) : une fois traité, ce qui a été lu fait foi
+export function useEditFeedback() {
+  const queryClient = useQueryClient();
+  const profile = useAuthStore((state) => state.profile);
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Pick<FeedbackUpdate, "titre" | "description" | "type" | "priorite">;
+    }): Promise<Feedback> => {
+      const { data: result, error } = await supabase
+        .from("feedbacks")
+        .update(data)
+        .eq("id", id)
+        .eq("created_by", profile?.id ?? "")
+        .eq("statut", "en_attente")
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: feedbackKeys.all });
+      toast.success("Feedback modifié");
+    },
+    onError: (error) => {
+      console.error("Erreur modification feedback:", error);
+      toast.error("Modification impossible : le feedback a peut-être déjà été pris en charge");
+    },
+  });
+}
+
 // Hook pour mettre à jour un feedback (admin)
 export function useUpdateFeedback() {
   const queryClient = useQueryClient();

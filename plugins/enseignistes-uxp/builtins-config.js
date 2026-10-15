@@ -22,7 +22,7 @@
  * - syntaxe des modèles ([ … ] facultatif, A|B repli) : voir catalog.js.
  */
 
-const BUILTIN_VERSION = 4;
+const BUILTIN_VERSION = 5;
 
 /* Ordre d'affichage dans le menu Produit */
 const BUILTIN_ORDRE = ["Panneau", "Adhésif", "Caisson", "Lettres reliefs"];
@@ -41,16 +41,28 @@ const champsDimensions = function () {
 const champQuantite = function () {
   return { id: "f_qty", label: "Quantité", type: "text", default: "1", ignorer: ["", "0", "1"] };
 };
-/* Finition COLLÉE à ce qu'elle qualifie : « Laqué RAL 7016 mat » */
-const champFinition = function (conditionValeurs, avecVelleda) {
+/* Finition COLLÉE à ce qu'elle qualifie : « Laqué RAL 7016 mat ».
+ * Un laquage a une « Finition », un adhésif une « Lamination » : un seul
+ * champ « Lamination » pour les deux ne parlait pas pour du laquage, et un
+ * panneau laqué ET adhésivé a besoin des deux (Carole/Caroline, 14/10/2026). */
+const optionsFinition = function (avecVelleda) {
   const options = [
     { label: "", out: "" },
     { label: "Mat", out: "mat" },
     { label: "Brillant", out: "brillant" }
   ];
   if (avecVelleda) options.push({ label: "Velleda", out: "Velleda" });
+  return options;
+};
+const champFinitionLaquage = function (conditionValeurs) {
   return {
-    id: "f_lam", label: "Lamination", type: "dropdown", options: options,
+    id: "f_fin", label: "Finition", type: "dropdown", options: optionsFinition(false),
+    condition: { on: "f_opt", values: conditionValeurs }
+  };
+};
+const champLamination = function (conditionValeurs, avecVelleda) {
+  return {
+    id: "f_lam", label: "Lamination", type: "dropdown", options: optionsFinition(avecVelleda),
     condition: { on: "f_opt", values: conditionValeurs }
   };
 };
@@ -80,20 +92,24 @@ const BUILTIN_CONFIGS = {
     ].concat(champsDimensions(), [
       { id: "f_parts", label: "En plusieurs parties", type: "checkbox",
         plusieursParties: { largeur: "f_larg", hauteur: "f_haut", long: 3050, court: 1500 } },
+      // laqué ET adhésivé : on reste dans le laquage, l'adhésif s'y ajoute
+      // (« Laqué RAL 7016 mat avec adhésif occultant brillant contrecollé »)
       { id: "f_opt", label: "Option", type: "dropdown",
         options: [
           { label: "Sans option", out: "" },
           { label: "Laqué", out: "" },
-          { label: "Adhésivé", out: "" }
+          { label: "Adhésivé", out: "" },
+          { label: "Laqué + adhésivé", out: "" }
         ] },
       { id: "f_ral", label: "RAL", type: "text",
-        condition: { on: "f_opt", value: "Laqué" } },
+        condition: { on: "f_opt", values: ["Laqué", "Laqué + adhésivé"] } },
+      champFinitionLaquage(["Laqué", "Laqué + adhésivé"]),
       { id: "f_adh", label: "Adhésif", type: "dropdown",
-        condition: { on: "f_opt", value: "Adhésivé" },
+        condition: { on: "f_opt", values: ["Adhésivé", "Laqué + adhésivé"] },
         options: [
-          { label: "Dos gris", out: "Adhésif occultant" },
-          { label: "Teinté masse", out: "Adhésif teinté masse" },
-          { label: "Transparent", out: "Adhésif transparent" }
+          { label: "Dos gris", out: "occultant" },
+          { label: "Teinté masse", out: "teinté masse" },
+          { label: "Transparent", out: "transparent" }
         ] },
       { id: "f_bs", label: "Blanc de soutien", type: "dropdown",
         condition: { on: "f_adh", value: "Transparent" },
@@ -102,11 +118,12 @@ const BUILTIN_CONFIGS = {
           { label: "Blanc de soutien sélectif", out: "" },
           { label: "Blanc de soutien total", out: "" }
         ] },
-      champFinition(["Laqué", "Adhésivé"], true),
+      champLamination(["Adhésivé", "Laqué + adhésivé"], true),
       { id: "f_fix", label: "Fixation", type: "dropdown",
         options: [
           { label: "Sans", out: " " },
           { label: "Entretoises", out: "Sur entretoises" },
+          { label: "Filins métalliques", out: "Suspendu par filins métalliques" },
           { label: "Perforation", out: "Perforé" },
           { label: "Double face", out: "Fixation double-face" },
           { label: "Sur lisses", out: "Sur lisses" },
@@ -121,8 +138,10 @@ const BUILTIN_CONFIGS = {
       "{Matière}",
       "{Découpe}",
       DIMENSIONS,
-      "Laqué RAL {RAL}[ {Lamination}]|Laqué RAL (à définir)[ {Lamination}]",
-      "{Adhésif}[ {Lamination}] contrecollé",
+      "{Option=Laqué}Laqué RAL {RAL}[ {Finition}]|{Option=Laqué}Laqué RAL (à définir)[ {Finition}]",
+      "{Option=Laqué + adhésivé}Laqué RAL {RAL}[ {Finition}] avec adhésif {Adhésif}[ {Lamination}] contrecollé" +
+        "|{Option=Laqué + adhésivé}Laqué RAL (à définir)[ {Finition}] avec adhésif {Adhésif}[ {Lamination}] contrecollé",
+      "{Option=Adhésivé}Adhésif {Adhésif}[ {Lamination}] contrecollé",
       "{Blanc de soutien}",
       "{Fixation}[ RAL {RAL lisses}]",
       "{En plusieurs parties}",
@@ -205,7 +224,9 @@ const BUILTIN_CONFIGS = {
       "{Découpe}",
       "[{Dimension de} ]" + DIMENSIONS,
       "{En plusieurs parties avec raccord}",
-      "{Pose}",
+      // un transparent posé côté intérieur se lit à travers la vitre : imprimé
+      // en miroir — écrit pour le client autant que pour l'atelier (Carole, 07/10/2026)
+      "{Matière=Transparent}{Pose=Intérieur}Pose en intérieur (impression miroir, lecture depuis l'extérieur)|{Pose}",
       QUANTITE
     ]
   },
@@ -252,6 +273,7 @@ const BUILTIN_CONFIGS = {
         options: [{ label: "Sans option", out: "" }, { label: "Laqué", out: "" }, { label: "Adhésivé", out: "" }] },
       { id: "f_ral", label: "RAL", type: "text",
         condition: { on: "f_opt", value: "Laqué" } },
+      champFinitionLaquage(["Laqué"]),
       // un caisson lumineux se recouvre d'un adhésif DIFFUSANT (dos blanc) :
       // choisi d'office en lumineux, l'occultant reste possible pour masquer
       // une partie de la face (Jordan, 05/10/2026)
@@ -269,7 +291,7 @@ const BUILTIN_CONFIGS = {
       { id: "f_rv", label: "Adhésif recto/verso", type: "checkbox", out: "x 2 (recto/verso)",
         condition: { on: "f_opt", value: "Adhésivé" },
         autoFill: { on: "f_type", map: { "Simple-face": false, "Double-face": true } } },
-      champFinition(["Laqué", "Adhésivé"], false),
+      champLamination(["Adhésivé"], false),
       // un simple face se fixe au mur ; un double face (drapeau) sur potence
       { id: "f_fix", label: "Fixation", type: "dropdown", dependsOn: "f_type",
         optionGroups: {
@@ -299,7 +321,7 @@ const BUILTIN_CONFIGS = {
       "Épaisseur {Épaisseur} mm",
       "{Lumineux}",
       "{Éclairage}",
-      "Laqué RAL {RAL}[ {Lamination}]|Laqué RAL (à définir)[ {Lamination}]",
+      "Laqué RAL {RAL}[ {Finition}]|Laqué RAL (à définir)[ {Finition}]",
       "{Adhésif}[ {Lamination}] contrecollé[ {Adhésif recto/verso}]",
       "{Fixation}[ RAL {RAL fixation}]",
       QUANTITE
@@ -378,9 +400,10 @@ const BUILTIN_CONFIGS = {
           { label: "Dos gris", out: "Adhésif occultant" },
           { label: "Dos blanc", out: "Adhésif diffusant" }
         ] },
+      champLamination(["Face adhésivée"], false),
       { id: "f_ral", label: "RAL", type: "text",
         condition: { on: "f_opt", value: "Laquées" } },
-      champFinition(["Face adhésivée", "Laquées"], false),
+      champFinitionLaquage(["Laquées"]),
       { id: "f_tranches", label: "RAL tranches", type: "text",
         condition: { on: "f_matiere", value: "Lettres boitiers" } }
     ].concat(champsDimensions(), [
@@ -410,7 +433,7 @@ const BUILTIN_CONFIGS = {
       "{Lumineux}",
       "{Éclairage}",
       "{Adhésif}[ {Lamination}] contrecollé sur la face",
-      "Laquées RAL {RAL}[ {Lamination}]|Laquées RAL (à définir)[ {Lamination}]",
+      "Laquées RAL {RAL}[ {Finition}]|Laquées RAL (à définir)[ {Finition}]",
       "Tranches laquées RAL {RAL tranches}",
       DIMENSIONS,
       "{Fixation}[ RAL {RAL lisses}]",
