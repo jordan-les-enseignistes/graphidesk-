@@ -547,3 +547,92 @@ Validé par Jordan point par point (1,2,3,4,5,6,7,8,9,11,12a,13,15,16,17 ; 10 et
 - [x] Rédacteur 6.3.1 : adhésif diffusant (dos blanc) d'office en caisson lumineux — 98 phrases conformes
 - [x] FabRik Néon flex : deux couleurs en deux sélections (marquage couleur 1, puis génération) — un seul néon (plaque/échelle/cotes communes), fusion et habillage par couleur ; mini tuto. Syntaxe vérifiée, PAS testé dans Illustrator
 - [ ] Plus tard : néon multicolore dans la 3D, bâches (nouveau produit, à spécifier) ; Mesure photo : ne pas toucher pour l'instant (tag `mesure-photo-avant-fiabilisation`)
+
+## Vérif FAB — « mini Claude » de vérification des dossiers (spec du 19/10/2026, À VALIDER)
+
+**Demande** : Jordan, suite au mail de Léa (14/10) sur les erreurs récurrentes en fab. Test de faisabilité réussi
+sur `Y:\JORDAN\TEST` (QR code retiré volontairement → détecté ; process CutContour / fonds perdus 20 mm droite+bas appris).
+
+### Principes validés
+- Claude (API) est l'interlocuteur unique : il lit, compare BAT / devis / maquette / fab, juge, POSE DES QUESTIONS en cas de doute.
+- GraphiDesk MESURE en tâche de fond (lecture seule, jamais Illustrator) et donne des faits ; Claude juge.
+- Base de règles évolutive ; une réponse « c'est notre façon de faire » = PROPOSITION de règle ; **seul Jordan valide**.
+  Une réponse « spécifique à ce dossier » (refus mairie, demande client) reste dans l'historique du dossier.
+- Lecture seule sur le serveur ; aucun module existant modifié en dehors du bouton d'entrée ; module réservé à Jordan d'abord (RBAC).
+
+### Architecture
+- **Clé API** : nouvelle clé dédiée (compte API de Jordan, plafond de dépense), stockée en SECRET Supabase
+  (`npx supabase secrets set`, tapée par Jordan) — jamais dans l'application ni dans le dépôt.
+- **Edge Function `verif-fab`** : relais authentifié (JWT de l'utilisateur) → API Claude en streaming.
+  Vérifie le plafond mensuel, enregistre l'usage EXACT de chaque appel (tokens entrée / sortie / cache lu / cache écrit,
+  modèle, coût calculé) rattaché à l'utilisateur et à la conversation.
+- **Boucle d'outils côté GraphiDesk** : Claude appelle des outils exécutés localement, en lecture seule :
+  `lister_dossier`, `analyser_pdf` (boîtes, cotes des tracés, textes, couleurs CMJN, calques, tons directs, images/dpi —
+  via pdfjs-dist déjà présent), `voir_page` (rendu image envoyé à Claude), `lire_regles(categorie)`,
+  `demander_devis` (ouvre la zone de dépôt), `proposer_regle`, `rendre_rapport` (format fixe).
+- **Modèle** : Claude Opus 5.5, réflexion adaptative. Base de règles en cache (≈10× moins chère après le 1er appel).
+
+### Données (Supabase, RLS : chacun voit SES conversations, l'admin voit tout)
+- `verif_conversations` : id, user_id, dossier_id (nullable), chemin_dossier, titre, statut (en_cours / terminee), is_archived
+  (archiver ne supprime JAMAIS), rapport (JSON), timestamps.
+- `verif_messages` : conversation_id, role, contenu (JSON des blocs), fichiers joints, created_at — permet de rouvrir une ancienne conversation.
+- `verif_usage` : user_id, conversation_id, modèle, input/output/cache_read/cache_write tokens, cout_usd, created_at.
+- `verif_regles` : catégorie (général, adhésif, plaque, bâche, enseigne…), titre, texte, conditions/exceptions, statut
+  (proposee / validee / refusee), proposé_par, validé_par, dates, source (conversation). Seules les `validee` partent à Claude.
+- `verif_constats` : conversation_id, type (erreur / oubli / question), catégorie, règle liée, libellé — alimente les stats.
+
+### Écrans
+1. **Entrée depuis un dossier** : bouton « Passer en vérification » à côté d'Archiver (`DossiersTable.tsx`) → choix du
+   dossier serveur (mémorisé) → ouverture de la conversation.
+2. **Vérif FAB** (nouvel onglet) : à gauche mes conversations (recherche, archivées repliables) ; au centre la discussion
+   façon Claude (streaming, zone de glisser-déposer pour le devis et tout fichier) ; rapport ✓ / ⚠ / ❓ affiché en carte.
+   Garde-fou immédiat, SANS appel API : « Pas de devis dans ce dossier — glisse-le ici ».
+3. **Admin (Jordan)** : coûts par graphiste / par jour / par conversation (exacts) ; qui a vérifié quel dossier ;
+   erreurs et oublis les plus fréquents ; file des règles proposées à valider / refuser ; édition de la base.
+
+### Lot 1 + lot 2 — livrés le 19/10/2026 (v1.14.0, NON poussée — en attente de validation)
+- [x] Tables + RLS + permission `access:verif_fab` (admin seul) — appliquées en base par Claude, avec l'accord de Jordan
+- [x] Edge Function `verif-fab` déployée : clé en secret, modèle Opus 5.5 effort medium, repli « fallbacks: default », usage exact journalisé
+- [x] Onglet Vérif FAB : conversations par utilisateur, flux en direct, glisser-déposer, archivage (rien n'est supprimé), réouverture
+- [x] Lecture des PDF sans Illustrator (pdf-lib + pdf.js) — mesures identiques à PyMuPDF sur VLC Conseil
+- [x] Bilan structuré (⚠ erreurs + ✓ une ligne) + questions à boutons ; réflexion masquée (sortait en anglais)
+- [x] Base de règles : 5 règles de Jordan reprises, proposition par Claude, validation/refus/édition par l'admin seul
+- [x] Bouton « Passer en vérification » dans les dossiers (lien dossier ↔ conversation)
+- [x] Espace admin : coûts (mois, graphiste, dossier), statistiques (catégories, graphistes, dernières erreurs), règles
+- [x] Testé dans la vraie fenêtre de dev sur Y:\JORDAN\TEST : QR manquant trouvé, questions/réponses, règle proposée, rapport, question de suivi
+- [ ] Non testé : glisser-déposer d'un vrai devis (pas de devis dans le dossier de test)
+
+### Revue — coûts mesurés (Opus 5.5)
+- Vérification complète (analyse + questions + rapport, 6 appels) : 0,165 $ ; question de suivi : quelques centimes
+- Poste principal : écriture en cache des images de pages (~0,09 $), puis texte produit (~0,065 $)
+
+### Session 2 (19/10/2026 soir, sans appel API — demandé par Jordan)
+- [x] Bible du graphiste (PROCESS-IMPRESSION, 7 p.) → 21 règles validées en base (remplacent 4 règles provisoires ; CutContour en série conservée)
+- [x] Devis reconnu sous son vrai nom : bon de commande Dolibarr « CO<numéro>.pdf » (souvent dans MAQUETTE) ; prompt mis à jour
+- [x] Recherche du dossier serveur depuis le nom GraphiDesk (<racine>\<initiale>\<CLIENT>\<sous-dossier>, mots collés gérés, racine par poste) — testée sur 9 vrais noms
+- [x] Outil comparer_visuels : contours BAT/maquette ↔ FAB recalés (échelle + position), % retrouvé, déformation, image rouge/bleu — prouvé hors ligne (VLC : QR seul en rouge ; City Locker : PVC 19, PVC 10, caisson conformes)
+- [ ] Non testé dans l'app : comparer_visuels côté navigateur (même code, rendu pdf.js au lieu de PyMuPDF) et la fenêtre de choix du dossier serveur
+- Hors périmètre (Jordan) : devis depuis Dolibarr — le graphiste le donne
+- [x] Hauteur de CHAQUE lettre (sous-tracés regroupés, capitale par ligne, lettres rondes tolérées) — Optic Duroc corrigé : 66,6 mm partout
+- [x] Surimpression mesurée par ton direct (City Locker : White 100 % en surimpression ; graphisme quadri non — question à Jordan)
+- [x] 6 règles tirées des erreurs réelles (Guy Hoquet, Optic Duroc, miroir/pose, surimpression) → 28 règles validées
+- [x] Prompt : lecture de la VT et du dossier MAIRIE (« ATTENTION LA MAIRIE REFUSE »), photos brutes limitées à 4
+
+## VérifIzy — retours du test Camif (20/10/2026)
+- [x] Recherche dans tous les dossiers GraphiDesk (accueil)
+- [x] L'analyse continue hors de VérifIzy (page gardée montée dans MainLayout) + toast à la fin
+- [x] Badge du menu : vérifications prêtes (a_voir) + règles proposées (admin)
+- [x] Plus d'appel API après rendre_rapport (le résumé en double coûtait ~0,045 $)
+- [x] Cache 1 h pour outils + consignes + règles
+- [x] Règles : trou de numérotation = alerte, zoom sans numéro, pas de FAB = vérif avant FAB, raccord sur la dimension finale
+- [x] Rapport compact (lignes, conformes repliés, discussion plus étroite)
+- Constat : le « 1 $ » = deux analyses lancées en parallèle (navigation), pas les réponses aux questions (0,12 $)
+- [x] Recherche limitée à « Mes dossiers » (les miens, non archivés), comme la page
+- [ ] FIN DES TESTS : supprimer toutes les vérifications de test (verif_conversations + messages + verif_usage liés) — demandé par Jordan le 20/10
+- [x] Relance auto du cache : lun-ven 8h30-18h (Paris), après la 1re vérif du jour, 45 min sans appel, un seul poste (réservation atomique), arrêt du jour si une relance ne relit rien
+- [x] Modèle choisi par l'admin (verif_parametres) dans « Coûts » ; liste des modèles via l'API, le plus récent en tête
+- [ ] À vérifier : 1re ligne « Entretien du cache (auto) » dans les coûts ≈ 0,002 $ (cache_read ≈ 10 500 tokens)
+- [x] Raccord : règle dédiée « dimension FINALE » + renvoi depuis « Limites machines » et « laize par matière » (Camif 2e test : l'IA s'était appuyée sur Limites machines)
+- [x] Bandeau : nom du dossier cliquable → Explorateur (commande Rust verif_ouvrir_dossier) ; bouton « Vérifier un autre dossier »
+- [x] Constat « Corrigé » / « Rouvrir » sans relancer d'analyse (rapport JSON : corrige, corrige_le) ; verdict « Tout est corrigé » si plus d'erreur ni de question
+- [ ] FIN DES TESTS : remettre les coûts/statistiques à zéro (avec le nettoyage des vérifications de test)

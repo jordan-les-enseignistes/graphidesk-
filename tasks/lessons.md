@@ -106,3 +106,9 @@ Jordan a trouvé en deux captures ce que mon banc ne pouvait pas voir :
 - Le Rédacteur BAT avait une version codée en dur ET une copie « modifiable » des mêmes produits ; le banc « 0 écart sur 7 488 combinaisons » ne testait pas le Caisson, précisément celui qui divergeait (Mat avant le RAL). Et il ne tournait plus depuis le rapatriement (package.json "type": "module" du dépôt).
 - Règles : une seule source par règle métier ; un test qui compare deux implémentations ne prouve rien sur ce qu'il ne couvre pas — préférer des phrases attendues écrites en clair + un balayage d'invariants ; lancer le banc après chaque déplacement de dossier.
 - Données utilisateur persistantes (copies de modèles dans PluginData) : une mise à jour du code ne les touche pas → prévoir une version + migration dès qu'on corrige un modèle.
+
+## 19/10/2026 — Patchs Python via heredoc Bash : jamais d'échappement « antislash-n » dans le texte remplacé
+Un antislash-n écrit dans un heredoc puis dans une chaîne Python non brute devient un VRAI saut de ligne : la chaîne TS/JS
+`.join(...)` est sortie coupée en deux (« Unterminated string literal »), trois fois dans la même session — y compris
+dans l'écriture de cette leçon.
+Règle : pour du code contenant des échappements, utiliser l'outil Edit, ou un fichier .py écrit avec Write.

@@ -228,6 +228,8 @@ function App() {
               <Route path={ROUTES.MESURE} element={<Mesure />} />
               <Route path={ROUTES.MAQUETTE_VT} element={<MaquetteVT />} />
               <Route path={ROUTES.SIMULATION_3D} element={<Simulation3D />} />
+              {/* VérifIzy est rendu par MainLayout (reste monté pendant une analyse) */}
+              <Route path={ROUTES.VERIF_FAB} element={null} />
               <Route path={ROUTES.BIBLIOTHEQUE} element={<Bibliotheque />} />
               <Route path={ROUTES.RESSOURCES} element={<Ressources />} />
               <Route path={ROUTES.FEEDBACKS} element={<Feedbacks />} />

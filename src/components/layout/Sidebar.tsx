@@ -4,6 +4,7 @@ import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useCurrentUserPermissions } from "@/hooks/useRoles";
 import { useMajKit } from "@/hooks/useMajKit";
 import { useFeedbacksPendingCount } from "@/hooks/useFeedbacks";
+import { useVerifizyNotifs } from "@/hooks/useVerifizyNotifs";
 import { cn } from "@/lib/utils";
 import { ROUTES, APP_CONFIG } from "@/lib/constants";
 import { useAppVersion } from "@/hooks/useAppUpdate";
@@ -37,6 +38,7 @@ import {
   Library,
   HardDriveDownload,
   Table2,
+  ShieldCheck,
 } from "lucide-react";
 
 interface NavItem {
@@ -86,6 +88,7 @@ const navGroups: NavGroup[] = [
     defaultOpen: true,
     items: [
       { label: "FabRik", icon: Wrench, path: ROUTES.FABRIK, permission: "access:fabrik" },
+      { label: "VérifIzy", icon: ShieldCheck, path: ROUTES.VERIF_FAB, permission: "access:verif_fab" },
       // --- HEURES SUPPLÉMENTAIRES : MASQUÉ DEPUIS v1.1.12 ---
       // Le suivi des heures est désormais géré via Tiimizy (https://tiimizy.fr).
       // L'onglet est caché côté UI mais tout le code HS est conservé (page, hooks, composants, routes)
@@ -145,6 +148,8 @@ export function Sidebar() {
   // Récupérer le nombre de feedbacks en attente (admin only)
   const { data: pendingFeedbacksCount } = useFeedbacksPendingCount();
   const majKit = useMajKit();
+  // VérifIzy : vérifications prêtes + règles proposées à valider (admin)
+  const { data: notifsVerifizy } = useVerifizyNotifs(permissions ? permissions.has("manage:users") : isAdmin);
 
   // Récupérer l'état depuis localStorage
   const [collapsed, setCollapsed] = useState(() => {
@@ -251,6 +256,9 @@ export function Sidebar() {
       // Une ressource de l'atelier a changé : le graphiste doit la réinstaller.
       if (item.path === ROUTES.RESSOURCES && majKit.nombre) {
         return { ...item, badge: majKit.nombre };
+      }
+      if (item.path === ROUTES.VERIF_FAB && notifsVerifizy?.total) {
+        return { ...item, badge: notifsVerifizy.total };
       }
       return item;
     });

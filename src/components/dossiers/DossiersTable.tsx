@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,8 @@ import { useArchiveDossier, useBulkArchive, useBulkUpdateStatus, useUpdateDossie
 import { formatDate, formatDateTime, cn, getFirstName } from "@/lib/utils";
 import { getBadgeClassName } from "@/lib/badgeColors";
 import { useStatuts } from "@/hooks/useStatuts";
+import { useHasPermission } from "@/hooks/useHasPermission";
+import { ROUTES } from "@/lib/constants";
 import type { DossierWithGraphiste } from "@/types";
 import {
   Plus,
@@ -50,6 +53,7 @@ import {
   ArrowUpDown,
   Clock,
   CalendarDays,
+  ShieldCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -112,6 +116,8 @@ export function DossiersTable({
 }: DossiersTableProps) {
   useAuthStore((state) => state.profile);
   const { highlightIntensity } = useHydratedUserPreferences();
+  const navigate = useNavigate();
+  const peutVerifier = useHasPermission("access:verif_fab");
 
   // Récupérer les statuts dynamiques
   const { data: statuts } = useStatuts();
@@ -754,6 +760,18 @@ export function DossiersTable({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        {peutVerifier && (
+                          <Tooltip content="Passer en vérification">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                              onClick={() => navigate(`${ROUTES.VERIF_FAB}?dossier=${dossier.id}&nom=${encodeURIComponent(dossier.nom)}`)}
+                            >
+                              <ShieldCheck className="h-4 w-4" />
+                            </Button>
+                          </Tooltip>
+                        )}
                         <Tooltip content="Archiver">
                           <Button
                             variant="ghost"

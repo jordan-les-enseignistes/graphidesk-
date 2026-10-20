@@ -123,6 +123,13 @@ export const PERMISSIONS: PermissionDefinition[] = [
     category: "access",
   },
   {
+    key: "access:verif_fab",
+    label: "Module VérifIzy (vérification des dossiers de FAB)",
+    description:
+      "Assistant de vérification des dossiers de production (BAT, devis, fichiers de fab) via l'API Claude — chaque appel est facturé.",
+    category: "access",
+  },
+  {
     key: "access:maquette_vt",
     label: "Module Maquette suite VT",
     description:

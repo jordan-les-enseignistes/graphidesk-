@@ -5,6 +5,7 @@ use tauri::{
     Manager,
 };
 mod ressources;
+mod verif;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::process::Command;
@@ -780,6 +781,10 @@ pub fn run() {
 
     builder
         .invoke_handler(tauri::generate_handler![
+            verif::verif_lister_dossier,
+            verif::verif_lire_fichier,
+            verif::verif_chercher_dossier,
+            verif::verif_ouvrir_dossier,
             set_minimize_on_close,
             lire_page_google,
             get_minimize_on_close,
