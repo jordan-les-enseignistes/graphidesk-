@@ -115,7 +115,18 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     // Écouter les changements d'auth
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Rien d'asynchrone DANS ce rappel : supabase-js le déroule en tenant son
+      // verrou d'authentification. Y attendre une requête (chargement du profil)
+      // bloque tout le client — connexion qui tourne dans le vide jusqu'à ce que
+      // le logiciel soit quitté. On traite l'événement juste après.
+      setTimeout(() => { void traiterEvenement(event, session); }, 0);
+    });
+
+    async function traiterEvenement(
+      event: import("@supabase/supabase-js").AuthChangeEvent,
+      session: import("@supabase/supabase-js").Session | null,
+    ) {
       if (!isMounted) return;
 
       if (event === "INITIAL_SESSION") {
@@ -140,7 +151,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
       } else if (event === "TOKEN_REFRESHED" && session) {
         setSession(session);
       }
-    });
+    }
 
     // Timeout de sécurité si INITIAL_SESSION ne se déclenche pas
     const timeout = setTimeout(() => {

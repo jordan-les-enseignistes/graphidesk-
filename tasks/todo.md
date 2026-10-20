@@ -628,11 +628,11 @@ sur `Y:\JORDAN\TEST` (QR code retiré volontairement → détecté ; process Cut
 - [x] Rapport compact (lignes, conformes repliés, discussion plus étroite)
 - Constat : le « 1 $ » = deux analyses lancées en parallèle (navigation), pas les réponses aux questions (0,12 $)
 - [x] Recherche limitée à « Mes dossiers » (les miens, non archivés), comme la page
-- [ ] FIN DES TESTS : supprimer toutes les vérifications de test (verif_conversations + messages + verif_usage liés) — demandé par Jordan le 20/10
+- [x] Vérifications de test supprimées (14 + messages + coûts) le 20/10, avant la mise en service
 - [x] Relance auto du cache : lun-ven 8h30-18h (Paris), après la 1re vérif du jour, 45 min sans appel, un seul poste (réservation atomique), arrêt du jour si une relance ne relit rien
 - [x] Modèle choisi par l'admin (verif_parametres) dans « Coûts » ; liste des modèles via l'API, le plus récent en tête
 - [ ] À vérifier : 1re ligne « Entretien du cache (auto) » dans les coûts ≈ 0,002 $ (cache_read ≈ 10 500 tokens)
 - [x] Raccord : règle dédiée « dimension FINALE » + renvoi depuis « Limites machines » et « laize par matière » (Camif 2e test : l'IA s'était appuyée sur Limites machines)
 - [x] Bandeau : nom du dossier cliquable → Explorateur (commande Rust verif_ouvrir_dossier) ; bouton « Vérifier un autre dossier »
 - [x] Constat « Corrigé » / « Rouvrir » sans relancer d'analyse (rapport JSON : corrige, corrige_le) ; verdict « Tout est corrigé » si plus d'erreur ni de question
-- [ ] FIN DES TESTS : remettre les coûts/statistiques à zéro (avec le nettoyage des vérifications de test)
+- [x] Coûts et statistiques remis à zéro le 20/10
