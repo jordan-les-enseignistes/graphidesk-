@@ -42,10 +42,10 @@ export function verdictEffectif(r: Rapport): Rapport["verdict"] {
 }
 
 export function compter(r: Rapport | null) {
-  const c = { erreur: 0, alerte: 0, question: 0, corrige: 0 };
+  const c = { erreur: 0, alerte: 0, question: 0, remarque: 0, corrige: 0 };
   if (!r) return c;
   if (r.constats) for (const k of r.constats) { if (k.corrige) c.corrige++; else c[k.niveau]++; }
-  else for (const p of r.points ?? []) if (p.statut !== "ok") c[p.statut as keyof typeof c]++;
+  else for (const p of r.points ?? []) if (p.statut !== "ok") c[p.statut as "erreur" | "alerte" | "question"]++;
   return c;
 }
 
@@ -202,7 +202,7 @@ export function EcranAccueil(props: {
                   </button>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[13px] text-[var(--vz-muted)]">
-                      {c.rapport ? `${n.erreur} erreur${n.erreur > 1 ? "s" : ""} · ${n.alerte} alerte${n.alerte > 1 ? "s" : ""} · ${n.question} question${n.question > 1 ? "s" : ""}` : "Analyse non terminée"}
+                      {c.rapport ? `${n.erreur} erreur${n.erreur > 1 ? "s" : ""} · ${n.alerte} alerte${n.alerte > 1 ? "s" : ""} · ${n.question} question${n.question > 1 ? "s" : ""}${n.remarque ? ` · ${n.remarque} remarque${n.remarque > 1 ? "s" : ""}` : ""}` : "Analyse non terminée"}
                     </span>
                     <button
                       type="button"

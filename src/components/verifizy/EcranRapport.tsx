@@ -46,7 +46,7 @@ export function EcranRapport(props: {
   onEnvoyer: (texte: string, contexte: string | null) => void;
   onRelancer: () => void;
   /** marque / démarque un constat comme corrigé (index dans rapport.constats) */
-  onCorriger?: (index: number, valeur: boolean) => void;
+  onCorriger?: (indices: number[], valeur: boolean) => void;
 }) {
   const { constats, conformes } = constatsDe(props.rapport);
   const n = compter(props.rapport);
@@ -73,6 +73,7 @@ export function EcranRapport(props: {
     { niveau: "erreur", titre: n.erreur > 1 ? "Erreurs à corriger" : "Erreur à corriger" },
     { niveau: "alerte", titre: n.alerte > 1 ? "Alertes" : "Alerte" },
     { niveau: "question", titre: n.question > 1 ? "Questions" : "Question" },
+    { niveau: "remarque", titre: n.remarque > 1 ? "Remarques" : "Remarque" },
   ];
   const envoyer = () => {
     if (!saisie.trim() || props.occupe) return;
@@ -87,7 +88,7 @@ export function EcranRapport(props: {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <h1 style={SORA} className={`m-0 font-bold text-[22px] tracking-[-0.4px] ${v.couleur}`}>{v.titre}</h1>
             <div className="flex gap-1.5 flex-wrap">
-              {([["erreur", n.erreur, "erreur"], ["alerte", n.alerte, "alerte"], ["question", n.question, "question"], ["ok", conformes.length, "conforme"], ...(n.corrige ? [["ok", n.corrige, "corrigé"] as const] : [])] as const).map(([k, nb, nom]) => (
+              {([["erreur", n.erreur, "erreur"], ["alerte", n.alerte, "alerte"], ["question", n.question, "question"], ...(n.remarque ? [["remarque", n.remarque, "remarque"] as const] : []), ["ok", conformes.length, "conforme"], ...(n.corrige ? [["ok", n.corrige, "corrigé"] as const] : [])] as const).map(([k, nb, nom]) => (
                 <span key={nom} className={`text-[12px] font-bold rounded-full px-2.5 py-0.5 ${NIVEAUX[k].classe} ${nb ? "" : "opacity-50"}`}>
                   {nb} {nom}{nb > 1 ? "s" : ""}
                 </span>
@@ -105,7 +106,16 @@ export function EcranRapport(props: {
           if (!liste.length) return null;
           return (
             <section key={g.niveau} className="flex flex-col gap-1.5">
-              <h2 style={SORA} className={`m-0 font-semibold text-[14px] uppercase tracking-[0.5px] ${NIVEAUX[g.niveau].classe.split(" ")[0]}`}>{g.titre}</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 style={SORA} className={`m-0 font-semibold text-[14px] uppercase tracking-[0.5px] ${NIVEAUX[g.niveau].classe.split(" ")[0]}`}>{g.titre}</h2>
+                {/* tout le groupe d'un coup : évite de cliquer « Corrigé » sur chaque ligne */}
+                {props.onCorriger && liste.filter((c) => !c.corrige).length > 1 && (
+                  <button type="button" onClick={() => props.onCorriger!(liste.filter((c) => !c.corrige).map(indexDe).filter((i) => i >= 0), true)}
+                    className="inline-flex items-center gap-1 text-[12px] font-semibold min-h-[28px] px-2.5 rounded-lg border border-[var(--vz-border)] text-[var(--vz-ok)] hover:border-[var(--vz-accent-hi)]">
+                    <Check className="w-3.5 h-3.5" /> Tout valider ({liste.filter((c) => !c.corrige).length})
+                  </button>
+                )}
+              </div>
               <div className={`${CARTE} overflow-hidden`}>
                 {liste.map((c, i) => (
                   <article key={i} className={`group flex gap-3 px-4 py-2.5 border-b last:border-b-0 border-[var(--vz-border)] ${c.corrige ? "opacity-55" : ""}`}>
@@ -132,7 +142,7 @@ export function EcranRapport(props: {
                       )}
                     </div>
                     {props.onCorriger && indexDe(c) >= 0 && (
-                      <button type="button" onClick={() => props.onCorriger!(indexDe(c), !c.corrige)}
+                      <button type="button" onClick={() => props.onCorriger!([indexDe(c)], !c.corrige)}
                         title={c.corrige ? "Rouvrir ce point" : "Marquer comme corrigé"}
                         className={`self-start shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold min-h-[30px] px-2.5 rounded-lg border border-[var(--vz-border)] hover:border-[var(--vz-accent-hi)] ${c.corrige ? "text-[var(--vz-muted)]" : "text-[var(--vz-ok)]"}`}>
                         {c.corrige ? <><Undo2 className="w-3.5 h-3.5" /> Rouvrir</> : <><Check className="w-3.5 h-3.5" /> Corrigé</>}

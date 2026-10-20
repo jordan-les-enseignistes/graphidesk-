@@ -186,7 +186,8 @@ function Statistiques() {
   }, []);
 
   const s = useMemo(() => {
-    const parCat = new Map<string, { erreurs: number; questions: number; alertes: number }>();
+    // les remarques (hors standards, sans risque) sont comptées à part : elles ne gonflent pas les alertes
+    const parCat = new Map<string, { erreurs: number; questions: number; alertes: number; remarques: number }>();
     const parUser = new Map<string, { dossiers: number; aCorriger: number; erreurs: number }>();
     const verdicts = { conforme: 0, a_corriger: 0, questions_en_suspens: 0, sans_rapport: 0 };
     const dernieres: { titre: string; constat: string; user: string }[] = [];
@@ -202,9 +203,10 @@ function Statistiques() {
         : (c.rapport.points ?? []);
       for (const p of points) {
         if (p.statut === "ok") continue;
-        const e = parCat.get(p.categorie) ?? { erreurs: 0, questions: 0, alertes: 0 };
+        const e = parCat.get(p.categorie) ?? { erreurs: 0, questions: 0, alertes: 0, remarques: 0 };
         if (p.statut === "erreur") { e.erreurs++; u.erreurs++; if (dernieres.length < 15) dernieres.push({ titre: c.titre, constat: p.constat, user: c.user }); }
         else if (p.statut === "alerte") e.alertes++;
+        else if (p.statut === "remarque") e.remarques++;
         else e.questions++;
         parCat.set(p.categorie, e);
       }
@@ -217,7 +219,7 @@ function Statistiques() {
       dernieres,
     };
   }, [convs]);
-  const maxCat = Math.max(1, ...s.parCat.map(([, e]) => e.erreurs + e.questions + e.alertes));
+  const maxCat = Math.max(1, ...s.parCat.map(([, e]) => e.erreurs + e.questions + e.alertes + e.remarques));
 
   return (
     <div className="space-y-6">
@@ -235,7 +237,7 @@ function Statistiques() {
         ))}
       </div>
       <div>
-        <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Erreurs, alertes et questions les plus fréquentes</p>
+        <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Erreurs, alertes, questions et remarques les plus fréquentes</p>
         <div className="space-y-1.5">
           {s.parCat.map(([cat, e]) => (
             <div key={cat} className="flex items-center gap-3 text-sm">
@@ -244,8 +246,9 @@ function Statistiques() {
                 <div className="bg-red-500" style={{ width: `${(e.erreurs / maxCat) * 100}%` }} />
                 <div className="bg-orange-300" style={{ width: `${(e.alertes / maxCat) * 100}%` }} />
                 <div className="bg-amber-400" style={{ width: `${(e.questions / maxCat) * 100}%` }} />
+                <div className="bg-slate-400" style={{ width: `${(e.remarques / maxCat) * 100}%` }} />
               </div>
-              <span className="w-40 text-right text-xs text-gray-500">{e.erreurs} err. · {e.alertes} alertes · {e.questions} quest.</span>
+              <span className="w-40 text-right text-xs text-gray-500">{e.erreurs} err. · {e.alertes} alertes · {e.questions} quest. · {e.remarques} rem.</span>
             </div>
           ))}
           {!s.parCat.length && <p className="text-sm text-gray-400">Pas encore de rapport.</p>}
@@ -322,8 +325,10 @@ function FicheRegle({ r, onChange, cible }: { r: Regle; onChange: () => void; ci
             <input value={v.titre} onChange={(e) => setV({ ...v, titre: e.target.value })}
               className="flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded text-sm" />
           </div>
-          <textarea value={v.texte} onChange={(e) => setV({ ...v, texte: e.target.value })} rows={3}
-            className="w-full px-2 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded text-sm" />
+          {/* assez haut pour relire toute la règle sans faire défiler (elles font souvent 10 lignes) */}
+          <textarea value={v.texte} onChange={(e) => setV({ ...v, texte: e.target.value })}
+            rows={Math.min(24, Math.max(8, v.texte.split("\n").length + Math.ceil(v.texte.length / 110)))}
+            className="w-full min-h-[200px] resize-y leading-relaxed px-2 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded text-sm" />
           <button onClick={() => { maj(v, "Règle modifiée"); setEdition(false); }}
             className="px-3 py-1 rounded bg-blue-600 text-white text-xs inline-flex items-center gap-1"><Save className="w-3 h-3" /> Enregistrer</button>
         </>
@@ -416,7 +421,7 @@ function Regles() {
             <input placeholder="Titre" value={nouvelle.titre} onChange={(e) => setNouvelle({ ...nouvelle, titre: e.target.value })}
               className="flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded text-sm" />
           </div>
-          <textarea placeholder="La règle, avec ses conditions et exceptions" rows={3} value={nouvelle.texte}
+          <textarea placeholder="La règle, avec ses conditions et exceptions" rows={8} value={nouvelle.texte}
             onChange={(e) => setNouvelle({ ...nouvelle, texte: e.target.value })}
             className="w-full px-2 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded text-sm" />
           <div className="flex gap-2 justify-end">

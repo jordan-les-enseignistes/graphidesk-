@@ -332,10 +332,11 @@ export default function VerifFab({ actif = true }: { actif?: boolean }) {
   };
 
   // un constat corrigé à la main : pas de nouvelle analyse (donc aucun coût)
-  const corriger = async (index: number, valeur: boolean) => {
-    if (!active?.rapport?.constats) return;
+  const corriger = async (indices: number[], valeur: boolean) => {
+    if (!active?.rapport?.constats || !indices.length) return;
+    const choisis = new Set(indices);
     const constats = active.rapport.constats.map((c, i) =>
-      i === index ? { ...c, corrige: valeur, corrige_le: valeur ? new Date().toISOString() : undefined } : c);
+      choisis.has(i) ? { ...c, corrige: valeur, corrige_le: valeur ? new Date().toISOString() : undefined } : c);
     const rapport = { ...active.rapport, constats };
     setActive({ ...active, rapport });
     const { error } = await supabase.from("verif_conversations").update({ rapport }).eq("id", active.id);

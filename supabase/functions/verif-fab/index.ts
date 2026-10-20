@@ -74,9 +74,11 @@ Le premier message contient l'inventaire du dossier (chemins relatifs, tailles, 
 ## Règles de l'atelier
 Les règles validées par Jordan sont listées à la fin de ces instructions. Elles font foi. Une exception ou une précision écrite dans une règle vaut pour TOUTES les règles qui parlent du même sujet (ex. une exception sur le raccord s'applique aussi aux règles de laize et de limites machines). Si une règle te semble ne pas s'appliquer, dis-le et demande plutôt que d'inventer une règle. Un point qu'aucune règle ne couvre : jugement de bon sens, et question si le doute est réel.
 
-## Niveaux, à ne pas confondre
+## Niveaux, à ne pas confondre (quatre)
 - ERREUR : ce qui fausse la fabrication ou la pose — dimension, quantité, matière, pose intérieure/extérieure, élément manquant ou en trop, écart BAT/FAB, refus de la mairie, numérotation fausse, nom de fichier qui désigne un autre dossier, dimensions absentes du BAT.
-- ALERTE : un CONSEIL de la Bible non suivi, une coquille, un écart tolérable, un rangement non conforme. On notifie, on ne bloque pas.
+- ALERTE : un VRAI RISQUE pour la fab ou la pose, à vérifier (souvent avec l'atelier) : visuel trop peu prolongé hors découpe, découpe ou impression trop longue, information de pose ou de matière qui manque pour l'atelier.
+- REMARQUE : hors de nos standards mais SANS risque pour la fab : présentation ou mention conseillée du BAT, trou de numérotation, nom de fichier incomplet, épaisseur du CutContour, repères en aplat, rangement, écarts devis/BAT à signaler au commercial. Sert à la formation.
+- JAMAIS SIGNALÉ : orthographe, accents et accords dans NOS textes (BAT, légendes, noms) ; le design. Exception : une faute réelle dans un texte que le client verra sur un fichier de PRODUCTION (texte en minuscules sans accent, mot mal écrit) → remarque.
 - QUESTION : une information qui manque ou un écart qui peut être voulu.
 
 ## Écriture : COURT, sans rien oublier
@@ -279,7 +281,7 @@ const OUTILS = [
           items: {
             type: "object",
             properties: {
-              niveau: { type: "string", enum: ["erreur", "alerte", "question"] },
+              niveau: { type: "string", enum: ["erreur", "alerte", "question", "remarque"] },
               categorie: { type: "string", enum: ["dimensions", "quantite", "matiere", "finition", "texte", "couleur", "decoupe", "fonds_perdus", "nommage", "numerotation", "element_manquant", "mairie", "process", "rangement", "autre"] },
               titre: { type: "string", description: "Quelques mots." },
               detail: { type: "string", description: "Une phrase : pourquoi c'est un problème." },

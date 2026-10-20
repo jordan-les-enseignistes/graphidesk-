@@ -25,7 +25,8 @@ export interface RapportPoint {
 }
 /** Un constat du rapport VérifIzy : toutes ses informations, pour l'atelier comme pour le graphiste */
 export interface Constat {
-  niveau: "erreur" | "alerte" | "question";
+  /** remarque : hors de nos standards mais sans risque pour la fab (formation, présentation) */
+  niveau: "erreur" | "alerte" | "question" | "remarque";
   categorie: string;
   titre: string;
   detail: string;

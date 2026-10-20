@@ -75,11 +75,12 @@ export function NomVerifizy({ taille = 20 }: { taille?: number }) {
   );
 }
 
-/** Pastille de niveau (erreur, alerte, question, conforme) */
+/** Pastille de niveau (erreur, alerte, question, remarque, conforme) */
 export const NIVEAUX = {
   erreur: { nom: "Erreur", classe: "text-[var(--vz-err)] bg-[var(--vz-err-bg)]", bord: "border-[var(--vz-err-bord)]" },
   alerte: { nom: "Alerte", classe: "text-[var(--vz-ale)] bg-[var(--vz-ale-bg)]", bord: "border-[var(--vz-ale-bord)]" },
   question: { nom: "Question", classe: "text-[var(--vz-que)] bg-[var(--vz-que-bg)]", bord: "border-[var(--vz-que-bord)]" },
+  remarque: { nom: "Remarque", classe: "text-[var(--vz-muted)] bg-[var(--vz-surface2)]", bord: "border-[var(--vz-border)]" },
   ok: { nom: "Conforme", classe: "text-[var(--vz-ok)] bg-[var(--vz-ok-bg)]", bord: "border-[var(--vz-border)]" },
 } as const;
 
