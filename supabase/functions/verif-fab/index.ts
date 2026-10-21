@@ -99,7 +99,7 @@ const OUTILS = [
   },
   {
     name: "analyser_pdf",
-    description: "Mesure un PDF du dossier (ou un .ai enregistré avec compatibilité PDF) : boîtes de page (Media/Trim/Bleed/Art en mm), emprise réelle des tracés et par couleur (mm, origine en haut à gauche), épaisseur des contours par couleur (epaisseursPt, en points), couleurs CMJN écrites dans le fichier, tons directs (CutContour…), calques, images et leur résolution effective, texte de chaque page. Ne fait aucune image : utiliser voir_page pour regarder.",
+    description: "Mesure un PDF du dossier (ou un .ai enregistré avec compatibilité PDF) : boîtes de page (Media/Trim/Bleed/Art en mm), emprise réelle des tracés et par couleur (mm, origine en haut à gauche), épaisseur des contours par couleur (epaisseursPt, en points), valeurs CMJN écrites pour les tracés vectoriels (cmjn : ne dit rien des images), tons directs (CutContour…), calques, images avec leur résolution effective et leur espace de couleur (images[].couleurs : CMJN, RVB, niveaux de gris… c'est LUI qui dit si une image est en RVB), texte de chaque page. Ne fait aucune image : utiliser voir_page pour regarder.",
     input_schema: {
       type: "object",
       properties: { chemin: { type: "string", description: "Chemin relatif tel que donné par l'inventaire" } },

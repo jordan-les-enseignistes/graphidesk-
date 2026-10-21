@@ -70,6 +70,8 @@ attendu("Panneau", [...D, ["f_opt", "Laqué"]], P + " - 1500 x 500 mm - Laqué R
 attendu("Panneau", [...D, ["f_opt", "Laqué"], ["f_fin", "Brillant"]], P + " - 1500 x 500 mm - Laqué RAL (à définir) brillant");
 attendu("Panneau", [...D, ["f_opt", "Adhésivé"], ["f_lam", "Mat"]], P + " - 1500 x 500 mm - Adhésif occultant mat contrecollé");
 attendu("Panneau", [...D, ["f_opt", "Adhésivé"]], P + " - 1500 x 500 mm - Adhésif occultant contrecollé");
+attendu("Panneau", [["f_matiere", "Plexi transparent 5 mm"], ...D, ["f_opt", "Adhésivé"], ["f_adh", "Dos blanc"]],
+  "Panneau - Plexi transparent 5 mm - 1500 x 500 mm - Adhésif diffusant contrecollé");
 attendu("Panneau", [...D, ["f_opt", "Adhésivé"], ["f_adh", "Transparent"], ["f_bs", "Blanc de soutien sélectif"]],
   P + " - 1500 x 500 mm - Adhésif transparent contrecollé - Blanc de soutien sélectif");
 // un blanc de soutien resté choisi ne s'écrit pas sur un produit laqué
@@ -199,6 +201,27 @@ attendu("Caisson", [...DC, ["f_forme", "Rond"], ["f_diam", "700"]],
 
 /* ============================================================ LETTRES RELIEFS */
 const DL = [["f_larg", "1200"], ["f_haut", "300"]];
+/* ===================================================================== BÂCHE */
+const DB = [["f_larg", "3000"], ["f_haut", "1000"]];
+const B = "Bâche PVC occultante - Impression recto - 3000 x 1000 mm";
+attendu("Bâche", DB, B);
+attendu("Bâche", [], "Bâche PVC occultante - Impression recto - (en attente de dimension)");
+attendu("Bâche", [["f_impr", "Recto/verso"], ...DB], "Bâche PVC occultante - Impression recto/verso - 3000 x 1000 mm");
+attendu("Bâche", [...DB, ["f_bords", "Ourlet"]], B + " - Ourlet");
+attendu("Bâche", [...DB, ["f_bords", "Œillets avec renfort"], ["f_qty", "2"]],
+  B + " - Œillets avec renfort de 44 mm tous les 500 mm maximum - x 2 exemplaires");
+attendu("Bâche", [...DB, ["f_bords", "Œillets sans renfort"]], B + " - Œillets sans renfort tous les 500 mm maximum");
+attendu("Bâche", [...DB, ["f_bords", "Fourreaux"]], B + " - Fourreau haut");
+attendu("Bâche", [...DB, ["f_bords", "Fourreaux"], ["f_four", "Haut et bas"]], B + " - Fourreaux haut et bas");
+attendu("Bâche", [...DB, ["f_bords", "Fourreaux"], ["f_four", "Gauche et droite"]], B + " - Fourreaux côtés gauche et droit");
+attendu("Bâche", [...DB, ["f_bords", "Fourreaux"], ["f_four", "Périmétraux"], ["f_fix", "Tendeurs"]],
+  B + " - Fourreaux périmétraux - Fixation par tendeurs");
+attendu("Bâche", [...DB, ["f_bords", "Œillets avec renfort"], ["f_fix", "Serflex"]],
+  B + " - Œillets avec renfort de 44 mm tous les 500 mm maximum - Fixation par serflex");
+// un choix de fourreau resté sélectionné ne s'écrit plus si on change de bords
+attendu("Bâche", [...DB, ["f_bords", "Fourreaux"], ["f_four", "Bas"], ["f_bords", "Ourlet"]], B + " - Ourlet");
+attendu("Bâche", [...DB, ["f_dimProv", true]], B.replace("1000 mm", "1000 mm (dimension provisoire)"));
+
 attendu("Lettres reliefs", DL, "Lettres reliefs - Panneau aluminium composite - 3 mm - Non lumineuses - 1200 x 300 mm");
 attendu("Lettres reliefs", [], "Lettres reliefs - Panneau aluminium composite - 3 mm - Non lumineuses - (en attente de dimension)");
 attendu("Lettres reliefs", [["f_opt", "Laquées"], ["f_matiere", "PVC blanc"], ["f_ep", "19 mm"], ["f_ral", "9016"], ["f_fin", "Mat"], ...DL],

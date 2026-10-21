@@ -1,7 +1,8 @@
 /**
  * Vérif FAB — outils que Claude appelle et que GraphiDesk exécute sur le
- * poste, en LECTURE SEULE (commandes Rust verif_lister_dossier /
- * verif_lire_fichier). Rien ici n'écrit dans le dossier client.
+ * poste, en LECTURE SEULE (commandes Rust verif_lister_dossier,
+ * verif_lire_fichier, verif_lire_plage, verif_squelette_pdf). Rien ici
+ * n'écrit dans le dossier client.
  */
 import { invoke } from "@tauri-apps/api/core";
 import * as pdfjs from "pdfjs-dist";
@@ -50,12 +51,74 @@ export function contientDevis(entrees: EntreeDossier[]): boolean {
   });
 }
 
-async function lireOctets(dossier: string, relatif: string): Promise<Uint8Array> {
-  const b64 = await invoke<string>("verif_lire_fichier", { dossier, relatif });
+function deBase64(b64: string): Uint8Array {
   const bin = atob(b64);
   const o = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i);
   return o;
+}
+
+async function lireOctets(dossier: string, relatif: string): Promise<Uint8Array> {
+  return deBase64(await invoke<string>("verif_lire_fichier", { dossier, relatif }));
+}
+
+/* ---------------------------------------------------------------- PDF lourds */
+
+// au-delà, un PDF n'est pas chargé en entier (cf. verif.rs, « PDF lourds ») :
+// pdf.js le lit par morceaux, pdf-lib n'en reçoit que le squelette
+const SEUIL_LOURD = 60 * 1024 * 1024;
+// une lecture de serveur coupée laisserait pdf.js attendre sans fin
+const DELAI_LOURD = 5 * 60 * 1000;
+const PLAGE_MAX = 16 * 1024 * 1024;
+
+type Plage = { taille: number; contenu: string };
+
+/** PDF à mesurer ou afficher : en entier, ou (fichier lourd) squelette + lecture à la demande */
+interface SourcePdf {
+  octets: Uint8Array;
+  /** fichier lourd : paramètres pdf.js (nouveau lecteur à chaque document ouvert) */
+  plages?: () => Parameters<typeof pdfjs.getDocument>[0];
+}
+
+async function lirePlage(dossier: string, relatif: string, debut: number, fin: number): Promise<Uint8Array> {
+  // pdf.js demande parfois tout un flux d'image d'un coup : lu en plusieurs fois
+  const morceaux: Uint8Array[] = [];
+  for (let d = debut; d < fin; d += PLAGE_MAX) {
+    const p = await invoke<Plage>("verif_lire_plage", { dossier, relatif, debut: d, fin: Math.min(fin, d + PLAGE_MAX) });
+    morceaux.push(deBase64(p.contenu));
+  }
+  if (morceaux.length === 1) return morceaux[0];
+  const r = new Uint8Array(morceaux.reduce((s, m) => s + m.length, 0));
+  let o = 0;
+  for (const m of morceaux) { r.set(m, o); o += m.length; }
+  return r;
+}
+
+/** null : pas un PDF lisible (.ai sans compatibilité PDF, autre format) */
+async function lirePdf(dossier: string, relatif: string): Promise<SourcePdf | null> {
+  const tete = await invoke<Plage>("verif_lire_plage", { dossier, relatif, debut: 0, fin: 65536 });
+  const debut = deBase64(tete.contenu);
+  if (!estPdf(debut)) return null;
+  if (tete.taille <= SEUIL_LOURD) return { octets: await lireOctets(dossier, relatif) };
+  const octets = deBase64(await invoke<string>("verif_squelette_pdf", { dossier, relatif }));
+  return {
+    octets,
+    plages: () => {
+      const transport = new pdfjs.PDFDataRangeTransport(tete.taille, debut.slice());
+      transport.requestDataRange = (de: number, a: number) => {
+        void lirePlage(dossier, relatif, de, a).then((o) => transport.onDataRange(de, o), () => { /* le délai rendra l'erreur */ });
+      };
+      return { range: transport, length: tete.taille, rangeChunkSize: 1 << 20, disableAutoFetch: true, disableStream: true, isEvalSupported: false };
+    },
+  };
+}
+
+function avecDelai<T>(p: Promise<T>, source: SourcePdf): Promise<T> {
+  if (!source.plages) return p;
+  return Promise.race([
+    p,
+    new Promise<T>((_, ko) => setTimeout(() => ko(new Error("Lecture du fichier trop longue (serveur lent ou coupé)")), DELAI_LOURD)),
+  ]);
 }
 
 // une page entière lisible à 1200 px ; pour un détail, Claude agrandit une zone
@@ -68,12 +131,12 @@ function canvasEnJpeg(canvas: HTMLCanvasElement): string {
 
 type ZonePct = { gauche: number; haut: number; largeur: number; hauteur: number };
 
-async function rendrePage(octets: Uint8Array, numero: number, zone?: ZonePct): Promise<string> {
-  return canvasEnJpeg(await rendreCanvas(octets, numero, zone, COTE_MAX));
+async function rendrePage(source: SourcePdf, numero: number, zone?: ZonePct): Promise<string> {
+  return canvasEnJpeg(await avecDelai(rendreCanvas(source, numero, zone, COTE_MAX), source));
 }
 
-async function rendreCanvas(octets: Uint8Array, numero: number, zone: ZonePct | undefined, coteMax: number): Promise<HTMLCanvasElement> {
-  const doc = await pdfjs.getDocument({ data: octets, isEvalSupported: false }).promise;
+async function rendreCanvas(source: SourcePdf, numero: number, zone: ZonePct | undefined, coteMax: number): Promise<HTMLCanvasElement> {
+  const doc = await pdfjs.getDocument(source.plages ? source.plages() : { data: source.octets, isEvalSupported: false }).promise;
   try {
     if (numero < 1 || numero > doc.numPages) throw new Error(`Page ${numero} inexistante (${doc.numPages} pages)`);
     const page = await doc.getPage(numero);
@@ -198,29 +261,29 @@ export async function executerOutil(
       }
       case "analyser_pdf": {
         const chemin = String(entree.chemin ?? "");
-        const octets = await lireOctets(dossier, chemin);
-        if (!estPdf(octets))
+        const source = await lirePdf(dossier, chemin);
+        if (!source)
           return { contenu: texte(`${chemin} n'est pas lisible comme PDF (fichier .ai enregistré sans compatibilité PDF, ou autre format).`), erreur: true };
-        const r = await analyserPdf(pdfjs, octets);
+        const r = await avecDelai(analyserPdf(pdfjs, source.octets, source.plages?.()), source);
         return { contenu: texte(JSON.stringify(r)), erreur: false };
       }
       case "voir_page": {
         const chemin = String(entree.chemin ?? "");
-        const octets = await lireOctets(dossier, chemin);
-        if (!estPdf(octets)) return { contenu: texte(`${chemin} n'est pas lisible comme PDF.`), erreur: true };
+        const source = await lirePdf(dossier, chemin);
+        if (!source) return { contenu: texte(`${chemin} n'est pas lisible comme PDF.`), erreur: true };
         const zone = entree.zone as { gauche: number; haut: number; largeur: number; hauteur: number } | undefined;
-        const jpeg = await rendrePage(octets, Number(entree.page ?? 1), zone);
+        const jpeg = await rendrePage(source, Number(entree.page ?? 1), zone);
         return { contenu: [image(jpeg)], erreur: false };
       }
       case "comparer_visuels": {
         // A = référence (BAT, maquette), B = fichier de FAB
         const ref = entree.reference as { chemin: string; page: number; zone?: ZonePct };
         const fab = entree.fab as { chemin: string; page: number; zone?: ZonePct };
-        const oa = await lireOctets(dossier, ref.chemin);
-        const ob = await lireOctets(dossier, fab.chemin);
-        if (!estPdf(oa) || !estPdf(ob)) return { contenu: texte("Les deux fichiers doivent être des PDF (ou .ai compatibles PDF)."), erreur: true };
-        const trame = async (o: Uint8Array, p: { page: number; zone?: ZonePct }) => {
-          const c = await rendreCanvas(o, Number(p.page ?? 1), p.zone, 1600);
+        const oa = await lirePdf(dossier, ref.chemin);
+        const ob = await lirePdf(dossier, fab.chemin);
+        if (!oa || !ob) return { contenu: texte("Les deux fichiers doivent être des PDF (ou .ai compatibles PDF)."), erreur: true };
+        const trame = async (o: SourcePdf, p: { page: number; zone?: ZonePct }) => {
+          const c = await avecDelai(rendreCanvas(o, Number(p.page ?? 1), p.zone, 1600), o);
           const d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height);
           return { largeur: c.width, hauteur: c.height, donnees: d.data };
         };

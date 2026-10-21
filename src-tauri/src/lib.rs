@@ -783,6 +783,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             verif::verif_lister_dossier,
             verif::verif_lire_fichier,
+            verif::verif_lire_plage,
+            verif::verif_squelette_pdf,
             verif::verif_chercher_dossier,
             verif::verif_ouvrir_dossier,
             set_minimize_on_close,

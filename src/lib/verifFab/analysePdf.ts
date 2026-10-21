@@ -12,7 +12,7 @@
  * Le module ne dépend pas du navigateur : `pdfjs` est injecté (le navigateur
  * fournit sa version avec worker, le banc de test la version Node).
  */
-import { PDFDocument, PDFName, PDFArray, PDFRawStream, PDFDict, decodePDFRawStream } from "pdf-lib";
+import { PDFDocument, PDFName, PDFArray, PDFRawStream, PDFDict, PDFRef, decodePDFRawStream } from "pdf-lib";
 import type * as PdfJs from "pdfjs-dist";
 
 const MM = 25.4 / 72;
@@ -55,7 +55,8 @@ export interface AnalysePage {
   nbTraces: number;
   emprise: EmpriseMm | null;
   couleurs: CouleurTracee[];
-  images: { pixels: string; poseeMm: string; dpi: number }[];
+  /** `couleurs` : espace de l'image tel qu'écrit dans le fichier (CMJN, RVB, niveaux de gris, ton direct…) */
+  images: { pixels: string; poseeMm: string; dpi: number; couleurs?: string }[];
   /** formes détachées (lettres de découpe) : hauteur de chacune, ligne par ligne */
   formes: ReturnType<typeof formesDetachees>;
 }
@@ -89,6 +90,65 @@ function boite(page: ReturnType<PDFDocument["getPage"]>, quoi: "trim" | "bleed" 
     gauche: arrondi((b.x - m.x) * MM),
     haut: arrondi((m.y + m.height - (b.y + b.height)) * MM),
   };
+}
+
+/** Espace de couleur d'une image, en clair (les espaces ICC et indexés sont ramenés à leur base) */
+function nomEspace(doc: PDFDocument, cs: unknown, profondeur = 0): string | null {
+  const o = cs instanceof PDFRef ? doc.context.lookup(cs) : cs;
+  if (profondeur > 4 || !o) return null;
+  if (o instanceof PDFName) {
+    return { "/DeviceCMYK": "CMJN", "/DeviceRGB": "RVB", "/DeviceGray": "niveaux de gris", "/CalRGB": "RVB", "/CalGray": "niveaux de gris", "/Lab": "Lab" }[o.asString()] ?? null;
+  }
+  if (!(o instanceof PDFArray) || !o.size()) return null;
+  const t = o.get(0);
+  const type = t instanceof PDFName ? t.asString() : "";
+  if (type === "/ICCBased") {
+    const profil = doc.context.lookup(o.get(1));
+    const n = profil instanceof PDFRawStream || profil instanceof PDFDict
+      ? (profil instanceof PDFRawStream ? profil.dict : profil).lookup(PDFName.of("N")) : null;
+    const v = n ? Number(n.toString()) : 0;
+    return v === 4 ? "CMJN (profil ICC)" : v === 3 ? "RVB (profil ICC)" : v === 1 ? "niveaux de gris (profil ICC)" : "profil ICC";
+  }
+  if (type === "/Indexed") return nomEspace(doc, o.get(1), profondeur + 1);
+  if (type === "/Separation") {
+    const n = o.get(1);
+    return n instanceof PDFName ? `ton direct ${decodeURIComponent(n.asString().slice(1).replace(/#/g, "%"))}` : "ton direct";
+  }
+  if (type === "/DeviceN") {
+    const n = o.get(1);
+    return n instanceof PDFArray ? `DeviceN (${n.asArray().map((x) => (x instanceof PDFName ? x.asString().slice(1) : "?")).join(", ")})` : "DeviceN";
+  }
+  return nomEspace(doc, t, profondeur + 1);
+}
+
+/** Espace de couleur des images du fichier, par taille en pixels (« 3188 x 3897 px ») */
+function espacesImages(doc: PDFDocument): Map<string, string> {
+  // les masques de transparence (SMask) sont des images en gris : on ne les compte pas
+  const masques = new Set<unknown>();
+  const images: PDFDict[] = [];
+  for (const [, obj] of doc.context.enumerateIndirectObjects()) {
+    if (!(obj instanceof PDFRawStream)) continue;
+    const st = obj.dict.lookup(PDFName.of("Subtype"));
+    if (!(st instanceof PDFName) || st.asString() !== "/Image") continue;
+    images.push(obj.dict);
+    const m = obj.dict.lookup(PDFName.of("SMask"));
+    if (m) masques.add(m);
+  }
+  const parTaille = new Map<string, Set<string>>();
+  for (const d of images) {
+    if ([...masques].some((m) => m instanceof PDFRawStream && m.dict === d)) continue;
+    if (d.lookup(PDFName.of("ImageMask"))?.toString() === "true") continue;
+    const w = d.lookup(PDFName.of("Width")), h = d.lookup(PDFName.of("Height"));
+    if (!w || !h) continue;
+    const filtre = d.lookup(PDFName.of("Filter"))?.toString() ?? "";
+    const espace = nomEspace(doc, d.get(PDFName.of("ColorSpace")))
+      ?? (filtre.includes("JPX") ? "défini dans l'image (JPEG 2000)" : "inconnu");
+    const cle = `${w.toString()} x ${h.toString()} px`;
+    const s = parTaille.get(cle) ?? new Set<string>();
+    s.add(espace);
+    parTaille.set(cle, s);
+  }
+  return new Map([...parTaille].map(([k, s]) => [k, [...s].join(" / ")]));
 }
 
 function tonsDirects(doc: PDFDocument): string[] {
@@ -484,10 +544,14 @@ export function resumeHauteurs(formes: ReturnType<typeof formesDetachees>): stri
 
 /* ------------------------------------------------------------- entrée */
 
-export async function analyserPdf(pdfjs: typeof PdfJs, octets: Uint8Array): Promise<AnalysePdf> {
+/**
+ * `source` (fichiers lourds) : pdf.js lit alors le vrai fichier à la demande, et `octets`
+ * n'est que son squelette (sans les données des images) pour pdf-lib.
+ */
+export async function analyserPdf(pdfjs: typeof PdfJs, octets: Uint8Array, source?: Parameters<typeof PdfJs.getDocument>[0]): Promise<AnalysePdf> {
   // chaque lecteur reçoit sa copie : pdf.js transfère le tampon à son worker
-  const docLib = await PDFDocument.load(octets.slice(), { ignoreEncryption: true, updateMetadata: false });
-  const docJs = await pdfjs.getDocument({ data: octets.slice(), isEvalSupported: false }).promise;
+  const docLib = await PDFDocument.load(source ? octets : octets.slice(), { ignoreEncryption: true, updateMetadata: false });
+  const docJs = await pdfjs.getDocument(source ?? { data: octets.slice(), isEvalSupported: false }).promise;
   try {
     const calques: AnalysePdf["calques"] = [];
     try {
@@ -496,6 +560,7 @@ export async function analyserPdf(pdfjs: typeof PdfJs, octets: Uint8Array): Prom
     } catch { /* pas de calques */ }
 
     const detail: AnalysePage[] = [];
+    const espaces = espacesImages(docLib);
     const nb = Math.min(docJs.numPages, 30);
     for (let i = 1; i <= nb; i++) {
       const pLib = docLib.getPage(i - 1);
@@ -508,6 +573,7 @@ export async function analyserPdf(pdfjs: typeof PdfJs, octets: Uint8Array): Prom
         bleed: boite(pLib, "bleed"),
         art: boite(pLib, "art"),
         ...js,
+        images: js.images.map((im) => ({ ...im, couleurs: espaces.get(im.pixels) ?? "inconnu" })),
       });
       pJs.cleanup();
     }

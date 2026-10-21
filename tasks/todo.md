@@ -642,3 +642,19 @@ sur `Y:\JORDAN\TEST` (QR code retiré volontairement → détecté ; process Cut
 - [x] Au push : consignes déployées, règles de gravité passées à 4 niveaux, rapport Camif reclassé
       1. déployer verif-fab (consignes 4 niveaux + enum « remarque » déjà modifiés dans index.ts)
       2. appliquer supabase/migrations/20261020023000_verif_fab_niveau_remarque.sql
+
+## v1.16.1 — VérifIzy : PDF lourds (> 60 Mo)
+- [x] Banc hors-ligne sur les fichiers réels Bagelstein (120 → 556 Mo) : mesures identiques à la méthode complète (N3C, N2A), et sur 4 PDF vectoriels City Locker / Camif (CMJN, tons directs, boîtes)
+- [x] Rust : `verif_lire_plage` (lecture par morceaux) + `verif_squelette_pdf` (PDF sans données d'images ni données privées Illustrator)
+- [x] JS : au-delà de 60 Mo, pdf.js lit à la demande, pdf-lib reçoit le squelette ; délai max 5 min
+- [x] Test dans l'app (Y:\JORDAN\TEST_LOURD, fichier de 556 Mo) : mesuré (format, résolution, fonds aux 4 bords)
+- [x] Bandeau « vérification plus longue » à la préparation + durée estimée selon le poids
+- [x] Espace de couleur de chaque image (CMJN / RVB / gris / ton direct) : fausse alerte « RVB » sur un fichier tout en images CMJN ; description d'analyser_pdf précisée (edge function déployée)
+- Constat : l'ancienne méthode comptait des « tracés » dans les données privées d'Illustrator (bruit) ; la nouvelle ne les lit plus.
+
+## Rédacteur BAT 6.5.0 (dans la v1.16.1)
+- [x] Panneau : adhésif « Dos blanc » → « Adhésif diffusant contrecollé » (Caroline : plexi transparent de caisson)
+- [x] Nouveau produit « Bâche » (spec Jordan 21/10) : Bâche PVC occultante - Impression recto|recto/verso - dimensions - bords (ourlet, œillets avec renfort de 44 mm / sans renfort tous les 500 mm maximum, fourreaux haut/bas/côtés/périmétraux) - fixation tendeurs|serflex - quantité
+- [x] Banc : 120 phrases conformes, 152 755 combinaisons sans phrase cassée, migration conforme ; BUILTIN_VERSION 6
+- [x] Paquet .ccx 6.5.0 dans src-tauri/assets/indesign (14 entrées, sans antislash)
+- [ ] Essai de Jordan dans InDesign

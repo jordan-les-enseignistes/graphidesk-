@@ -27,7 +27,14 @@ export interface Inventaire {
   /** fichiers que l'analyse lira à coup sûr (BAT, FAB, devis) */
   lusDOffice: string[];
   nbFichiers: number;
+  /** PDF/AI lourds (lus par morceaux, plus lentement) : chemin → taille en octets */
+  lourds: Record<string, number>;
 }
+
+/** au-delà, un PDF est lu par morceaux sur le serveur (cf. outils.ts) : plus lent */
+export const SEUIL_LOURD = 60 * 1024 * 1024;
+/** débit de lecture constaté sur le serveur (octets/s), pour estimer la durée */
+const DEBIT_SERVEUR = 8 * 1024 * 1024;
 
 const nomDe = (c: string) => c.split("/").pop() ?? c;
 const dossiers = (c: string) => c.split("/").slice(0, -1).map((d) => d.toUpperCase());
@@ -119,12 +126,23 @@ export function classerInventaire(entrees: EntreeDossier[]): Inventaire {
     aDevis: devis.length > 0,
     lusDOffice: [...dejaLus],
     nbFichiers: fichiers.length,
+    lourds: Object.fromEntries(fichiers.filter((f) => pdfLike(f.chemin) && f.taille > SEUIL_LOURD).map((f) => [f.chemin, f.taille])),
   };
 }
 
 /** Durée estimée (s) : ~18 s par fichier lu, ~12 s par annexe, plus le bilan */
-export function dureeEstimee(nbLus: number, nbAnnexes: number): number {
-  return Math.round(25 + nbLus * 18 + nbAnnexes * 12);
+export function dureeEstimee(nbLus: number, nbAnnexes: number, octetsLourds = 0): number {
+  return Math.round(25 + nbLus * 18 + nbAnnexes * 12 + octetsLourds / DEBIT_SERVEUR);
+}
+
+/** fichiers lourds parmi ceux qui seront lus */
+export function lourdsLus(inv: Inventaire, lus: Iterable<string>): { nb: number; octets: number; max: number } {
+  let nb = 0, octets = 0, max = 0;
+  for (const c of new Set(lus)) {
+    const t = inv.lourds[c];
+    if (t) { nb++; octets += t; max = Math.max(max, t); }
+  }
+  return { nb, octets, max };
 }
 
 export function formaterDuree(s: number): string {

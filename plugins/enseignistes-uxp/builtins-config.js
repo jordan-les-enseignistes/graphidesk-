@@ -1,6 +1,6 @@
 /*
  * builtins-config.js
- * Les 4 produits de base, décrits en configuration.
+ * Les produits de base, décrits en configuration.
  *
  * ⚠ SOURCE UNIQUE depuis la 6.2.0 (21/09/2026). Il existait auparavant une
  * seconde version, codée en dur (products.js), utilisée tant que le produit
@@ -22,10 +22,10 @@
  * - syntaxe des modèles ([ … ] facultatif, A|B repli) : voir catalog.js.
  */
 
-const BUILTIN_VERSION = 5;
+const BUILTIN_VERSION = 6;
 
 /* Ordre d'affichage dans le menu Produit */
-const BUILTIN_ORDRE = ["Panneau", "Adhésif", "Caisson", "Lettres reliefs"];
+const BUILTIN_ORDRE = ["Panneau", "Adhésif", "Caisson", "Lettres reliefs", "Bâche"];
 
 /* Blocs communs */
 const DIMENSIONS = "{Largeur} x {Hauteur} mm[ {Dimension provisoire}]|(en attente de dimension)";
@@ -108,6 +108,8 @@ const BUILTIN_CONFIGS = {
         condition: { on: "f_opt", values: ["Adhésivé", "Laqué + adhésivé"] },
         options: [
           { label: "Dos gris", out: "occultant" },
+          // dos blanc : notamment sur plexi transparent de caisson (Caroline, 21/10/2026)
+          { label: "Dos blanc", out: "diffusant" },
           { label: "Teinté masse", out: "teinté masse" },
           { label: "Transparent", out: "transparent" }
         ] },
@@ -437,6 +439,58 @@ const BUILTIN_CONFIGS = {
       "Tranches laquées RAL {RAL tranches}",
       DIMENSIONS,
       "{Fixation}[ RAL {RAL lisses}]",
+      QUANTITE
+    ]
+  },
+
+  /* ----------------------------------------------------------------- BÂCHE */
+  // Spécifié avec Jordan le 21/10/2026 : on ne fait que de la bâche PVC occultante
+  // (la gamme, ecoflat ou haut de gamme, ne s'écrit pas au BAT) ; un seul type de
+  // bord par bâche ; œillets avec ou sans renfort au même espacement.
+  "Bâche": {
+    name: "Bâche",
+    version: BUILTIN_VERSION,
+    fields: [
+      { id: "f_impr", label: "Impression", type: "dropdown",
+        options: [
+          { label: "Recto", out: "Impression recto" },
+          { label: "Recto/verso", out: "Impression recto/verso" }
+        ] }
+    ].concat(champsDimensions(), [
+      { id: "f_bords", label: "Bords", type: "dropdown",
+        options: [
+          { label: "Sans finition", out: " " },
+          { label: "Ourlet", out: "Ourlet" },
+          { label: "Œillets avec renfort", out: "Œillets avec renfort de 44 mm tous les 500 mm maximum" },
+          { label: "Œillets sans renfort", out: "Œillets sans renfort tous les 500 mm maximum" },
+          { label: "Fourreaux", out: " " }
+        ] },
+      { id: "f_four", label: "Fourreaux", type: "dropdown",
+        condition: { on: "f_bords", value: "Fourreaux" },
+        options: [
+          { label: "Haut", out: "Fourreau haut" },
+          { label: "Bas", out: "Fourreau bas" },
+          { label: "Haut et bas", out: "Fourreaux haut et bas" },
+          { label: "Gauche", out: "Fourreau côté gauche" },
+          { label: "Droite", out: "Fourreau côté droit" },
+          { label: "Gauche et droite", out: "Fourreaux côtés gauche et droit" },
+          { label: "Périmétraux", out: "Fourreaux périmétraux" }
+        ] },
+      { id: "f_fix", label: "Fixation", type: "dropdown",
+        options: [
+          { label: "Sans", out: " " },
+          { label: "Tendeurs", out: "Fixation par tendeurs" },
+          { label: "Serflex", out: "Fixation par serflex" }
+        ] },
+      champQuantite()
+    ]),
+    template: [
+      "Bâche PVC occultante",
+      "{Impression}",
+      DIMENSIONS,
+      "{Bords}",
+      "{Fourreaux}",
+      "{Fixation}",
       QUANTITE
     ]
   }

@@ -4,10 +4,10 @@
  * annexes que l'analyse aura le droit d'ouvrir.
  */
 import { useEffect, useRef, useState } from "react";
-import { Check, Eye, FileText, Loader2, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, Check, Eye, FileText, Loader2, RefreshCw, X } from "lucide-react";
 import type { Inventaire } from "@/lib/verifFab/inventaire";
 import type { DevisDolibarr } from "@/pages/VerifFab";
-import { dureeEstimee, formaterDuree } from "@/lib/verifFab/inventaire";
+import { dureeEstimee, formaterDuree, lourdsLus } from "@/lib/verifFab/inventaire";
 import { BOUTON_PRINCIPAL, BOUTON_SECONDAIRE, CARTE, MONO, SORA } from "./theme";
 
 const ETATS = {
@@ -63,7 +63,8 @@ export function EcranPreparation(props: {
 
   const devisRegle = inventaire.aDevis || !!devis || sansDevis;
   const nbLus = inventaire.lusDOffice.length + (devis ? 1 : 0);
-  const duree = dureeEstimee(nbLus, coches.size);
+  const lourds = lourdsLus(inventaire, [...inventaire.lusDOffice, ...coches]);
+  const duree = dureeEstimee(nbLus, coches.size, lourds.octets);
   const basculer = (c: string) => setCoches((s) => { const n = new Set(s); if (n.has(c)) n.delete(c); else n.add(c); return n; });
 
   return (
@@ -213,6 +214,16 @@ export function EcranPreparation(props: {
             </label>
           ))}
         </section>
+      )}
+
+      {lourds.nb > 0 && (
+        <div className="flex items-start gap-2.5 text-[14px] rounded-xl px-4 py-3 border text-[var(--vz-ale)] bg-[var(--vz-ale-bg)] border-[var(--vz-ale-bord)]">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>
+            <b>Attention, vérification plus longue :</b> {lourds.nb === 1 ? "1 fichier lourd" : `${lourds.nb} fichiers lourds`} (jusqu'à {Math.round(lourds.max / 1048576)} Mo).
+            Ils sont lus sur le serveur, ce qui prend du temps (compte environ 1 min par fichier lourd). Le résultat et le coût ne changent pas.
+          </span>
+        </div>
       )}
 
       {/* figée en bas (-bottom-6 : la zone de défilement de GraphiDesk a 1,5 rem de marge intérieure) */}

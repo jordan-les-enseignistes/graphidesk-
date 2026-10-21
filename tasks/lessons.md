@@ -112,3 +112,7 @@ Un antislash-n écrit dans un heredoc puis dans une chaîne Python non brute dev
 `.join(...)` est sortie coupée en deux (« Unterminated string literal »), trois fois dans la même session — y compris
 dans l'écriture de cette leçon.
 Règle : pour du code contenant des échappements, utiliser l'outil Edit, ou un fichier .py écrit avec Write.
+
+## Lire une capture d'atelier (21/10/2026)
+- Dans une capture Illustrator, le gris autour du visuel est le PLAN DE TRAVAIL, pas un élément du fichier. Un « trait blanc » signalé par l'atelier sur un adhésif plein = le fond qui ne va pas jusqu'au bord du plan de travail (adhésif mal calé), pas un jour entre deux aplats.
+- Avant de proposer une règle à partir d'un retour atelier : décrire le défaut compris et le faire confirmer, au lieu de deviner.
