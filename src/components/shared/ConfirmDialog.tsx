@@ -15,6 +15,9 @@ interface ConfirmDialogProps {
   icon?: "delete" | "archive" | "transfer" | "warning";
   onConfirm: () => void;
   loading?: boolean;
+  /** second choix facultatif, entre « Annuler » et la confirmation (ex. « Vérifier d'abord ») */
+  secondaryText?: string;
+  onSecondary?: () => void;
 }
 
 const iconMap = {
@@ -50,6 +53,8 @@ export function ConfirmDialog({
   icon = "warning",
   onConfirm,
   loading = false,
+  secondaryText,
+  onSecondary,
 }: ConfirmDialogProps) {
   const Icon = iconMap[icon];
   const styles = variantStyles[variant];
@@ -102,6 +107,11 @@ export function ConfirmDialog({
           >
             {cancelText}
           </Button>
+          {secondaryText && onSecondary && (
+            <Button variant="outline" onClick={onSecondary} disabled={loading}>
+              {secondaryText}
+            </Button>
+          )}
           <Button
             className={styles.button}
             onClick={onConfirm}

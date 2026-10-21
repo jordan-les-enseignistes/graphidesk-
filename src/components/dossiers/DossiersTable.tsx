@@ -854,8 +854,17 @@ export function DossiersTable({
         open={!!archiveConfirm}
         onOpenChange={(open) => !open && setArchiveConfirm(null)}
         title="Archiver le dossier"
-        description={`Êtes-vous sûr de vouloir archiver "${archiveConfirm?.nom}" ? Le dossier sera déplacé dans les archives.`}
-        confirmText="Archiver"
+        description={peutVerifier
+          ? `Archiver "${archiveConfirm?.nom}" ? Avant, tu peux le faire vérifier par VérifIzy (facultatif).`
+          : `Êtes-vous sûr de vouloir archiver "${archiveConfirm?.nom}" ? Le dossier sera déplacé dans les archives.`}
+        confirmText={peutVerifier ? "Archiver sans vérifier" : "Archiver"}
+        secondaryText={peutVerifier ? "Vérifier d'abord" : undefined}
+        onSecondary={() => {
+          if (!archiveConfirm) return;
+          const d = archiveConfirm;
+          setArchiveConfirm(null);
+          navigate(`${ROUTES.VERIF_FAB}?dossier=${d.id}&nom=${encodeURIComponent(d.nom)}`);
+        }}
         variant="warning"
         icon="archive"
         onConfirm={async () => {

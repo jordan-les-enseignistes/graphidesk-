@@ -18,6 +18,8 @@ import { FolderOpen, LayoutDashboard, Moon, Plus, Sun, X } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { CLE_NOTIFS_VERIFIZY, useVerifizyNotifs } from "@/hooks/useVerifizyNotifs";
+import { useArchiveDossier } from "@/hooks/useDossiers";
+import { verdictEffectif } from "@/components/verifizy/EcranAccueil";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { useHasPermission } from "@/hooks/useHasPermission";
@@ -29,7 +31,7 @@ import {
 } from "@/lib/verifFab/conversation";
 import { MARQUE_INVENTAIRE } from "@/components/verifFab/Elements";
 import { EspaceAdmin } from "@/components/verifFab/EspaceAdmin";
-import { useThemeVerifizy, LogoVerifizy, NomVerifizy, FIGTREE, MONO, SORA, BOUTON_SECONDAIRE, CARTE } from "@/components/verifizy/theme";
+import { useThemeVerifizy, LogoVerifizy, NomVerifizy, FIGTREE, MONO, SORA, BOUTON_PRINCIPAL, BOUTON_SECONDAIRE, CARTE } from "@/components/verifizy/theme";
 import { EcranAccueil, type DossierGD, type ConversationResume } from "@/components/verifizy/EcranAccueil";
 import { EcranPreparation } from "@/components/verifizy/EcranPreparation";
 import { EcranAnalyse, type Etape, type Progression } from "@/components/verifizy/EcranAnalyse";
@@ -78,6 +80,34 @@ function sansMiseEnSommeil<T>(travail: () => Promise<T>): Promise<T> {
   return navigator.locks.request(`verifizy-analyse-${crypto.randomUUID()}`, travail) as Promise<T>;
 }
 
+/**
+ * Client déduit du chemin serveur : Z:\T\TEMPORIS\MONT DE MARSAN → TEMPORIS
+ * (le dossier qui suit le dossier « lettre »). Sinon, le dossier parent.
+ */
+function clientDuChemin(chemin: string): string | null {
+  const parts = chemin.split(/[\\/]/).filter(Boolean);
+  const i = parts.findIndex((p, k) => k > 0 && /^[A-Za-z0-9]$/.test(p));
+  const nom = i >= 0 && parts[i + 1] ? parts[i + 1] : parts.length >= 2 ? parts[parts.length - 2] : null;
+  return nom ? nom.toUpperCase() : null;
+}
+
+/** Devis récupéré dans Dolibarr (quand il n'est pas dans le dossier serveur) */
+export interface DevisDolibarr {
+  etat: "recherche" | "trouve" | "absent";
+  fichier?: File;
+  ref?: string;
+  raison?: string;
+  notes?: { publique: string; privee: string };
+}
+
+/** Numéro de commande du dossier : dossier FAB (FAB_CO2609-5738), sinon nom GraphiDesk, sinon chemin */
+function numeroCommande(entrees: { chemin: string }[], nom?: string, chemin?: string): string | null {
+  const re = /CO\d{4}-\d{3,6}/i;
+  const fab = entrees.find((e) => /(^|[\\/])FAB[^\\/]*CO\d{4}-\d{3,6}/i.test(e.chemin));
+  const m = (fab && fab.chemin.match(re)) || (nom ?? "").match(re) || (chemin ?? "").match(re);
+  return m ? m[0].toUpperCase() : null;
+}
+
 /* ---------------------------------------------------- progression */
 const nomFichier = (c: string) => c.split(/[\\/]/).pop() ?? c;
 function cheminsDe(nom: string, e: Bloc): string[] {
@@ -117,7 +147,7 @@ export default function VerifFab({ actif = true }: { actif?: boolean }) {
   const [dossiers, setDossiers] = useState<DossierGD[]>([]);
   const candidatsParDossier = useRef<Record<string, Candidat[]>>({});
   const [racine, setRacine] = useState(racineServeur());
-  const [prep, setPrep] = useState<{ chemin: string; opts: OptsDossier; entrees: Awaited<ReturnType<typeof listerDossier>>; inventaire: Inventaire } | null>(null);
+  const [prep, setPrep] = useState<{ chemin: string; opts: OptsDossier; entrees: Awaited<ReturnType<typeof listerDossier>>; inventaire: Inventaire; client: string | null; noteClient: string; dolibarr: DevisDolibarr | null } | null>(null);
   const [choixServeur, setChoixServeur] = useState<{ opts: OptsDossier; candidats: Candidat[] } | null>(null);
   const [admin, setAdmin] = useState(false);
 
@@ -196,16 +226,42 @@ export default function VerifFab({ actif = true }: { actif?: boolean }) {
     return () => { annule = true; clearTimeout(t); };
   }, [recherche, avecChemins, monId]);
 
+  // devis absent du dossier : recherche dans Dolibarr (API officielle, clé côté serveur)
+  const chercherDevisDolibarr = useCallback(async (chemin: string, co: string) => {
+    setPrep((p) => (p && p.chemin === chemin ? { ...p, dolibarr: { etat: "recherche", ref: co } } : p));
+    let dolibarr: DevisDolibarr = { etat: "absent", ref: co, raison: "Dolibarr injoignable" };
+    try {
+      const { data } = await supabase.functions.invoke("dolibarr-devis", { body: { ref: co } });
+      if (data?.trouve && data.contenu) {
+        const bin = atob(data.contenu);
+        const octets = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
+        dolibarr = { etat: "trouve", ref: data.ref, notes: data.notes, fichier: new File([octets], data.fichier ?? `${data.ref}.pdf`, { type: "application/pdf" }) };
+      } else dolibarr = { etat: "absent", ref: co, raison: data?.raison ?? "Devis introuvable", notes: data?.notes };
+    } catch { /* reste « absent » : le graphiste peut toujours déposer le devis */ }
+    setPrep((p) => (p && p.chemin === chemin ? { ...p, dolibarr } : p));
+  }, []);
+
   /* ------------------------------------------------ préparation (sans API) */
   const preparer = useCallback(async (chemin: string, opts: OptsDossier = {}) => {
     let entrees;
     try { entrees = await listerDossier(chemin); }
     catch (e) { toast.error(String(e)); return; }
     memoriserChemin(opts.dossierId, chemin);
-    setPrep({ chemin, opts, entrees, inventaire: classerInventaire(entrees) });
+    const client = clientDuChemin(chemin);
+    let noteClient = "";
+    if (client) {
+      const { data } = await supabase.from("verif_notes_client").select("note").eq("client", client).maybeSingle();
+      noteClient = data?.note ?? "";
+    }
+    const inventaire = classerInventaire(entrees);
+    // pas de devis dans le dossier : on le cherche dans Dolibarr, sans bloquer l'écran
+    const co = inventaire.aDevis ? null : numeroCommande(entrees, opts.nom, chemin);
+    setPrep({ chemin, opts, entrees, inventaire, client, noteClient, dolibarr: co ? { etat: "recherche", ref: co } : null });
+    if (co) void chercherDevisDolibarr(chemin, co);
     setChoixServeur(null);
     setEcran("preparation");
-  }, []);
+  }, [chercherDevisDolibarr]);
 
   const parcourir = async (titre?: string): Promise<string | null> => {
     const choix = await open({ directory: true, defaultPath: racine, title: titre ? `Dossier serveur de « ${titre} »` : "Dossier de production à vérifier" });
@@ -283,8 +339,15 @@ export default function VerifFab({ actif = true }: { actif?: boolean }) {
     }
   };
 
-  const lancerAnalyse = async (choix: { devis: File | null; sansDevis: boolean; annexes: string[] }) => {
+  const lancerAnalyse = async (choix: { devis: File | null; sansDevis: boolean; annexes: string[]; contexte: string; memoriser: boolean }) => {
     if (!prep || !monId) return;
+    // note client : enregistrée, mise à jour ou retirée selon la case « Mémoriser »
+    if (prep.client) {
+      if (choix.memoriser && choix.contexte)
+        await supabase.from("verif_notes_client").upsert({ client: prep.client, note: choix.contexte, modifie_par: monId, updated_at: new Date().toISOString() });
+      else if (!choix.memoriser && prep.noteClient)
+        await supabase.from("verif_notes_client").delete().eq("client", prep.client);
+    }
     const titre = prep.opts.nom ?? prep.chemin.split(/[\\/]/).filter(Boolean).pop() ?? "Vérification";
     const { data, error } = await supabase.from("verif_conversations")
       .insert({ user_id: monId, titre, chemin_dossier: prep.chemin, dossier_id: prep.opts.dossierId ?? null })
@@ -302,6 +365,10 @@ export default function VerifFab({ actif = true }: { actif?: boolean }) {
       text: [
         choix.annexes.length ? `Annexes autorisées (tu ne peux ouvrir que celles-ci en plus du BAT, du devis, de la maquette et des fichiers de FAB) :\n${choix.annexes.map((a) => `• ${a}`).join("\n")}` : "Aucune annexe autorisée : BAT, devis, maquette et fichiers de FAB seulement.",
         choix.devis ? `Devis fourni par le graphiste : ${choix.devis.name}.` : choix.sansDevis ? "Pas de devis : le graphiste a choisi de continuer sans." : "",
+        prep.dolibarr?.notes && (prep.dolibarr.notes.publique || prep.dolibarr.notes.privee)
+          ? `Notes de la commande ${prep.dolibarr.ref} dans Dolibarr :${prep.dolibarr.notes.publique ? `\n- publique : ${prep.dolibarr.notes.publique.replace(/<[^>]+>/g, " ").trim()}` : ""}${prep.dolibarr.notes.privee ? `\n- privée : ${prep.dolibarr.notes.privee.replace(/<[^>]+>/g, " ").trim()}` : ""}`
+          : "",
+        choix.contexte ? `Contexte donné par le graphiste (brief, particularités du dossier ou du client${prep.client ? ` ${prep.client}` : ""}) :\n"""\n${choix.contexte}\n"""` : "",
         CONSIGNE,
       ].filter(Boolean).join("\n\n"),
     });
@@ -344,9 +411,18 @@ export default function VerifFab({ actif = true }: { actif?: boolean }) {
     charger();
   };
 
+  // archiver une vérification terminée (conforme ou corrigée) propose d'archiver aussi le dossier GraphiDesk
+  const archiverDossier = useArchiveDossier();
+  const [archiverAussi, setArchiverAussi] = useState<{ dossierId: string; nom: string } | null>(null);
   const archiver = async (id: string, valeur: boolean) => {
     await supabase.from("verif_conversations").update({ is_archived: valeur }).eq("id", id);
     charger();
+    const c = conversations.find((x) => x.id === id);
+    if (!valeur || !c?.dossier_id || !c.rapport) return;
+    const etat = verdictEffectif(c.rapport);
+    if (etat !== "conforme" && etat !== "corrige") return;
+    const { data: d } = await supabase.from("dossiers").select("nom, is_archived").eq("id", c.dossier_id).maybeSingle();
+    if (d && !d.is_archived) setArchiverAussi({ dossierId: c.dossier_id, nom: d.nom });
   };
 
   /* ------------------------------------------------ entrée depuis la liste des dossiers */
@@ -523,7 +599,19 @@ export default function VerifFab({ actif = true }: { actif?: boolean }) {
       )}
 
       {ecran === "preparation" && prep && (
-        <EcranPreparation chemin={prep.chemin} inventaire={prep.inventaire} onLancer={lancerAnalyse} onAnnuler={() => setEcran("accueil")} />
+        <EcranPreparation key={prep.chemin} chemin={prep.chemin} inventaire={prep.inventaire} client={prep.client} noteClient={prep.noteClient} dolibarr={prep.dolibarr}
+          onLancer={lancerAnalyse} onAnnuler={() => setEcran("accueil")}
+          onActualiser={async () => {
+            try {
+              const entrees = await listerDossier(prep.chemin);
+              const inventaire = classerInventaire(entrees);
+              setPrep((p) => (p ? { ...p, entrees, inventaire } : p));
+              // devis toujours absent et pas encore trouvé dans Dolibarr : on relance la recherche
+              const co = inventaire.aDevis || prep.dolibarr?.etat === "trouve" ? null : numeroCommande(entrees, prep.opts.nom, prep.chemin);
+              if (co) void chercherDevisDolibarr(prep.chemin, co);
+              toast.success(`Dossier relu : ${entrees.length} éléments`);
+            } catch (e) { toast.error(String(e)); }
+          }} />
       )}
 
       {dansSession && !afficherRapport && (
@@ -576,6 +664,23 @@ export default function VerifFab({ actif = true }: { actif?: boolean }) {
                 onClick={async () => { const o = choixServeur.opts; setChoixServeur(null); const c = await parcourir(o.nom); if (c) preparer(c, o); }}>
                 Autre dossier…
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {archiverAussi && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setArchiverAussi(null)}>
+          <div className={`${CARTE} w-full max-w-md p-5 flex flex-col gap-4`} onClick={(e) => e.stopPropagation()} style={{ ...variables, ...FIGTREE }}>
+            <span style={SORA} className="font-semibold text-[17px]">Archiver aussi le dossier ?</span>
+            <p className="m-0 text-[14px] text-[var(--vz-muted)]">
+              La vérification de « {archiverAussi.nom} » est archivée. Veux-tu aussi archiver ce dossier dans « Mes dossiers » ?
+            </p>
+            <div className="flex justify-end gap-2 flex-wrap">
+              <button type="button" onClick={() => setArchiverAussi(null)} className={BOUTON_SECONDAIRE + " min-h-[42px] text-[14px]"}>Non, garder le dossier</button>
+              <button type="button" disabled={archiverDossier.isPending}
+                onClick={async () => { await archiverDossier.mutateAsync(archiverAussi.dossierId); setArchiverAussi(null); }}
+                className={BOUTON_PRINCIPAL + " min-h-[42px] text-[14px]"}>Oui, archiver le dossier</button>
             </div>
           </div>
         </div>

@@ -637,9 +637,8 @@ sur `Y:\JORDAN\TEST` (QR code retiré volontairement → détecté ; process Cut
 - [x] Constat « Corrigé » / « Rouvrir » sans relancer d'analyse (rapport JSON : corrige, corrige_le) ; verdict « Tout est corrigé » si plus d'erreur ni de question
 - [x] Coûts et statistiques remis à zéro le 20/10
 
-## VérifIzy — niveau « Remarque » (préparé le 20/10, PAS ENCORE EN LIGNE)
+## VérifIzy — niveau « Remarque » (en ligne le 20/10, v1.15.0)
 - [x] App : niveau remarque (pastille, groupe du rapport, compteurs, stats à part), bouton « Tout valider » par groupe, éditeur de règles agrandi
-- [ ] AU PUSH SEULEMENT (sinon la version en ligne ne saurait pas afficher les remarques) :
+- [x] Au push : consignes déployées, règles de gravité passées à 4 niveaux, rapport Camif reclassé
       1. déployer verif-fab (consignes 4 niveaux + enum « remarque » déjà modifiés dans index.ts)
       2. appliquer supabase/migrations/20261020023000_verif_fab_niveau_remarque.sql
-- ⚠ Ne PAS redéployer verif-fab avant ce push (le fichier contient déjà le niveau remarque)

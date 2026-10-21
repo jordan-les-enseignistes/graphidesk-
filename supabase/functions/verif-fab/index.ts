@@ -43,6 +43,10 @@ Avant qu'un dossier parte en fabrication, tu vérifies que TOUT concorde : devis
 
 ## Ce que tu reçois
 Le premier message contient l'inventaire du dossier (chemins relatifs, tailles, dates), le devis s'il a été fourni, et la liste des fichiers ANNEXES que le graphiste t'autorise à examiner. Hors BAT, devis, maquette et fichiers de FAB, n'ouvre QUE ces annexes.
+Il peut aussi contenir un CONTEXTE donné par le graphiste : le brief du commercial (copié de FreshProcess) ou une particularité du dossier ou du client (ex. un process demandé par l'atelier pour ce client). C'est une information fiable du terrain :
+- le brief se vérifie comme le devis : chaque consigne doit se retrouver au BAT et en FAB (sinon erreur ou question) ; en cas de contradiction avec le devis, le brief prime et l'écart est à signaler au commercial ;
+- un écart que le contexte explique n'est pas à signaler ; s'il contredit le BAT ou une règle d'une façon qui fausserait la fab, pose une question ;
+- une particularité de client ou de dossier n'est JAMAIS proposée comme règle générale.
 
 ## Comment tu travailles
 1. Identifie le rôle de chaque fichier : BAT client EN COURS (le plus récent, au numéro de commande du dossier), anciens BAT ou BAT d'une commande précédente, BAT VT, BAT mairie, maquette, fichiers de FAB (dossier FAB…), ARCHIVES (anciennes versions : à ignorer sauf pour comparer), devis : proposition commerciale Dolibarr « PR<numéro>….pdf » OU bon de commande « CO<numéro>….pdf » (même contenu : l'un OU l'autre suffit, l'absence de l'autre n'est jamais à signaler ; le numéro CO est aussi celui du dossier FAB), dossier PROVISOIRE (signalétique provisoire : à ne pas confondre avec la commande définitive). Un .indd ou un .psd ne se lit pas : sers-toi du PDF exporté. Les dates de modification comptent (un fichier bien plus ancien que la commande a peut-être été repris d'ailleurs).
@@ -67,7 +71,7 @@ Le premier message contient l'inventaire du dossier (chemins relatifs, tailles, 
    h. AVANT de conclure, repasse la liste de l'étape e pour chaque fichier de FAB : un point non contrôlé est un oubli, pas un « conforme ».
    - Ce que tu lis sur une IMAGE (capture, rendu, photo, page vue avec voir_page) : regarde en zone agrandie avant de conclure. Une couleur ou un coloris se confirme avec les valeurs mesurées (analyser_pdf), jamais à l'œil sur une capture ; si tu ne peux pas le confirmer, c'est une question, pas une alerte.
 3. Analyse finie : s'il te manque une information ou qu'un écart peut être voulu, appelle poser_questions (bilan + questions, le graphiste répond par des boutons). Sinon, directement rendre_rapport.
-4. Après les réponses (ou si le graphiste te demande de conclure) : rendre_rapport, et n'écris RIEN après.
+4. Après les réponses (ou si le graphiste te demande de conclure) : RELIS TOUT ton bilan (erreurs et alertes comprises, pas seulement les questions posées) à la lumière des réponses, des précisions et des points CONTESTÉS par le graphiste. Un point qu'une réponse explique, même indirectement (même élément, même cause, conséquence d'un choix déclaré voulu), ne reste JAMAIS en erreur ni en alerte : il passe dans les conformes avec « voulu, confirmé par le graphiste ». Puis rendre_rapport, et n'écris RIEN après.
 5. Si une réponse révèle une façon de faire GÉNÉRALE de l'atelier, propose-la avec proposer_regle : Jordan la validera ou non. Ce qui ne concerne QUE ce dossier n'est pas une règle. Si une règle validée traite déjà du même sujet, ne crée pas de doublon : propose son texte COMPLET réécrit (l'existant + l'ajout ou l'exception) avec « remplace » = son titre exact.
 6. Ensuite, le graphiste peut te poser des questions sur un point du rapport : réponds court et précis, avec les valeurs mesurées, en listes courtes (pas de tableau). Si sa réponse suit une façon de faire de l'atelier, ne la conteste pas.
 
@@ -362,6 +366,13 @@ function heureParis(d: Date) {
   return { jour: `${p.year}-${p.month}-${p.day}`, semaine: p.weekday, minutes: Number(p.hour) * 60 + Number(p.minute) };
 }
 
+/** Empreinte de la partie fixe : si elle change (règle, consigne, modèle), le cache ne sert plus */
+async function empreinte(modele: string, blocRegles: string): Promise<string> {
+  const octets = new TextEncoder().encode(JSON.stringify(prefixe(modele, blocRegles)));
+  const h = new Uint8Array(await crypto.subtle.digest("SHA-256", octets));
+  return [...h].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
 // deno-lint-ignore no-explicit-any
 async function entretenir(admin: any, client: Anthropic, modele: string, blocRegles: string) {
   const maintenant = new Date();
@@ -386,6 +397,13 @@ async function entretenir(admin: any, client: Anthropic, modele: string, blocReg
     .is("conversation_id", null).order("created_at", { ascending: false }).limit(1);
   if (relance?.[0] && heureParis(new Date(relance[0].created_at)).jour === ici.jour && !relance[0].cache_read_tokens)
     return { fait: false, raison: "la dernière relance n'a rien relu : arrêt jusqu'à demain" };
+
+  // relancer ne sert qu'à garder un cache EXISTANT : si la partie fixe a changé depuis la
+  // dernière vraie vérification (règle validée, consigne modifiée), il n'y a rien à garder —
+  // la relance réécrirait un cache neuf (~0,22 $) que personne n'utilisera peut-être
+  const { data: p } = await admin.from("verif_parametres").select("prefixe_empreinte").eq("id", 1).single();
+  if (!p?.prefixe_empreinte || p.prefixe_empreinte !== await empreinte(modele, blocRegles))
+    return { fait: false, raison: "règles ou consignes modifiées depuis la dernière vérification : rien à garder" };
 
   // un seul poste relance : réservation atomique
   const { data: reserve } = await admin.from("verif_parametres")
@@ -517,6 +535,8 @@ Deno.serve(async (req) => {
   if (!conv || conv.user_id !== userId) return json({ erreur: "Conversation inconnue" }, 403);
 
   const blocRegles = await lireRegles();
+  // mémorise la partie fixe utilisée : la relance du cache s'y fie
+  admin.from("verif_parametres").update({ prefixe_empreinte: await empreinte(modele, blocRegles) }).eq("id", 1).then(() => {});
   const encodeur = new TextEncoder();
 
   const flux = new ReadableStream({

@@ -31,14 +31,21 @@ const VERDICTS = {
   conforme: { nom: "Conforme", classe: NIVEAUX.ok.classe },
   a_corriger: { nom: "À corriger", classe: NIVEAUX.erreur.classe },
   questions_en_suspens: { nom: "Questions", classe: NIVEAUX.question.classe },
+  corrige: { nom: "Corrigé", classe: NIVEAUX.ok.classe },
 } as const;
 
 /** Constats encore ouverts (ceux marqués « corrigé » ne comptent plus) */
 /** Verdict après les corrections du graphiste : plus d'erreur ni de question ouverte → prêt */
-export function verdictEffectif(r: Rapport): Rapport["verdict"] {
+/**
+ * Verdict après les corrections du graphiste : plus d'erreur ni de question ouverte →
+ * « corrigé » s'il y avait des erreurs, « conforme » s'il n'y avait que des alertes ou
+ * des remarques (elles n'empêchent pas la fab).
+ */
+export function verdictEffectif(r: Rapport): Rapport["verdict"] | "corrige" {
   if (r.verdict === "conforme" || !r.constats) return r.verdict;
   const n = compter(r);
-  return n.corrige > 0 && n.erreur === 0 && n.question === 0 ? "conforme" : r.verdict;
+  if (n.erreur > 0 || n.question > 0) return r.verdict;
+  return r.constats.some((k) => k.niveau === "erreur") ? "corrige" : "conforme";
 }
 
 export function compter(r: Rapport | null) {
@@ -71,7 +78,12 @@ export function EcranAccueil(props: {
   const [chemin, setChemin] = useState("");
   const [toutVoir, setToutVoir] = useState(false);
   const [editionRacine, setEditionRacine] = useState(false);
-  const visibles = props.conversations.filter((c) => toutVoir || !c.is_archived).slice(0, toutVoir ? 200 : 6);
+  // recherche : dans TOUTES les vérifications (archivées comprises), par nom ou chemin du dossier
+  const [filtre, setFiltre] = useState("");
+  const q = filtre.trim().toLowerCase();
+  const visibles = q
+    ? props.conversations.filter((c) => `${c.titre} ${c.chemin_dossier ?? ""}`.toLowerCase().includes(q)).slice(0, 60)
+    : props.conversations.filter((c) => toutVoir || !c.is_archived).slice(0, toutVoir ? 200 : 6);
 
   return (
     <main className="w-full max-w-[1080px] mx-auto px-8 pt-12 pb-14 flex flex-col gap-9">
@@ -172,13 +184,29 @@ export function EcranAccueil(props: {
         <div className="flex items-baseline justify-between gap-3 flex-wrap">
           <h2 style={SORA} className="m-0 font-semibold text-[18px]">Mes dernières vérifications</h2>
           {props.conversations.length > 0 && (
-            <button type="button" onClick={() => setToutVoir(!toutVoir)} className="text-[14px] font-semibold text-[var(--vz-accent-hi)]">
-              {toutVoir ? "Voir les récentes" : "Tout voir (archivées comprises)"}
-            </button>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative w-[260px] max-w-full">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--vz-muted)]" aria-hidden />
+                <label htmlFor="vz-recherche-verif" className="sr-only">Chercher dans mes vérifications</label>
+                <input id="vz-recherche-verif" value={filtre} onChange={(e) => setFiltre(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Escape") setFiltre(""); }}
+                  placeholder="Chercher une vérification…"
+                  className="w-full min-h-[38px] pl-9 pr-8 rounded-xl border border-[var(--vz-border)] bg-[var(--vz-surface2)] text-[var(--vz-text)] text-[14px] placeholder:text-[var(--vz-muted)] outline-none focus:border-[var(--vz-accent-hi)]" />
+                {filtre && (
+                  <button type="button" onClick={() => setFiltre("")} aria-label="Effacer la recherche"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--vz-muted)] hover:text-[var(--vz-text)]"><X className="w-4 h-4" /></button>
+                )}
+              </div>
+              {!q && (
+                <button type="button" onClick={() => setToutVoir(!toutVoir)} className="text-[14px] font-semibold text-[var(--vz-accent-hi)]">
+                  {toutVoir ? "Voir les récentes" : "Tout voir (archivées comprises)"}
+                </button>
+              )}
+            </div>
           )}
         </div>
         {visibles.length === 0 ? (
-          <p className="text-[14px] text-[var(--vz-muted)]">Aucune vérification pour l'instant.</p>
+          <p className="text-[14px] text-[var(--vz-muted)]">{q ? "Aucune vérification ne correspond à cette recherche." : "Aucune vérification pour l'instant."}</p>
         ) : (
           <div className="grid gap-3.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
             {visibles.map((c) => {
@@ -202,7 +230,7 @@ export function EcranAccueil(props: {
                   </button>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[13px] text-[var(--vz-muted)]">
-                      {c.rapport ? `${n.erreur} erreur${n.erreur > 1 ? "s" : ""} · ${n.alerte} alerte${n.alerte > 1 ? "s" : ""} · ${n.question} question${n.question > 1 ? "s" : ""}${n.remarque ? ` · ${n.remarque} remarque${n.remarque > 1 ? "s" : ""}` : ""}` : "Analyse non terminée"}
+                      {c.rapport ? `${n.erreur} erreur${n.erreur > 1 ? "s" : ""} · ${n.alerte} alerte${n.alerte > 1 ? "s" : ""} · ${n.question} question${n.question > 1 ? "s" : ""}${n.remarque ? ` · ${n.remarque} remarque${n.remarque > 1 ? "s" : ""}` : ""}${n.corrige ? ` · ${n.corrige} corrigé${n.corrige > 1 ? "s" : ""}` : ""}` : "Analyse non terminée"}
                     </span>
                     <button
                       type="button"

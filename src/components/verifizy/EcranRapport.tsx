@@ -51,9 +51,9 @@ export function EcranRapport(props: {
   const { constats, conformes } = constatsDe(props.rapport);
   const n = compter(props.rapport);
   const effectif = verdictEffectif(props.rapport);
-  const v = effectif !== props.rapport.verdict
+  const v = effectif === "corrige"
     ? { titre: "Tout est corrigé : prêt pour la fab", couleur: "text-[var(--vz-ok)]" }
-    : TITRES_VERDICT[props.rapport.verdict];
+    : TITRES_VERDICT[effectif];
   const indexDe = (c: Constat) => props.rapport.constats?.indexOf(c) ?? -1;
   const [contexte, setContexte] = useState<string | null>(null);
   const [saisie, setSaisie] = useState("");

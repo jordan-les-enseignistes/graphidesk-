@@ -4,7 +4,7 @@
  * (réponses par boutons) avant le rapport.
  */
 import { useState } from "react";
-import { Check, Send } from "lucide-react";
+import { Check, Send, ThumbsDown } from "lucide-react";
 import type { Attente } from "@/lib/verifFab/conversation";
 import { formaterDuree } from "@/lib/verifFab/inventaire";
 import { BOUTON_PRINCIPAL, CARTE, MONO, NIVEAUX, SORA } from "./theme";
@@ -31,6 +31,17 @@ export function EcranAnalyse(props: {
   onRelancer?: () => void;
 }) {
   const p = props.progression;
+  // points du bilan contestés par le graphiste : envoyés avec ses réponses
+  const [contestes, setContestes] = useState<Set<string>>(new Set());
+  const peutContester = !!props.attente && !props.attente.ciblage && !props.occupe;
+  const contester = (t: string) => setContestes((s) => { const n = new Set(s); if (n.has(t)) n.delete(t); else n.add(t); return n; });
+  const repondre = (reponses: string[], precision: string) => {
+    const liste = [...contestes];
+    const ajout = liste.length
+      ? `Points du bilan CONTESTÉS par le graphiste (ce ne sont pas des erreurs ni des alertes, ne les garde pas comme tels) :\n${liste.map((t) => `• ${t}`).join("\n")}`
+      : "";
+    props.onRepondre(reponses, [precision.trim(), ajout].filter(Boolean).join("\n\n"));
+  };
   return (
     <main className="w-full max-w-[960px] mx-auto px-8 pt-10 pb-14 flex flex-col gap-5">
       <section className={`${CARTE} p-[30px] flex flex-col gap-6`}>
@@ -79,15 +90,15 @@ export function EcranAnalyse(props: {
       {props.bilan && (props.bilan.erreurs.length > 0 || props.bilan.alertes.length > 0 || props.bilan.conforme) && (
         <section className="flex flex-col gap-2.5">
           <h2 style={SORA} className="m-0 font-semibold text-[17px]">Déjà repéré</h2>
-          {props.bilan.erreurs.map((t, i) => <Ligne key={`e${i}`} niveau="erreur" texte={t} />)}
-          {props.bilan.alertes.map((t, i) => <Ligne key={`a${i}`} niveau="alerte" texte={t} />)}
+          {props.bilan.erreurs.map((t, i) => <Ligne key={`e${i}`} niveau="erreur" texte={t} conteste={contestes.has(t)} onContester={peutContester ? () => contester(t) : undefined} />)}
+          {props.bilan.alertes.map((t, i) => <Ligne key={`a${i}`} niveau="alerte" texte={t} conteste={contestes.has(t)} onContester={peutContester ? () => contester(t) : undefined} />)}
           {props.bilan.conforme && <Ligne niveau="ok" texte={props.bilan.conforme} />}
         </section>
       )}
 
       {props.attente && !props.occupe && (props.attente.ciblage
         ? <CarteCiblageVz key={props.attente.toolUseId} attente={props.attente} onValider={props.onCibler} />
-        : <CarteQuestionsVz key={props.attente.toolUseId} attente={props.attente} onRepondre={props.onRepondre} />)}
+        : <CarteQuestionsVz key={props.attente.toolUseId} attente={props.attente} onRepondre={repondre} />)}
 
       {props.occupe && !props.attente && (
         <p className="text-[14px] text-[var(--vz-muted)] m-0">Tu peux aller ailleurs dans GraphiDesk : l'analyse continue et je te préviens dès que j'ai fini. Ne ferme pas l'application.</p>
@@ -103,12 +114,21 @@ export function EcranAnalyse(props: {
   );
 }
 
-function Ligne({ niveau, texte }: { niveau: keyof typeof NIVEAUX; texte: string }) {
+function Ligne({ niveau, texte, conteste, onContester }: { niveau: keyof typeof NIVEAUX; texte: string; conteste?: boolean; onContester?: () => void }) {
   const n = NIVEAUX[niveau];
   return (
-    <div className={`${CARTE} flex gap-3 items-start px-4 py-3.5`}>
+    <div className={`${CARTE} flex gap-3 items-start px-4 py-3.5 ${conteste ? "opacity-60" : ""}`}>
       <span className={`text-[12px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap ${n.classe}`}>{n.nom}</span>
-      <span className="text-[15px]">{texte}</span>
+      <span className={`text-[15px] flex-1 ${conteste ? "line-through" : ""}`}>{texte}</span>
+      {onContester && (
+        <button type="button" onClick={onContester} aria-pressed={!!conteste}
+          title={conteste ? "Annuler la contestation" : "Ce n'est pas une erreur : VérifIzy en tiendra compte avec tes réponses"}
+          className={`shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold min-h-[30px] px-2.5 rounded-lg border ${conteste
+            ? "border-[var(--vz-accent-hi)] text-[var(--vz-accent-hi)]"
+            : "border-[var(--vz-border)] text-[var(--vz-muted)] hover:border-[var(--vz-accent-hi)]"}`}>
+          <ThumbsDown className="w-3.5 h-3.5" /> {conteste ? "Contesté" : "Pas d'accord"}
+        </button>
+      )}
     </div>
   );
 }
