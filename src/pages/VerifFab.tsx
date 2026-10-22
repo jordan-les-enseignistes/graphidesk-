@@ -484,7 +484,7 @@ export default function VerifFab({ actif = true }: { actif?: boolean }) {
   const bilan = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const q = messages[i].content.find((b) => b.type === "tool_use" && b.name === "poser_questions");
-      if (q) return { erreurs: q.input?.erreurs ?? [], alertes: q.input?.alertes ?? [], conforme: q.input?.conforme ?? "" };
+      if (q) return { erreurs: q.input?.erreurs ?? [], alertes: q.input?.alertes ?? [], remarques: q.input?.remarques ?? [], conforme: q.input?.conforme ?? "" };
     }
     return null;
   }, [messages]);

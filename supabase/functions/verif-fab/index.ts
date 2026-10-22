@@ -72,7 +72,7 @@ Il peut aussi contenir un CONTEXTE donné par le graphiste : le brief du commerc
    - Ce que tu lis sur une IMAGE (capture, rendu, photo, page vue avec voir_page) : regarde en zone agrandie avant de conclure. Une couleur ou un coloris se confirme avec les valeurs mesurées (analyser_pdf), jamais à l'œil sur une capture ; si tu ne peux pas le confirmer, c'est une question, pas une alerte.
 3. Analyse finie : s'il te manque une information ou qu'un écart peut être voulu, appelle poser_questions (bilan + questions, le graphiste répond par des boutons). Sinon, directement rendre_rapport.
 4. Après les réponses (ou si le graphiste te demande de conclure) : RELIS TOUT ton bilan (erreurs et alertes comprises, pas seulement les questions posées) à la lumière des réponses, des précisions et des points CONTESTÉS par le graphiste. Un point qu'une réponse explique, même indirectement (même élément, même cause, conséquence d'un choix déclaré voulu), ne reste JAMAIS en erreur ni en alerte : il passe dans les conformes avec « voulu, confirmé par le graphiste ». Puis rendre_rapport, et n'écris RIEN après.
-5. Si une réponse révèle une façon de faire GÉNÉRALE de l'atelier, propose-la avec proposer_regle : Jordan la validera ou non. Ce qui ne concerne QUE ce dossier n'est pas une règle. Si une règle validée traite déjà du même sujet, ne crée pas de doublon : propose son texte COMPLET réécrit (l'existant + l'ajout ou l'exception) avec « remplace » = son titre exact.
+5. Si une réponse, une précision ou la raison d'un point contesté révèle une façon de faire GÉNÉRALE de l'atelier, propose-la avec proposer_regle : Jordan la validera ou non. Ce qui ne concerne QUE ce dossier n'est pas une règle. Si une règle validée traite déjà du même sujet, ne crée pas de doublon : propose son texte COMPLET réécrit (l'existant + l'ajout ou l'exception) avec « remplace » = son titre exact.
 6. Ensuite, le graphiste peut te poser des questions sur un point du rapport : réponds court et précis, avec les valeurs mesurées, en listes courtes (pas de tableau). Si sa réponse suit une façon de faire de l'atelier, ne la conteste pas.
 
 ## Règles de l'atelier
@@ -234,7 +234,8 @@ const OUTILS = [
       type: "object",
       properties: {
         erreurs: { type: "array", items: { type: "string" }, description: "Une ligne par ERREUR certaine ou très probable (vide si aucune)." },
-        alertes: { type: "array", items: { type: "string" }, description: "Une ligne par ALERTE : conseil non suivi, coquille, écart tolérable (vide si aucune)." },
+        alertes: { type: "array", items: { type: "string" }, description: "Une ligne par ALERTE : un vrai risque pour la fab ou la pose, à vérifier (vide si aucune)." },
+        remarques: { type: "array", items: { type: "string" }, description: "Une ligne par REMARQUE : hors de nos standards mais sans risque pour la fab (vide si aucune). Jamais une remarque dans les alertes." },
         conforme: { type: "string", description: "Une seule ligne : tout ce qui a été vérifié et est conforme." },
         questions: {
           type: "array",
@@ -249,7 +250,7 @@ const OUTILS = [
           },
         },
       },
-      required: ["erreurs", "alertes", "conforme", "questions"],
+      required: ["erreurs", "alertes", "remarques", "conforme", "questions"],
       additionalProperties: false,
     },
   },

@@ -24,21 +24,26 @@ export function EcranAnalyse(props: {
   progression: Progression;
   occupe: boolean;
   attente: Attente | null;
-  bilan: { erreurs: string[]; alertes: string[]; conforme: string } | null;
+  bilan: { erreurs: string[]; alertes: string[]; remarques: string[]; conforme: string } | null;
   onRepondre: (reponses: string[], precision: string) => void;
   onCibler: (choisis: string[]) => void;
   /** présent quand l'analyse s'est arrêtée sans rapport ni question */
   onRelancer?: () => void;
 }) {
   const p = props.progression;
-  // points du bilan contestés par le graphiste : envoyés avec ses réponses
-  const [contestes, setContestes] = useState<Set<string>>(new Set());
+  // points du bilan contestés par le graphiste, avec sa raison : envoyés avec ses réponses
+  const [contestes, setContestes] = useState<Map<string, string>>(new Map());
   const peutContester = !!props.attente && !props.attente.ciblage && !props.occupe;
-  const contester = (t: string) => setContestes((s) => { const n = new Set(s); if (n.has(t)) n.delete(t); else n.add(t); return n; });
+  const contester = (t: string) => setContestes((s) => { const n = new Map(s); if (n.has(t)) n.delete(t); else n.set(t, ""); return n; });
+  const motiver = (t: string, raison: string) => setContestes((s) => new Map(s).set(t, raison));
+  const ligne = (niveau: "erreur" | "alerte" | "remarque", t: string, i: number) => (
+    <Ligne key={`${niveau}${i}`} niveau={niveau} texte={t} conteste={contestes.has(t)} raison={contestes.get(t) ?? ""}
+      onContester={peutContester ? () => contester(t) : undefined} onRaison={(r) => motiver(t, r)} />
+  );
   const repondre = (reponses: string[], precision: string) => {
     const liste = [...contestes];
     const ajout = liste.length
-      ? `Points du bilan CONTESTÉS par le graphiste (ce ne sont pas des erreurs ni des alertes, ne les garde pas comme tels) :\n${liste.map((t) => `• ${t}`).join("\n")}`
+      ? `Points du bilan CONTESTÉS par le graphiste (ne les garde ni en erreur, ni en alerte, ni en remarque ; si sa raison décrit une façon de faire générale de l'atelier, propose-la avec proposer_regle) :\n${liste.map(([t, r]) => `• ${t}${r.trim() ? `\n  Raison du graphiste : ${r.trim()}` : ""}`).join("\n")}`
       : "";
     props.onRepondre(reponses, [precision.trim(), ajout].filter(Boolean).join("\n\n"));
   };
@@ -87,11 +92,12 @@ export function EcranAnalyse(props: {
         )}
       </section>
 
-      {props.bilan && (props.bilan.erreurs.length > 0 || props.bilan.alertes.length > 0 || props.bilan.conforme) && (
+      {props.bilan && (props.bilan.erreurs.length > 0 || props.bilan.alertes.length > 0 || props.bilan.remarques.length > 0 || props.bilan.conforme) && (
         <section className="flex flex-col gap-2.5">
           <h2 style={SORA} className="m-0 font-semibold text-[17px]">Déjà repéré</h2>
-          {props.bilan.erreurs.map((t, i) => <Ligne key={`e${i}`} niveau="erreur" texte={t} conteste={contestes.has(t)} onContester={peutContester ? () => contester(t) : undefined} />)}
-          {props.bilan.alertes.map((t, i) => <Ligne key={`a${i}`} niveau="alerte" texte={t} conteste={contestes.has(t)} onContester={peutContester ? () => contester(t) : undefined} />)}
+          {props.bilan.erreurs.map((t, i) => ligne("erreur", t, i))}
+          {props.bilan.alertes.map((t, i) => ligne("alerte", t, i))}
+          {props.bilan.remarques.map((t, i) => ligne("remarque", t, i))}
           {props.bilan.conforme && <Ligne niveau="ok" texte={props.bilan.conforme} />}
         </section>
       )}
@@ -114,12 +120,16 @@ export function EcranAnalyse(props: {
   );
 }
 
-function Ligne({ niveau, texte, conteste, onContester }: { niveau: keyof typeof NIVEAUX; texte: string; conteste?: boolean; onContester?: () => void }) {
+function Ligne({ niveau, texte, conteste, raison, onContester, onRaison }: {
+  niveau: keyof typeof NIVEAUX; texte: string; conteste?: boolean; raison?: string;
+  onContester?: () => void; onRaison?: (r: string) => void;
+}) {
   const n = NIVEAUX[niveau];
   return (
-    <div className={`${CARTE} flex gap-3 items-start px-4 py-3.5 ${conteste ? "opacity-60" : ""}`}>
-      <span className={`text-[12px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap ${n.classe}`}>{n.nom}</span>
-      <span className={`text-[15px] flex-1 ${conteste ? "line-through" : ""}`}>{texte}</span>
+    <div className={`${CARTE} flex flex-col gap-2.5 px-4 py-3.5`}>
+    <div className="flex gap-3 items-start">
+      <span className={`text-[12px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap ${n.classe} ${conteste ? "opacity-60" : ""}`}>{n.nom}</span>
+      <span className={`text-[15px] flex-1 ${conteste ? "line-through opacity-60" : ""}`}>{texte}</span>
       {onContester && (
         <button type="button" onClick={onContester} aria-pressed={!!conteste}
           title={conteste ? "Annuler la contestation" : "Ce n'est pas une erreur : VérifIzy en tiendra compte avec tes réponses"}
@@ -129,6 +139,13 @@ function Ligne({ niveau, texte, conteste, onContester }: { niveau: keyof typeof 
           <ThumbsDown className="w-3.5 h-3.5" /> {conteste ? "Contesté" : "Pas d'accord"}
         </button>
       )}
+    </div>
+    {conteste && onContester && onRaison && (
+      <textarea value={raison} onChange={(e) => onRaison(e.target.value)} autoFocus rows={2}
+        aria-label="Pourquoi n'es-tu pas d'accord ?"
+        placeholder="Pourquoi ? (ex. : découpe droite, la limite de 2000 mm ne s'applique pas) — VérifIzy en tient compte, et Jordan valide s'il faut en faire une règle."
+        className="w-full rounded-xl border border-[var(--vz-border)] bg-[var(--vz-surface2)] text-[var(--vz-text)] text-[14px] px-3 py-2 placeholder:text-[var(--vz-muted)] outline-none focus:border-[var(--vz-accent-hi)] resize-y" />
+    )}
     </div>
   );
 }
