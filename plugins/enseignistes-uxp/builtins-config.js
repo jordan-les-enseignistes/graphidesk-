@@ -22,7 +22,7 @@
  * - syntaxe des modèles ([ … ] facultatif, A|B repli) : voir catalog.js.
  */
 
-const BUILTIN_VERSION = 6;
+const BUILTIN_VERSION = 7;
 
 /* Ordre d'affichage dans le menu Produit */
 const BUILTIN_ORDRE = ["Panneau", "Adhésif", "Caisson", "Lettres reliefs", "Bâche"];
@@ -45,13 +45,15 @@ const champQuantite = function () {
  * Un laquage a une « Finition », un adhésif une « Lamination » : un seul
  * champ « Lamination » pour les deux ne parlait pas pour du laquage, et un
  * panneau laqué ET adhésivé a besoin des deux (Carole/Caroline, 14/10/2026). */
-const optionsFinition = function (avecVelleda) {
+const optionsFinition = function (avecVelleda, avecAntiUV) {
   const options = [
     { label: "", out: "" },
     { label: "Mat", out: "mat" },
     { label: "Brillant", out: "brillant" }
   ];
   if (avecVelleda) options.push({ label: "Velleda", out: "Velleda" });
+  // panneau adhésivé posé au soleil (Caroline, 27/10/2026)
+  if (avecAntiUV) options.push({ label: "Anti UV", out: "lamination anti-UV" });
   return options;
 };
 const champFinitionLaquage = function (conditionValeurs) {
@@ -60,9 +62,9 @@ const champFinitionLaquage = function (conditionValeurs) {
     condition: { on: "f_opt", values: conditionValeurs }
   };
 };
-const champLamination = function (conditionValeurs, avecVelleda) {
+const champLamination = function (conditionValeurs, avecVelleda, avecAntiUV) {
   return {
-    id: "f_lam", label: "Lamination", type: "dropdown", options: optionsFinition(avecVelleda),
+    id: "f_lam", label: "Lamination", type: "dropdown", options: optionsFinition(avecVelleda, avecAntiUV),
     condition: { on: "f_opt", values: conditionValeurs }
   };
 };
@@ -82,6 +84,8 @@ const BUILTIN_CONFIGS = {
           { label: "Plexi transparent 3 mm", out: "" },
           { label: "Plexi transparent 5 mm", out: "" },
           { label: "Plexi transparent 8 mm", out: "" },
+          // translucide : laisse passer la lumière sans qu'on voie au travers (Caroline, 27/10/2026)
+          { label: "Plexi diffusant 3 mm", out: "" },
           { label: "Akilux 3,5 mm", out: "" }
         ] },
       { id: "f_decoupe", label: "Découpe", type: "dropdown",
@@ -120,7 +124,7 @@ const BUILTIN_CONFIGS = {
           { label: "Blanc de soutien sélectif", out: "" },
           { label: "Blanc de soutien total", out: "" }
         ] },
-      champLamination(["Adhésivé", "Laqué + adhésivé"], true),
+      champLamination(["Adhésivé", "Laqué + adhésivé"], true, true),
       { id: "f_fix", label: "Fixation", type: "dropdown",
         options: [
           { label: "Sans", out: " " },
@@ -133,6 +137,13 @@ const BUILTIN_CONFIGS = {
         ] },
       { id: "f_lissesRal", label: "RAL lisses", type: "text",
         condition: { on: "f_fix", value: "Sur lisses" } },
+      // la pose (intérieur / extérieur) décide de la lamination et de la tenue : à écrire au BAT (Quentin, 22/10/2026)
+      { id: "f_pose", label: "Pose", type: "dropdown",
+        options: [
+          { label: "Non précisée", out: " " },
+          { label: "Extérieur", out: "Pose en extérieur" },
+          { label: "Intérieur", out: "Pose en intérieur" }
+        ] },
       champQuantite()
     ]),
     template: [
@@ -147,6 +158,7 @@ const BUILTIN_CONFIGS = {
       "{Blanc de soutien}",
       "{Fixation}[ RAL {RAL lisses}]",
       "{En plusieurs parties}",
+      "{Pose}",
       QUANTITE
     ]
   },

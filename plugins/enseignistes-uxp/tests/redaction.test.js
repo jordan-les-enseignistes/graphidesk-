@@ -72,6 +72,15 @@ attendu("Panneau", [...D, ["f_opt", "Adhésivé"], ["f_lam", "Mat"]], P + " - 15
 attendu("Panneau", [...D, ["f_opt", "Adhésivé"]], P + " - 1500 x 500 mm - Adhésif occultant contrecollé");
 attendu("Panneau", [["f_matiere", "Plexi transparent 5 mm"], ...D, ["f_opt", "Adhésivé"], ["f_adh", "Dos blanc"]],
   "Panneau - Plexi transparent 5 mm - 1500 x 500 mm - Adhésif diffusant contrecollé");
+// lamination anti-UV, panneau translucide, pose (feedbacks Caroline 27/10 et Quentin 22/10)
+attendu("Panneau", [...D, ["f_opt", "Adhésivé"], ["f_lam", "Anti UV"]], P + " - 1500 x 500 mm - Adhésif occultant lamination anti-UV contrecollé");
+attendu("Panneau", [...D, ["f_opt", "Laqué + adhésivé"], ["f_ral", "7016"], ["f_lam", "Anti UV"]],
+  P + " - 1500 x 500 mm - Laqué RAL 7016 avec adhésif occultant lamination anti-UV contrecollé");
+attendu("Panneau", [["f_matiere", "Plexi diffusant 3 mm"], ...D], "Panneau - Plexi diffusant 3 mm - 1500 x 500 mm");
+attendu("Panneau", [...D, ["f_pose", "Extérieur"]], P + " - 1500 x 500 mm - Pose en extérieur");
+attendu("Panneau", [...D, ["f_fix", "Entretoises"], ["f_pose", "Intérieur"], ["f_qty", "2"]],
+  P + " - 1500 x 500 mm - Sur entretoises - Pose en intérieur - x 2 exemplaires");
+attendu("Panneau", [...D, ["f_pose", "Non précisée"]], P + " - 1500 x 500 mm");
 attendu("Panneau", [...D, ["f_opt", "Adhésivé"], ["f_adh", "Transparent"], ["f_bs", "Blanc de soutien sélectif"]],
   P + " - 1500 x 500 mm - Adhésif transparent contrecollé - Blanc de soutien sélectif");
 // un blanc de soutien resté choisi ne s'écrit pas sur un produit laqué

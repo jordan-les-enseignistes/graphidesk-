@@ -59,6 +59,26 @@ export interface AnalysePage {
   images: { pixels: string; poseeMm: string; dpi: number; couleurs?: string }[];
   /** formes détachées (lettres de découpe) : hauteur de chacune, ligne par ligne */
   formes: ReturnType<typeof formesDetachees>;
+  /** trous et petites découpes SIMPLES (rond, carré, rectangle) tracés en contour, groupés par taille, avec leurs centres */
+  decoupesSimples?: DecoupeSimple[];
+  /** contours de découpe en lignes droites (gabarit de caisson, pieds, languettes, potence) : leurs sommets */
+  contoursPolygonaux?: ContourPolygonal[];
+}
+
+export interface DecoupeSimple {
+  couleur: string;
+  forme: "rond" | "rectangle";
+  taille: string;
+  nombre: number;
+  /** centres en mm, origine en haut à gauche de la page */
+  centres: [number, number][];
+}
+
+export interface ContourPolygonal {
+  couleur: string;
+  emprise: string;
+  /** sommets en mm, origine en haut à gauche, dans l'ordre du tracé */
+  sommets: [number, number][];
 }
 
 export interface AnalysePdf {
@@ -341,6 +361,8 @@ async function lirePageJs(pdfjs: typeof PdfJs, page: PdfJs.PDFPageProxy) {
   const parCouleur = new Map<string, { c: Cumul; f: number; s: number; ep: Map<number, number> }>();
   const images: AnalysePage["images"] = [];
   const sousTraces: Boite[] = [];
+  // sous-tracés des CONTOURS (lignes de découpe) : forme et sommets
+  const decoupes: { couleur: string; t: SousTrace }[] = [];
   let nbTraces = 0;
 
   for (let i = 0; i < ops.fnArray.length; i++) {
@@ -395,6 +417,8 @@ async function lirePageJs(pdfjs: typeof PdfJs, page: PdfJs.PDFPageProxy) {
         const donnees = (args[1] as unknown[] | undefined)?.[0];
         if (donnees && ArrayBuffer.isView(donnees) && sousTraces.length < 4000)
           for (const b of boitesSousTraces(donnees as unknown as Float32Array)) sousTraces.push(boiteDansPage(ctm, b, media));
+        if (trace && donnees && ArrayBuffer.isView(donnees) && decoupes.length < 4000)
+          for (const t of sousTracesDetail(donnees as unknown as Float32Array, ctm, media)) decoupes.push({ couleur: contour, t });
         break;
       }
       case OPS.paintImageXObject:
@@ -430,7 +454,10 @@ async function lirePageJs(pdfjs: typeof PdfJs, page: PdfJs.PDFPageProxy) {
   // le BAT est relu mot à mot (coquilles) : texte gardé presque en entier
   texte = texte.replace(/[ \t]+/g, " ").trim().slice(0, 6000);
 
-  return { nbTraces, emprise: total.vide() ? null : total.enMm(media), couleurs, images: images.slice(0, 10), texte, formes: formesDetachees(sousTraces) };
+  return {
+    nbTraces, emprise: total.vide() ? null : total.enMm(media), couleurs, images: images.slice(0, 10), texte,
+    formes: formesDetachees(sousTraces), ...trousEtContours(decoupes),
+  };
 }
 
 /* ------------------------------------------------------------- lettres */
@@ -468,6 +495,78 @@ function boiteDansPage(m: Matrice, b: Boite, media: [number, number, number, num
   return {
     x0: (Math.min(...xs) - media[0]) * MM, x1: (Math.max(...xs) - media[0]) * MM,
     y0: (media[3] - Math.max(...ys)) * MM, y1: (media[3] - Math.min(...ys)) * MM,
+  };
+}
+
+/* ------------------------------------------------------------- trous, pieds, potences */
+
+/** Un sous-tracé de contour, dans la page (mm) : sommets et nature des segments */
+interface SousTrace { boite: Boite; sommets: [number, number][]; droites: number; courbes: number }
+
+function sousTracesDetail(p: Float32Array, m: Matrice, media: [number, number, number, number]): SousTrace[] {
+  const out: SousTrace[] = [];
+  let t: SousTrace | null = null;
+  const point = (x: number, y: number): [number, number] =>
+    [(m[0] * x + m[2] * y + m[4] - media[0]) * MM, (media[3] - (m[1] * x + m[3] * y + m[5])) * MM];
+  const ajouter = (x: number, y: number) => {
+    const [px, py] = point(x, y);
+    if (!t) { t = { boite: { x0: px, y0: py, x1: px, y1: py }, sommets: [], droites: 0, courbes: 0 }; }
+    const b = t.boite;
+    b.x0 = Math.min(b.x0, px); b.x1 = Math.max(b.x1, px); b.y0 = Math.min(b.y0, py); b.y1 = Math.max(b.y1, py);
+    return [px, py] as [number, number];
+  };
+  for (let i = 0; i < p.length;) {
+    const op = p[i++];
+    if (op === 0) { if (t) out.push(t); t = null; const s = ajouter(p[i], p[i + 1]); t!.sommets.push(s); i += 2; }
+    else if (op === 1) { const s = ajouter(p[i], p[i + 1]); t!.sommets.push(s); t!.droites++; i += 2; }
+    else if (op === 2) { ajouter(p[i], p[i + 1]); ajouter(p[i + 2], p[i + 3]); const s = ajouter(p[i + 4], p[i + 5]); t!.sommets.push(s); t!.courbes++; i += 6; }
+    else if (op === 3) { ajouter(p[i], p[i + 1]); const s = ajouter(p[i + 2], p[i + 3]); t!.sommets.push(s); t!.courbes++; i += 4; }
+    else if (op === 4) { /* closePath */ }
+    else break;
+  }
+  if (t) out.push(t);
+  return out;
+}
+
+/**
+ * Trous et petites découpes simples (perçages, passages de potence) groupés par taille,
+ * et contours en lignes droites (gabarit d'un caisson, pieds d'un drapeau) avec leurs sommets :
+ * de quoi comparer deux fichiers qui doivent s'emboîter (cas CASRA, 28/10/2026 : pieds du drapeau
+ * espacés de 274 mm, trous du caisson qui le reçoit sur 190 mm).
+ */
+function trousEtContours(liste: { couleur: string; t: SousTrace }[]) {
+  const r = (v: number) => Math.round(v * 10) / 10;
+  const groupes = new Map<string, DecoupeSimple>();
+  const contours: ContourPolygonal[] = [];
+  const vus = new Set<string>();
+  for (const { couleur, t } of liste) {
+    const l = t.boite.x1 - t.boite.x0, h = t.boite.y1 - t.boite.y0;
+    if (l < 2 && h < 2) continue;
+    const segments = t.droites + t.courbes;
+    // trou rond (4 arcs) ou carré/rectangle (4 droites) d'au plus 150 mm
+    const rond = t.courbes >= 4 && t.droites <= 1 && segments <= 8 && Math.abs(l - h) < Math.max(l, h) * 0.05;
+    const rect = t.courbes === 0 && t.droites >= 3 && t.droites <= 5;
+    if ((rond || rect) && l <= 150 && h <= 150) {
+      const cle = `${couleur}|${rond ? "rond" : "rectangle"}|${r(l)}x${r(h)}`;
+      const g = groupes.get(cle) ?? { couleur, forme: rond ? "rond" : "rectangle", taille: rond ? `Ø ${r(l)} mm` : `${r(l)} x ${r(h)} mm`, nombre: 0, centres: [] };
+      const c: [number, number] = [r((t.boite.x0 + t.boite.x1) / 2), r((t.boite.y0 + t.boite.y1) / 2)];
+      // un même trou dessiné deux fois (contour doublé) ne compte qu'une fois
+      if (!g.centres.some(([x, y]) => Math.abs(x - c[0]) < 0.5 && Math.abs(y - c[1]) < 0.5)) { g.nombre++; if (g.centres.length < 24) g.centres.push(c); }
+      groupes.set(cle, g);
+      continue;
+    }
+    // contour en lignes droites, assez grand pour être une pièce (pas une lettre)
+    if (t.courbes === 0 && t.droites >= 6 && t.droites <= 60 && (l > 150 || h > 150) && contours.length < 8) {
+      const cle = `${couleur}|${r(t.boite.x0)}|${r(t.boite.y0)}|${r(l)}|${r(h)}`;
+      if (vus.has(cle)) continue;
+      vus.add(cle);
+      contours.push({ couleur, emprise: `${r(l)} x ${r(h)} mm`, sommets: t.sommets.map(([x, y]) => [r(x), r(y)]) });
+    }
+  }
+  const decoupesSimples = [...groupes.values()].sort((a, b) => b.nombre - a.nombre).slice(0, 12);
+  return {
+    decoupesSimples: decoupesSimples.length ? decoupesSimples : undefined,
+    contoursPolygonaux: contours.length ? contours : undefined,
   };
 }
 
