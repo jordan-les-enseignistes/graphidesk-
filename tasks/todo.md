@@ -658,3 +658,51 @@ sur `Y:\JORDAN\TEST` (QR code retiré volontairement → détecté ; process Cut
 - [x] Banc : 120 phrases conformes, 152 755 combinaisons sans phrase cassée, migration conforme ; BUILTIN_VERSION 6
 - [x] Paquet .ccx 6.5.0 dans src-tauri/assets/indesign (14 entrées, sans antislash)
 - [ ] Essai de Jordan dans InDesign
+
+## BATizy — prototype (28/10/2026, en test, rien dans l'app)
+Demande de Jordan : générer le BAT .indd à partir de la maquette, des avant/après, du devis, de la VT et du dossier mairie ; RELECTURE OBLIGATOIRE par le graphiste.
+- Livrable : un .indd modifiable, PAS d'export PDF (sinon « tout cuit »). Infos manquantes en ORANGE « [À DEMANDER : …] » + notes hors page.
+- Gabarit = celui du graphiste connecté (nom/mail personnalisés par le Kit) ; page de gabarit = celle du commercial du devis (ex. « M-Michael »).
+- Notes FreshProcess obligatoires : les demander si absentes du dossier (accès API FP en cours chez FreshProcess).
+- Test 1 (Camif Bouguenais, dossier connu) : page 1, éléments 1-3, retrait du drapeau (arrêté mairie) = conformes au BAT réel ; manquaient : refs couleur tapis (nuancier fournisseur), détails intérieurs (fixation double face, adhésif « Groupe Hexaom ») → FP.
+- Script prototype : scratchpad batizy/batizy_camif.jsx (données en dur, à généraliser).
+- [ ] Test 2 : dossier piège jamais vu, sans projection dans la VT.
+- Test 2 (Illico Travaux, piège) : 11 p. générées vs BAT réel 12 p. Leçons :
+  - questions posées DANS le logiciel avant génération (comme VérifIzy), le BAT ne garde que l'orange non répondu
+  - couleur réelle de la maquette > RAL du devis (9016 blanc au devis, panneaux noirs → RAL 9005) : comparer au nuancier RAL de GraphiDesk
+  - façade/mur repeint sur la mise en situation → mention « peinture non réalisée par Les Enseignistes »
+  - un numéro PAR pièce (habillage comptoir : 12 numéros), et numéros aussi sur les pages de cotes/zoom
+  - lettrage + flèche d'un même mur = un seul élément (« 4550 x 1209 mm ») ; ligne de devis sans élément sur la maquette (adhésif mural 16000 x 3000) = question, pas un élément
+  - adhésif sur panneau laqué de couleur = « découpé à la forme », pas découpe droite
+  - page « après » intérieure quand il y a un photomontage intérieur
+- Test 3 (Destia Saint-Brieuc) : génération .indd en 35 s ; pages PAR ZONE (avant → après → sans déformation) validé.
+  - numéros : collés au bord de l'élément (milieu du côté gauche), sans chevaucher un autre numéro/élément (détection de collision)
+  - chaque « après » a son « avant » : si pas de photo avant dans FP, chercher dans les photos VT, sinon question
+  - dépoli SEUL (bureau) : le BAT réel est en pose EXTÉRIEURE → question au graphiste, pas de défaut « intérieur »
+  - vitrage de porte avec logo sur fond clair : BAT réel = transparent + blanc de soutien sélectif (devis disait occultant) → question
+  - notes FP d'un autre dossier détectées et ignorées (contrôle client / n° de commande)
+- Test 4 (Emmanuelle Haziza V2, BAT refait par Jordan) : 5 p., retouches de Jordan :
+  - inscription blanche sur dépoli/vitrage = « en blanc de soutien sélectif » tout court : le blanc n'est pas une couleur imprimée, jamais « imprimé en blanc avec blanc de soutien »
+  - pas de « x 2 » pour dire recto/verso (on croirait 2 caissons) : « (recto/verso) » suffit ; « x N » = nombre de pièces uniquement
+  - toutes les planches de la maquette deviennent des pages (planche 2 = zoom 3D du caisson oubliée) ; cotes illisibles → page zoom
+  - numéro À CÔTÉ de l'élément, jamais dessus (option « droite » quand l'élément touche le bord gauche d'un autre)
+  - choix lumineux / non lumineux : partir sur la version du devis, l'alternative va en note
+- Architecture visée : l'IA produit le PLAN (éléments, légendes, positions, questions) ; le script, testé sur un banc de vrais dossiers, le met en page.
+  Apprentissage comme VérifIzy : à la validation, comparer la proposition BATizy au BAT final du graphiste → propositions de règles → Jordan valide. Une seule base de règles (la « bible ») pour VérifIzy et BATizy.
+
+## v1.16.4 — VérifIzy lit les mails .eml (05/11/2026)
+Demande de Jordan (test Camif Nantes Nord : « Mails mairie (.eml) illisibles ») : lire les mails automatiquement, sans rien cocher.
+- [x] `src/lib/verifFab/mail.ts` : lecture MIME sans dépendance (en-têtes RFC 2047, base64 / quoted-printable / 8 bits, charsets, multipart, mail transféré, noms RFC 2231) ; liens et images de signature retirés du texte
+- [x] Outil `lire_mail` : mail seul (texte + liste numérotée des pièces jointes), puis `pieces = [n]` pour ouvrir un PDF ou une image jointe à la demande
+- [x] Préparation : les .eml sont des annexes COCHÉES d'office (mairie ou autre)
+- [x] Prompt : mails = réponse mairie, accord client, consigne commerciale (vérifiés comme le devis)
+- [x] Banc hors ligne sur les 2 vrais mails Camif (accents, fil de réponses, PNG décodés intacts) + mail synthétique (latin-1 QP, HTML, PDF joint au nom accentué)
+- [ ] Déployer verif-fab (embarque aussi le prompt figé par vérification, correctif du 400 de Quentin) + release 1.16.4
+- [ ] Re-test Camif Nantes Nord par Jordan
+- Non traité : .msg d'Outlook (format binaire) — aucun trouvé pour l'instant
+
+## Rédacteur BAT 6.7.0 (dans la v1.16.4) — film solaire (feedback Caroline 03/11/2026)
+- [x] Adhésif : matière « Film solaire » (sans lamination d'office, pose intérieure ou extérieure, aucune mention spéciale — décision Jordan : rester simple, pas de types/teintes pour l'instant)
+- [x] BUILTIN_VERSION 8, manifest 6.7.0 ; banc : 128 phrases conformes, 155 267 combinaisons sans phrase cassée, migration conforme
+- [x] Paquet .ccx 6.7.0 dans src-tauri/assets/indesign (14 entrées, même structure)
+- [ ] Essai de Jordan dans InDesign

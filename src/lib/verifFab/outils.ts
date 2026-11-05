@@ -9,6 +9,7 @@ import * as pdfjs from "pdfjs-dist";
 import workerPdf from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { analyserPdf, estPdf } from "./analysePdf";
 import { comparerTrames } from "./comparaison";
+import { lireMail } from "./mail";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerPdf;
 
@@ -22,7 +23,8 @@ export interface EntreeDossier {
 /** Bloc de résultat d'outil tel qu'attendu par l'API */
 export type ContenuResultat =
   | { type: "text"; text: string }
-  | { type: "image"; source: { type: "base64"; media_type: "image/jpeg" | "image/png"; data: string } };
+  | { type: "image"; source: { type: "base64"; media_type: "image/jpeg" | "image/png"; data: string } }
+  | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string }; title: string };
 
 export async function listerDossier(dossier: string): Promise<EntreeDossier[]> {
   return invoke<EntreeDossier[]>("verif_lister_dossier", { chemin: dossier });
@@ -241,6 +243,15 @@ async function reduireImage(octets: Uint8Array, type: string): Promise<string> {
   }
 }
 
+function enBase64(octets: Uint8Array): string {
+  let b = "";
+  for (let i = 0; i < octets.length; i += 0x8000) b += String.fromCharCode(...octets.subarray(i, i + 0x8000));
+  return btoa(b);
+}
+
+// un long fil de réponses : le plus récent est en tête, la fin (messages anciens) peut tomber
+const TEXTE_MAIL_MAX = 20000;
+
 const texte = (t: string): ContenuResultat[] => [{ type: "text", text: t }];
 const image = (data: string): ContenuResultat => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data } });
 
@@ -322,6 +333,37 @@ export async function executerOutil(
         const octets = await lireOctets(dossier, chemin);
         return { contenu: [image(await reduireImage(octets, ext === "png" ? "image/png" : "image/jpeg"))], erreur: false };
       }
+      case "lire_mail": {
+        const chemin = String(entree.chemin ?? "");
+        if (!/\.eml$/i.test(chemin))
+          return { contenu: texte(`${chemin} n'est pas un mail .eml (un .msg d'Outlook ne se lit pas : demande au graphiste de l'enregistrer en .eml).`), erreur: true };
+        const m = lireMail(await lireOctets(dossier, chemin));
+        const numeros = (Array.isArray(entree.pieces) ? entree.pieces : []).map(Number);
+        if (!numeros.length) {
+          const pieces = m.pieces.map((p, i) => `${i + 1}. ${p.nom} (${p.type}, ${Math.ceil(p.octets.length / 1024)} Ko)`);
+          return {
+            contenu: texte(
+              `De : ${m.de}\nÀ : ${m.a}${m.cc ? `\nCc : ${m.cc}` : ""}\nDate : ${m.date}\nObjet : ${m.objet}\n\n${m.texte.slice(0, TEXTE_MAIL_MAX)}`
+              + (m.texte.length > TEXTE_MAIL_MAX ? "\n[… suite du fil coupée : messages les plus anciens]" : "")
+              + (pieces.length
+                ? `\n\nPièces jointes (les petites images sont en général des logos de signature) :\n${pieces.join("\n")}\nPour en ouvrir une utile (arrêté, plan, BAT annoté, photo), rappelle lire_mail avec pieces = [numéros].`
+                : "\n\nAucune pièce jointe.")
+            ),
+            erreur: false,
+          };
+        }
+        const contenu: ContenuResultat[] = [];
+        for (const n of numeros) {
+          const p = m.pieces[n - 1];
+          if (!p) contenu.push(...texte(`Pièce ${n} : inexistante (${m.pieces.length} pièces jointes).`));
+          else if (p.type === "application/pdf" || /\.pdf$/i.test(p.nom))
+            contenu.push(...texte(`Pièce ${n} : ${p.nom}`), { type: "document", source: { type: "base64", media_type: "application/pdf", data: enBase64(p.octets) }, title: p.nom });
+          else if (p.type.startsWith("image/"))
+            contenu.push(...texte(`Pièce ${n} : ${p.nom}`), image(await reduireImage(p.octets, p.type)));
+          else contenu.push(...texte(`Pièce ${n} : ${p.nom} (${p.type}) ne se lit pas.`));
+        }
+        return { contenu, erreur: false };
+      }
       default:
         return { contenu: texte(`Outil inconnu : ${nom}`), erreur: true };
     }
@@ -334,11 +376,8 @@ export async function executerOutil(
 export async function blocDepuisFichier(f: File): Promise<Record<string, unknown> | null> {
   const octets = new Uint8Array(await f.arrayBuffer());
   const type = f.type || (f.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "");
-  if (type === "application/pdf") {
-    let b = "";
-    for (let i = 0; i < octets.length; i += 0x8000) b += String.fromCharCode(...octets.subarray(i, i + 0x8000));
-    return { type: "document", source: { type: "base64", media_type: "application/pdf", data: btoa(b) }, title: f.name };
-  }
+  if (type === "application/pdf")
+    return { type: "document", source: { type: "base64", media_type: "application/pdf", data: enBase64(octets) }, title: f.name };
   if (type.startsWith("image/")) return image(await reduireImage(octets, type));
   return null;
 }

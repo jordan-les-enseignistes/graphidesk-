@@ -49,13 +49,13 @@ Il peut aussi contenir un CONTEXTE donné par le graphiste : le brief du commerc
 - une particularité de client ou de dossier n'est JAMAIS proposée comme règle générale.
 
 ## Comment tu travailles
-1. Identifie le rôle de chaque fichier : BAT client EN COURS (le plus récent, au numéro de commande du dossier), anciens BAT ou BAT d'une commande précédente, BAT VT, BAT mairie, maquette, fichiers de FAB (dossier FAB…), ARCHIVES (anciennes versions : à ignorer sauf pour comparer), devis : proposition commerciale Dolibarr « PR<numéro>….pdf » OU bon de commande « CO<numéro>….pdf » (même contenu : l'un OU l'autre suffit, l'absence de l'autre n'est jamais à signaler ; le numéro CO est aussi celui du dossier FAB), dossier PROVISOIRE (signalétique provisoire : à ne pas confondre avec la commande définitive). Un .indd ou un .psd ne se lit pas : sers-toi du PDF exporté. Les dates de modification comptent (un fichier bien plus ancien que la commande a peut-être été repris d'ailleurs).
+1. Identifie le rôle de chaque fichier : BAT client EN COURS (le plus récent, au numéro de commande du dossier), anciens BAT ou BAT d'une commande précédente, BAT VT, BAT mairie, maquette, fichiers de FAB (dossier FAB…), ARCHIVES (anciennes versions : à ignorer sauf pour comparer), devis : proposition commerciale Dolibarr « PR<numéro>….pdf » OU bon de commande « CO<numéro>….pdf » (même contenu : l'un OU l'autre suffit, l'absence de l'autre n'est jamais à signaler ; le numéro CO est aussi celui du dossier FAB), dossier PROVISOIRE (signalétique provisoire : à ne pas confondre avec la commande définitive). Un .indd ou un .psd ne se lit pas : sers-toi du PDF exporté. Un mail (.eml) rangé dans le dossier se lit avec lire_mail : accord ou demande du client, consigne du commercial, réponse de la mairie ; une demande écrite dans un mail se vérifie comme le devis (au BAT et en FAB). Les dates de modification comptent (un fichier bien plus ancien que la commande a peut-être été repris d'ailleurs).
 2. Lis les documents avec tes outils. MESURE, ne devine jamais : analyser_pdf donne les boîtes de page, l'emprise réelle des tracés au dixième de mm par couleur, l'épaisseur des contours (epaisseursPt), la hauteur de CHAQUE lettre ligne par ligne, les couleurs CMJN, les calques, les tons directs (CutContour), la surimpression par couleur, les images et leur résolution, et le texte. voir_page montre une page (zone agrandie possible : un scan, un petit texte, un QR code). comparer_visuels superpose un élément du BAT ou de la maquette et son fichier de FAB.
    Suis cette MÉTHODE dans l'ordre, sans sauter d'étape :
    a. BAT (analyser_pdf + voir_page de chaque page) : relève TOUS les éléments — numéro, désignation, matière, dimensions, quantité, pose intérieure/extérieure, finition, fixation, éclairage. Lis la page de garde en entier (cases DIMENSIONS provisoires/définitives, mairie, pose, livraison, référence de commande). RELIS MOT À MOT tout le texte du BAT (légendes, cartouches, page de garde) : une référence, un nom, une cote ou une matière mal écrits sont une alerte, cités tels quels avec la correction. Les fautes d'orthographe, d'accent ou d'accord ne sont PAS à signaler.
    b. Devis ↔ BAT, ligne par ligne : chaque produit vendu est au BAT (matière, dimensions, quantité, finition, éclairage) ; un écart peut être voulu (demande client, mairie) → question.
    c. VT et métré (si présents) : chaque cote relevée doit coller au BAT et à la FAB. Souvent la VT n'est pas un PDF rempli mais des PHOTOS du BAT VT annoté : passe toutes les photos de VT en une fois avec apercu_images, repère celles qui portent des cotes, puis ouvre seulement celles-là avec voir_image. Un élément qui fait exactement la cote du support (toute la largeur de la façade, de la vitre…) sans jeu ni retour, surtout si le métré vient du client ou si la pose est faite par le client → question.
-   d. MAIRIE (si présente) : on ne fabrique pas plus grand que ce qui a été déposé ; une réponse de la mairie (arrêté, refus, réserves, avis ABF) se lit en entier — refus ou réserves non respectées → erreur « ATTENTION LA MAIRIE REFUSE : … » ; aucune réponse alors qu'un dossier mairie existe → question.
+   d. MAIRIE (si présente) : on ne fabrique pas plus grand que ce qui a été déposé ; une réponse de la mairie (arrêté, refus, réserves, avis ABF, souvent un MAIL .eml : lis-le avec lire_mail, fil des réponses compris) se lit en entier — refus ou réserves non respectées → erreur « ATTENTION LA MAIRIE REFUSE : … » ; aucune réponse alors qu'un dossier mairie existe → question.
    e. CHAQUE fichier de FAB, y compris ceux déjà produits, de sous-traitance ou rangés dans un sous-dossier, un par un, avec analyser_pdf, comparer_visuels et voir_page — contrôle TOUS ces points, pour CHAQUE fichier :
       • élément et numéro du BAT auquel il correspond ; contenu identique au BAT (comparer_visuels) ;
       • dimensions (page, emprise du visuel, emprise du CutContour) = cotes du BAT, à l'échelle indiquée ;
@@ -186,6 +186,19 @@ const OUTILS = [
     input_schema: {
       type: "object",
       properties: { chemin: { type: "string" } },
+      required: ["chemin"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "lire_mail",
+    description: "Lit un mail enregistré dans le dossier (.eml) : expéditeur, destinataires, date, objet, texte avec le fil des réponses, liste numérotée des pièces jointes. Avec pieces = [numéros], ouvre ces pièces jointes (PDF, images) : seulement celles qui peuvent servir (arrêté, plan, BAT annoté, photo), jamais les logos de signature.",
+    input_schema: {
+      type: "object",
+      properties: {
+        chemin: { type: "string" },
+        pieces: { type: "array", items: { type: "integer" }, description: "Numéros des pièces jointes à ouvrir (vide : le mail seul)" },
+      },
       required: ["chemin"],
       additionalProperties: false,
     },
@@ -348,6 +361,21 @@ function prefixe(modele: string, blocRegles: string) {
   };
 }
 
+/**
+ * Réflexion des tours précédents retirée (texte et appels d'outils conservés) : l'API refuse
+ * une réflexion produite avec un autre prompt système (vérification commencée avant le gel
+ * des règles par conversation). Elle est simplement perdue pour la suite.
+ */
+// deno-lint-ignore no-explicit-any
+function sansReflexion(messages: any[]) {
+  return messages.map((m) =>
+    m.role !== "assistant" || !Array.isArray(m.content) ? m
+      // deno-lint-ignore no-explicit-any
+      : { ...m, content: m.content.filter((b: any) => b.type !== "thinking" && b.type !== "redacted_thinking") });
+}
+const reflexionPerimee = (e: unknown) =>
+  e instanceof Anthropic.APIError && e.status === 400 && /bound to a different conversation/.test(e.message);
+
 /* ------------------------------------------------------------ entretien du cache */
 
 // heures de bureau (Paris), midi compris : lundi-jeudi 8 h 30 - 18 h, vendredi 8 h 30 - 11 h 30
@@ -473,6 +501,15 @@ Deno.serve(async (req) => {
       ? "## Règles validées\n" + (regles ?? []).map((r) => `- [${r.categorie}] ${r.titre} : ${r.texte}`).join("\n")
       : "## Règles validées\n(aucune pour l'instant)";
   };
+  // une vérification garde du début à la fin les règles et le modèle de son premier appel :
+  // une règle validée en cours de route changerait le prompt système, et l'API refuserait
+  // alors la réflexion des tours précédents
+  const figer = async (c: { id: string; regles_bloc: string | null; modele_fige: string | null }) => {
+    if (c.regles_bloc && c.modele_fige) return { modele: c.modele_fige, blocRegles: c.regles_bloc };
+    const fige = { modele: c.modele_fige || modele, blocRegles: c.regles_bloc || await lireRegles() };
+    await admin.from("verif_conversations").update({ regles_bloc: fige.blocRegles, modele_fige: fige.modele }).eq("id", c.id);
+    return fige;
+  };
 
   if (corps.action === "modeles") {
     try {
@@ -492,18 +529,26 @@ Deno.serve(async (req) => {
   if (corps.action === "maintien") {
     if (!corps.conversation_id || !Array.isArray(corps.messages) || corps.messages.length === 0)
       return json({ erreur: "conversation_id et messages requis" }, 400);
-    const { data: c } = await admin.from("verif_conversations").select("id, user_id, cout_usd").eq("id", corps.conversation_id).single();
+    const { data: c } = await admin.from("verif_conversations")
+      .select("id, user_id, cout_usd, regles_bloc, modele_fige").eq("id", corps.conversation_id).single();
     if (!c || c.user_id !== userId) return json({ erreur: "Conversation inconnue" }, 403);
     try {
+      const fige = await figer(c);
       // deno-lint-ignore no-explicit-any
       const params: any = {
-        ...prefixe(modele, await lireRegles()),
+        ...prefixe(fige.modele, fige.blocRegles),
         max_tokens: 0,
         cache_control: { type: "ephemeral" },
         messages: corps.messages,
         betas: [BETA_REPLI],
       };
-      const message = await client.beta.messages.create(params);
+      let message;
+      try {
+        message = await client.beta.messages.create(params);
+      } catch (e) {
+        if (!reflexionPerimee(e)) throw e;
+        message = await client.beta.messages.create({ ...params, messages: sansReflexion(corps.messages) });
+      }
       // deno-lint-ignore no-explicit-any
       const u = message.usage as any;
       const montant = cout(message.model, u);
@@ -532,12 +577,12 @@ Deno.serve(async (req) => {
 
   // la conversation doit appartenir à l'appelant
   const { data: conv } = await admin
-    .from("verif_conversations").select("id, user_id, cout_usd").eq("id", corps.conversation_id).single();
+    .from("verif_conversations").select("id, user_id, cout_usd, regles_bloc, modele_fige").eq("id", corps.conversation_id).single();
   if (!conv || conv.user_id !== userId) return json({ erreur: "Conversation inconnue" }, 403);
 
-  const blocRegles = await lireRegles();
+  const fige = await figer(conv);
   // mémorise la partie fixe utilisée : la relance du cache s'y fie
-  admin.from("verif_parametres").update({ prefixe_empreinte: await empreinte(modele, blocRegles) }).eq("id", 1).then(() => {});
+  admin.from("verif_parametres").update({ prefixe_empreinte: await empreinte(fige.modele, fige.blocRegles) }).eq("id", 1).then(() => {});
   const encodeur = new TextEncoder();
 
   const flux = new ReadableStream({
@@ -546,7 +591,7 @@ Deno.serve(async (req) => {
       try {
         // deno-lint-ignore no-explicit-any
         const params: any = {
-          ...prefixe(modele, blocRegles),
+          ...prefixe(fige.modele, fige.blocRegles),
           max_tokens: 32000,
           // cache automatique (5 min) : l'historique de la vérification en cours
           cache_control: { type: "ephemeral" },
@@ -555,8 +600,15 @@ Deno.serve(async (req) => {
           betas: [BETA_REPLI],
           fallbacks: "default",
         };
-        const stream = client.beta.messages.stream(params);
-        for await (const ev of stream) envoyer(ev);
+        let stream = client.beta.messages.stream(params);
+        try {
+          for await (const ev of stream) envoyer(ev);
+        } catch (e) {
+          // refus immédiat (400, aucun événement envoyé) : vérification commencée avant le gel des règles
+          if (!reflexionPerimee(e)) throw e;
+          stream = client.beta.messages.stream({ ...params, messages: sansReflexion(corps.messages) });
+          for await (const ev of stream) envoyer(ev);
+        }
         const message = await stream.finalMessage();
 
         // deno-lint-ignore no-explicit-any

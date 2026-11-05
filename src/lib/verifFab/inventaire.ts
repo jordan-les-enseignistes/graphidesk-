@@ -90,13 +90,17 @@ export function classerInventaire(entrees: EntreeDossier[]): Inventaire {
   // Annexes : tout ce qui n'est ni BAT, ni FAB, ni devis, ni source (.indd/.psd/.ai lourds)
   const dejaLus = new Set([...bat, ...fab, ...devis].map((f) => f.chemin));
   const annexes: Annexe[] = fichiers
-    .filter((f) => !dejaLus.has(f.chemin) && ["pdf", "jpg", "jpeg", "png", "webp"].includes(ext(f.chemin)) && !dans(f.chemin, /ARCHIVE/))
+    .filter((f) => !dejaLus.has(f.chemin) && ["pdf", "jpg", "jpeg", "png", "webp", "eml"].includes(ext(f.chemin)) && !dans(f.chemin, /ARCHIVE/))
     .map((f) => {
       const n = nomDe(f.chemin);
-      const image = ext(f.chemin) !== "pdf";
+      const image = !["pdf", "eml"].includes(ext(f.chemin));
       let pourquoi = image ? "Image : à regarder seulement si elle peut révéler un problème." : "Document annexe.";
       let coche = false;
-      if (dans(f.chemin, /MAIRIE/) && !image) {
+      if (ext(f.chemin) === "eml") {
+        // un mail rangé dans le dossier est là pour une raison : réponse de la mairie, accord du client…
+        coche = true;
+        pourquoi = dans(f.chemin, /MAIRIE/) ? "Mail de la mairie : réponse, réserves ou accord à lire en entier." : "Mail : consignes, accord ou demande du client.";
+      } else if (dans(f.chemin, /MAIRIE/) && !image) {
         coche = true;
         pourquoi = /arr[eê]t|refus|autoris|abf|avis|accord/i.test(n)
           ? "Réponse de la mairie : à lire en entier (réserves, refus)."

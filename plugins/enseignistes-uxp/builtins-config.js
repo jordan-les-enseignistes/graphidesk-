@@ -22,7 +22,7 @@
  * - syntaxe des modèles ([ … ] facultatif, A|B repli) : voir catalog.js.
  */
 
-const BUILTIN_VERSION = 7;
+const BUILTIN_VERSION = 8;
 
 /* Ordre d'affichage dans le menu Produit */
 const BUILTIN_ORDRE = ["Panneau", "Adhésif", "Caisson", "Lettres reliefs", "Bâche"];
@@ -180,7 +180,9 @@ const BUILTIN_CONFIGS = {
           { label: "Microperforé", out: "" },
           { label: "Teinté masse", out: "" },
           { label: "Transparent", out: "" },
-          { label: "Conformable", out: "" }
+          { label: "Conformable", out: "" },
+          // film non imprimé, pose intérieure ou extérieure (Caroline, 03/11/2026)
+          { label: "Film solaire", out: "" }
         ] },
       { id: "f_refTm", label: "Référence teinté masse", type: "text",
         condition: { on: "f_matiere", value: "Teinté masse" } },
@@ -205,7 +207,7 @@ const BUILTIN_CONFIGS = {
           "Dos gris": "Mat", "Dos blanc": "Mat",
           "Dépoli": "Sans", "Dépoli imprimé": "Sans", "Dépoli dégradé": "Sans", "Dépoli ajouré": "Sans",
           "Colle renforcée": "Mat", "Microperforé": "Mat", "Teinté masse": "Mat",
-          "Transparent": "Mat", "Conformable": "Mat"
+          "Transparent": "Mat", "Conformable": "Mat", "Film solaire": "Sans"
         } } },
       { id: "f_decoupe", label: "Découpe", type: "dropdown",
         options: [

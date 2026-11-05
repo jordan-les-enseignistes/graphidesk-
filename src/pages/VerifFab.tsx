@@ -121,6 +121,9 @@ function phrase(nom: string, e: Bloc): string {
   if (nom === "comparer_visuels") return `Je compare ${nomFichier(e.fab?.chemin ?? "")} au ${nomFichier(e.reference?.chemin ?? "BAT")}.`;
   if (nom === "apercu_images") return `Je survole ${Array.isArray(e.chemins) ? e.chemins.length : ""} photos pour repérer celles qui portent des cotes.`;
   if (nom === "voir_image") return `Je regarde l'image ${nomFichier(e.chemin ?? "")}.`;
+  if (nom === "lire_mail") return Array.isArray(e.pieces) && e.pieces.length
+    ? `J'ouvre les pièces jointes du mail ${nomFichier(e.chemin ?? "")}.`
+    : `Je lis le mail ${nomFichier(e.chemin ?? "")}.`;
   if (nom === "lister_dossier") return "Je relis l'inventaire du dossier.";
   return "J'analyse…";
 }

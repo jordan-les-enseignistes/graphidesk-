@@ -126,6 +126,9 @@ attendu("Adhésif", [["f_matiere", "Transparent"], ["f_bs", "Blanc de soutien to
 // le dépoli est le seul sans lamination
 attendu("Adhésif", [["f_matiere", "Dépoli"], ...DA], "Adhésif - Dépoli - Sans lamination - Découpe droite - 500 x 300 mm - Pose en extérieur");
 attendu("Adhésif", [["f_matiere", "Dépoli imprimé"], ...DA], "Adhésif - Dépoli imprimé - Sans lamination - Découpe droite - 500 x 300 mm - Pose en extérieur");
+// film solaire : non imprimé, sans lamination, pose des deux côtés (Caroline, 03/11/2026)
+attendu("Adhésif", [["f_matiere", "Film solaire"], ...DA], "Adhésif - Film solaire - Sans lamination - Découpe droite - 500 x 300 mm - Pose en extérieur");
+attendu("Adhésif", [["f_matiere", "Film solaire"], ...DA, ["f_pose", "Intérieur"]], "Adhésif - Film solaire - Sans lamination - Découpe droite - 500 x 300 mm - Pose en intérieur");
 attendu("Adhésif", [["f_matiere", "Dépoli"], ["f_matiere", "Dos gris"], ...DA], "Adhésif - Occultant - Mat - Découpe droite - 500 x 300 mm - Pose en extérieur");
 attendu("Adhésif", [["f_lam", "Anti UV"], ...DA], "Adhésif - Occultant - Lamination anti-UV - Découpe droite - 500 x 300 mm - Pose en extérieur");
 attendu("Adhésif", [["f_decoupe", "à la forme"], ...DA], "Adhésif - Occultant - Mat - Découpe à la forme - Pour vitrine 500 x 300 mm - Pose en extérieur");

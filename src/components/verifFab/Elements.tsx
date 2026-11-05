@@ -250,9 +250,10 @@ const LIBELLE_OUTIL: Record<string, string> = {
   voir_image: "Regarde",
   comparer_visuels: "Compare",
   lister_dossier: "Inventaire du dossier",
+  lire_mail: "Lit un mail",
 };
 
-const OUTILS_DISCRETS = new Set(["analyser_pdf", "voir_page", "voir_image", "lister_dossier", "comparer_visuels"]);
+const OUTILS_DISCRETS = new Set(["analyser_pdf", "voir_page", "voir_image", "lister_dossier", "comparer_visuels", "lire_mail"]);
 
 /** « Mesure ×3 · Regarde ×2 », le détail des fichiers au survol */
 function LigneOutils({ blocs }: { blocs: Bloc[] }) {
