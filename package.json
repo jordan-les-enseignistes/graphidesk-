@@ -1,6 +1,6 @@
 {
   "name": "graphidesk",
-  "version": "1.16.4",
+  "version": "1.17.0",
   "description": "Application de suivi des dossiers graphistes - Les Enseignistes",
   "type": "module",
   "scripts": {
@@ -28,6 +28,7 @@
     "@types/three": "^0.185.1",
     "ag-psd": "^31.0.2",
     "class-variance-authority": "^0.7.1",
+    "clipper-lib": "^6.4.2",
     "clsx": "^2.1.1",
     "culori": "^4.0.2",
     "date-fns": "^4.1.0",

@@ -1414,7 +1414,7 @@ dependencies = [
 
 [[package]]
 name = "graphidesk"
-version = "1.16.4"
+version = "1.17.0"
 dependencies = [
  "base64 0.22.1",
  "log",

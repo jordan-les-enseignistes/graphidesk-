@@ -116,3 +116,74 @@ Règle : pour du code contenant des échappements, utiliser l'outil Edit, ou un 
 ## Lire une capture d'atelier (21/10/2026)
 - Dans une capture Illustrator, le gris autour du visuel est le PLAN DE TRAVAIL, pas un élément du fichier. Un « trait blanc » signalé par l'atelier sur un adhésif plein = le fond qui ne va pas jusqu'au bord du plan de travail (adhésif mal calé), pas un jour entre deux aplats.
 - Avant de proposer une règle à partir d'un retour atelier : décrire le défaut compris et le faire confirmer, au lieu de deviner.
+
+## 09/11/2026 — Planche + document de DA générés : livrés sans relecture page par page
+- Jordan : « pas présentable du tout ». Causes : (1) image étirée dans le document (img dans un flex en colonne = largeur
+  de la légende) → le document ne montrait plus ce que contient la planche ; (2) en-têtes titre + sous-titre trop gros
+  pour leur bandeau (collés en haut et en bas) ; (3) paragraphes centrés en bloc mais serrés entre eux ;
+  (4) mise en situation = éléments posés au hasard sur une photo, sans logique de pose.
+- Règles : un livrable client se relit page par page à taille réelle avant envoi, en comparant chaque visuel au fichier
+  source (proportions, contenu) ; une composition titre/sous-titre se cale avec des marges dans son bandeau, jamais
+  « maximisée » ; une mise en situation se justifie (hauteurs de pose cotées, logique d'usage), sinon schéma vectoriel
+  à l'échelle plutôt que photo habillée au hasard.
+
+## 09/11/2026 — Plaquette InDesign : PDF de 64 Mo, textes qui chevauchent, chiffres sans unité
+- Jordan : textes de la liste qui passent dans les chiffres, « ce sont quoi les chiffres à côté ?! », PDF impossible à
+  envoyer. Causes : (1) pictos = page entière d'un PDF placée en lien et recadrée → chaque picto embarque toute la
+  page (planche 56 Mo, plaquette 64 Mo) ; (2) libellé et valeur dans deux blocs séparés, positionnés au mm d'après le
+  HTML : la moindre différence de césure InDesign/navigateur les fait se chevaucher ; (3) hauteurs « 1690 – 1990 »
+  sans unité ni sens ; (4) incohérences non relues : séchage « à partir de 4 € » en vitrine mais 2 € sur les machines,
+  « de 6h à minuit » alors que 11h-16h n'existent pas, noms de stickers différents entre légende et récapitulatif.
+- Règles : un élément graphique repris d'un PDF = copie de SES vecteurs, jamais un recadrage de page placée ; un
+  libellé et sa valeur = un seul bloc de texte (deux lignes) ; toute cote client dit ce qu'elle mesure (« de 1690 à
+  1990 mm », titre « depuis le sol ») ; avant livraison, recouper chaque chiffre entre schéma, stickers, légendes et
+  récapitulatif, et vérifier le poids du PDF (< 10 Mo pour un envoi mail).
+- Piège ExtendScript : le moteur d'Illustrator garde en mémoire les fonctions des scripts précédents ; une fonction
+  supprimée du fichier peut continuer à « marcher » jusqu'au redémarrage. Ne valider un générateur qu'après un
+  redémarrage d'Illustrator (ou dans un moteur neuf, `#targetengine` dédié).- Suite (Jordan, pictos) : bandes sous les pictos, morceaux coupés, épaisseurs différentes. Une découpe par zone + masque
+  coupe les objets qui dépassent et attrape les voisins ; un ajustement « au plus grand dans sa boîte » donne à chaque picto
+  une échelle différente, donc des traits d'épaisseur différente. Règle : reprendre un picto = ses objets ENTIERS (sans
+  masque), et une même échelle pour toute une famille de pictos ; extraire une fois dans une bibliothèque plutôt que
+  rouvrir la source à chaque génération.- Suite (Jordan, « je ne parle pas de la taille, mais du contenu ») : pied de page « sans bandeau de façade » sous un
+  schéma qui en montre un, une dimension donnée dans une liste de hauteurs de pose, « Soleil Regular : unités » alors que
+  les unités sont en Bold. Règle : relire chaque phrase contre ce que montre la page (schéma, stickers) — une variante
+  (façade sans bandeau) se présente là où elle est une alternative, jamais en légende d'un schéma qui montre l'autre cas ;
+  une liste titrée « hauteurs » ne contient que des hauteurs ; une règle de charte se vérifie dans le code des stickers.
+## 10/11/2026 — Fonds perdus intelligents (banc d'essai)
+- Un chantier de géométrie se prouve hors ligne, image par image, sur les vrais fichiers, AVANT de dire « faisable » — et les images se montrent à Jordan
+  au fil de l'eau : il a repéré en direct le liseré rose, les tracés ouverts, le « sapin », la pointe émoussée.
+- « Aussi pointu que l'angle » : un correctif entre dans un angle jusqu'à son sommet. Toute ouverture morphologique (érosion puis dilatation) émousse les
+  pointes → sur les formes finales, uniquement des fermetures, ou un tri par composantes (jeter les éclats entiers, garder les vraies formes intactes).
+- Ne pas inventer de règle métier pour masquer un défaut : j'avais ajouté « le blanc gagne les pointes », Jordan voulait un triangle blanc ET le bleu au-dessus.
+  Quand un rendu diffère de la correction manuelle, corriger la cause (ici mon nettoyage), pas la règle.
+- Comparer des distances par paliers ne marche pas pour deux couleurs qui se suivent sur un trait lisse (écart quadratique → frontière floue de 0,7 mm).
+  Bonne méthode : découper le trait en tronçons et extruder perpendiculairement, les deux voisins partageant la même ligne de coupe.
+- Clipper (clipper-lib) : ClipperOffset oriente tout d'après le chemin le plus bas ; un éclat dégénéré de sens inverse fait traiter toutes les formes
+  comme des trous (résultat vide). Filtrer les chemins d'aire ~0 avant tout décalage.
+- Les traits de coupe repris à la plume ont des micro-zigzags (0,02 mm) : lisser la ligne de lecture avant d'en tirer une direction.
+- Marge non imprimée entre visuel et coupe : le moteur ne peut pas savoir si elle est voulue → ne rien modifier et signaler (jamais effacer le débord).
+- Un tracé « fermé » doit l'être explicitement dans le fichier (pas seulement rempli) ; un aperçu qui ne referme pas le dernier côté inquiète à raison.
+- Serveur : ne jamais lancer de recherche récursive sur Z: (lent, inutile) — lister un dossier voisin précis, ou demander les fichiers à Jordan.
+## 10/11/2026 (suite) — Fonds perdus : test réel, « tout automatique », Illustrator qui ne répond plus
+- Chaque `-run` d'Illustrator = une confirmation de sécurité. Un outil en plusieurs temps ne doit lancer QU'UN script : il charge la suite lui-même
+  (fichier lu en UTF-8 puis `eval`) et dialogue avec l'application par fichiers pendant qu'il tourne (boucle `$.sleep`, jeton de lancement, délai de silence).
+- Mesurer avant d'optimiser, et mesurer TOUTE la chaîne : j'optimisais le calcul (28 s → 2,5 s, utile) alors que le « c'est long » de Jordan venait
+  surtout du relevé côté Illustrator. Horodater chaque fichier d'échange donne la répartition en une commande.
+- Illustrator ne libère JAMAIS les tableaux renvoyés par le DOM (`anchor`, `leftDirection`, `rightDirection`, `geometricBounds`…) : un par première
+  lecture, gardé toute la session, et chaque nouvelle lecture ralentit avec le stock (`$.summary()` le montre ; `$.gc()` n'y fait rien). Lire des milliers
+  de points un par un est donc un piège qui s'aggrave à chaque utilisation → passer par un export natif d'un bloc (SVG), lectures numériques seulement.
+- Correction de Jordan : « ne lance pas toi de script comme ça ». Mes séries d'essais COM dans SON Illustrator l'ont mis en « Ne répond pas » (stock
+  ci-dessus) et un essai sans `DONTDISPLAYALERTS` a laissé une boîte de dialogue ouverte. Règle : plus aucun script lancé par moi dans son Illustrator ;
+  je prouve hors ligne (vrais .jsx exécutés dans un faux Illustrator reconstruit d'un relevé réel + contrôle de syntaxe ES3), il teste.
+- Une optimisation se valide contre une référence enregistrée AVANT (écart de surface et d'épaisseur fichier par fichier, puis zoom sur les seuls
+  endroits qui bougent) : ici le partage adaptatif donne les mêmes régions brutes, l'écart final vient du lissage — vérifié, pas supposé.
+- Un correctif « élégant » qui retouche 20 mm² ailleurs pour gagner 0,35 mm ici n'est pas un progrès : l'annuler, garder l'état validé, dire le défaut.
+- Heredoc bash + apostrophes/guillemets = « unexpected EOF » : écrire les scripts de retouche avec l'outil d'écriture de fichier, toujours.
+- `Illustrator.exe -run script` (et donc la commande Tauri `run_illustrator_script`, qui fait `.output()`) ne rend la main qu'à la FIN du script,
+  message de fin validé compris. Ne jamais attendre ce retour quand le script dialogue avec l'application pendant qu'il tourne : interblocage garanti.
+- Un essai de bout en bout doit reproduire CHAQUE couture du vrai chemin. J'avais remplacé le lanceur par COM + un programme séparé : la couture fautive
+  n'était pas dans l'essai, et c'est Jordan qui l'a payée (2 min d'Illustrator figé, zéro correctif). Quand une couture ne peut pas être essayée, l'écrire
+  noir sur blanc AVANT de livrer, et construire le simulacre qui la reproduit (ici : lanceur = promesse tenue seulement à la fin du script).
+- Un script qui attend l'application, fenêtre figée : signe de vie immédiat, battement chaque seconde, abandon en 30 s, calcul borné — jamais 2 minutes.
+- Lire les horodatages des fichiers d'échange AVANT toute hypothèse : ils ont donné la cause en une commande.
+- Serveur de dev ouvert pour un test de Jordan = sources gelées : chaque modification recharge sa page (4 rechargements pendant que je retouchais le moteur).

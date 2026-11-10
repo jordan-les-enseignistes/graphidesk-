@@ -687,6 +687,32 @@ Demande de Jordan : générer le BAT .indd à partir de la maquette, des avant/a
   - toutes les planches de la maquette deviennent des pages (planche 2 = zoom 3D du caisson oubliée) ; cotes illisibles → page zoom
   - numéro À CÔTÉ de l'élément, jamais dessus (option « droite » quand l'élément touche le bord gauche d'un autre)
   - choix lumineux / non lumineux : partir sur la version du devis, l'alternative va en note
+- Test 5 (TBES / Police Municipale, 10/11/2026, cas particulier : sous-traitance) : contexte donné par Jordan en une phrase
+  (garder seulement vue de face, vue de côté et coupe du plan du sous-traitant, tout le reste à notre charte, pas de photo avant).
+  Résultat : 5 p. (page 1, 2 mises en situation après, 2 pages « Plan de structure » avec numéro 1 + légende réécrite depuis
+  l'encadré « Spécifications »). Fichier rempli = le BAT_TBES.indd vierge du dossier (copie d'origine gardée).
+  - le gabarit déborde : le titre « sans déformation » a 4 caractères hors cadre → travailler sur parentStory, pas sur le cadre
+  - titre de page à garder court (bandeau de largeur fixe) : « Plan de structure : face et côté / vue en coupe »
+  - retours de Jordan (appliqués, 4 p.) :
+    - référence du BAT = le numéro de commande CO (dossier FAB_CO…), jamais le PR du devis
+    - commercial = celui du dossier FreshProcess (ici Antoine Jestin → page « A-Antoine ») : à lire via l'API FP (en attente)
+    - plusieurs mises en situation « après » sans « avant » = UNE seule page, visuels côte à côte (deux pages feraient croire à un avant/après)
+    - le plan d'un sous-traitant peut être faux : le filet tricolore est ajouré à plat comme le texte → la légende suit la réalité, pas le plan
+    - pas de référence d'adhésif en question orange : on ne l'ajoute pas au BAT
+    - sous-traitance : retirer la mention « Toute enseigne fournie par Les Enseignistes est livrée avec un kit d'installation »
+  - durée : génération 25 s ; les 10 min = mise au point du prototype (exploration du dossier, 6 relances pour le titre du gabarit)
+- Test 6 (Mr Enseignes / WellCom CO2611-5920, 10/11/2026) : 2e société, revendeur web, gabarit BAT_MR.indd (couverture + 1 page),
+  seul intrant = BRIEF_FP.txt (fiche FreshProcess : produit, adresse de livraison, réf. client) + fichier client PDF 1000x3000. Script : scratchpad/mr/batizy_mr.jsx.
+  Résultat : BAT_WELLCOM.indd, 6 p. (couverture, adhésif entier coté, 4 zooms), 16 s.
+  - nom du fichier = BAT_<DOSSIER> (ici BAT_WELLCOM.indd), pas le nom du gabarit
+  - couverture MR : cadre d'adresse CHAÎNÉ aux lignes vides → remplir parentStory ; case livraison = losange rempli de sa couleur de contour
+  - visuel fourni par le client : le plus grand possible + mention « Fichier fourni par le client »
+  - adhésif découpé de lecture difficile : pages « Zoom pour relecture » (bandes coupées dans les blancs pleine largeur, mesurés sur le rendu ;
+    chevauchement quand aucun blanc ne traverse ; même échelle pour toutes) → l'atelier peut relire
+  - cotes : valeur affichée, centrée sur la flèche, dans la police du gabarit (dupliquer le cadre de légende, pas de police posée à la main)
+  - piège : scriptPreferences en mm → pointSize = "8pt" (un nombre seul = des mm)
+  - validé par Jordan : réf. client du revendeur ajoutée à la référence (« CO… / Réf. client : … ») ; mention « kit d'installation »
+    retirée pour un adhésif seul ; cotes = celles du fichier (L x H) même si la fiche FP les inverse ; QR/éléments fins = géré à la FAB, pas une question BAT
 - Architecture visée : l'IA produit le PLAN (éléments, légendes, positions, questions) ; le script, testé sur un banc de vrais dossiers, le met en page.
   Apprentissage comme VérifIzy : à la validation, comparer la proposition BATizy au BAT final du graphiste → propositions de règles → Jordan valide. Une seule base de règles (la « bible ») pour VérifIzy et BATizy.
 
@@ -706,3 +732,78 @@ Demande de Jordan (test Camif Nantes Nord : « Mails mairie (.eml) illisibles »
 - [x] BUILTIN_VERSION 8, manifest 6.7.0 ; banc : 128 phrases conformes, 155 267 combinaisons sans phrase cassée, migration conforme
 - [x] Paquet .ccx 6.7.0 dans src-tauri/assets/indesign (14 entrées, même structure)
 - [ ] Essai de Jordan dans InDesign
+
+## Fonds perdus intelligents — relance (10/11/2026, à la demande de Jordan) : banc d'essai hors Illustrator
+Chantier abandonné le 22/07/2026 (4 itérations ratées en ExtendScript), relancé par Jordan avec une exigence : PROUVER sur fichiers réels avant de dire « faisable ».
+Besoin : l'outil Adhésif décale chaque objet de 5 mm sans regarder autour → (1) le débord d'une couleur déborde sur la pièce voisine ou sur son débord,
+(2) la couleur change le long d'un même trait de coupe (blanc qui arrive à la coupe) mais le débord reste d'une seule couleur.
+Règle retenue : dans la chute, à moins de 5 mm d'une pièce, la couleur est celle du point le plus proche juste sous le trait de coupe ;
+deux pièces proches se partagent l'espace par moitié ; on n'ajoute QUE des correctifs sur le calque FondPerdu (jamais toucher CutContour ni Artwork).
+- [x] Environnement de test : `Y:\JORDAN\TEST\FP_INTELLIGENT\` (source = copies des FAB, validation, resultats, banc = code). Rien n'est modifié sur Z:.
+- [x] Banc : `extraire.py` (PDF de FAB → géométrie, calques FondPerdu/Artwork/CutContour, dégradés) → `moteur.js` (Node + clipper-lib) → `rendu.py` (4 vues : outil actuel / main / moteur / correctifs)
+- [x] Moteur : pièces = zones fermées par la coupe et couvertes par le visuel ; couleurs lues sous la coupe (éclats < 0,6 mm ignorés) ; trait de coupe découpé
+      en tronçons par couleur, extrudés perpendiculairement (extrémités droites, tangente commune aux deux voisins) ; recouvrements départagés au plus proche ;
+      correctifs = carte correcte − débord actuel, dépassement 0,3 mm (pas de liseré), tracés fermés, pointes conservées
+- [x] Fichiers de mise au point : Camif Obernai (biseaux maison/carré), Centre Services Rambouillet (pointes bleues), Viva Chambéry (blanc prolongé)
+- [x] Fichiers jamais vus : Temporis Parentis (chevauchement noir/rouge), Destia Saint-Brieuc (piège du puzzle), Bonaparte Rennes (dégradé : aucun faux correctif),
+      Viva Sète N4/N5/N7, Camif Cholet N1/N6 → 0 échec ; Viva Sète N2 (coupe à 2,5 mm du visuel) → doute signalé, rien modifié
+- [x] Angles (défauts vus par Jordan à très fort zoom) : chaque frontière est accrochée au point exact — sommet de l'angle du bord des pièces
+      (bissectrice exacte) ou croisement visuel/coupe ; distances mesurées sur le vrai tracé ; lissage limité aux zones où deux pièces se font face
+- [x] Moteur unique : `src/lib/fabrik/fondPerdu/moteur.ts` (l'application) — le banc `banc.mjs` l'importe tel quel (Node 24 lit le .ts)
+- [x] Indépendance vis-à-vis de l'état du CutContour : après l'outil, le calque contient le contour brut de chaque objet (fusion = effet finalisé
+      par le graphiste) → pièces collées soudées en blocs (sinon 1 152 contours sur le QR code de Camif, 44 s et de faux doutes ; maintenant 8 s)
+- [x] Intégration dans l'outil Adhésif (10/11/2026, LOCAL, non poussé, pas de bump de version tant que ce n'est pas validé) :
+      - `full_automation.jsx` : inchangé sauf la fin — avec `fpIntelligent`, écrit `graphidesk_adhesif_fin.json` au lieu d'afficher le message
+      - `fp_intelligent.jsx` (nouveau) : étape « export » (relevé Artwork / CutContour / FondPerdu → `graphidesk_fp_geometrie.json`),
+        étape « dessin » (groupe « Correctifs FP (GraphiDesk) » en haut du calque FondPerdu, tracés fermés, couleur empruntée à l'objet d'origine,
+        calque non imprimable « FP a verifier (a supprimer) » pour les doutes, message de fin)
+      - `src/lib/fabrik/fondPerdu/` : `moteur.ts`, `illustrator.ts` (Bézier → polygones, mm ↔ points, masques, contours), `orchestration.ts`
+      - `AdhesifForm.tsx` : option « Fonds perdus intelligents (test) », cochée par défaut, mémorisée ; décochée = outil d'origine strictement
+      - `FabRik.tsx` : enchaînement + suivi par toast ; dépendance `clipper-lib` ajoutée
+- [x] Sauvegarde avant intégration : tag git local `sauvegarde/adhesif-avant-fp-intelligent` + copies dans `Y:\JORDAN\TEST\FP_INTELLIGENT\backup_outil_adhesif_2026-11-10\` (LISEZ-MOI)
+- [x] Essais dans Illustrator sur copies (scripts dans `banc\essai_illustrator_scripts`) : design seul → vraie automatisation → relevé → calcul → pose,
+      sur Camif (8 correctifs, 8 s), Viva (10, 1 s), Destia (25, 17 s) ; résultats `.ai` et captures dans `essai_illustrator\`
+- [x] 1er test réel de Jordan (10/11 après-midi) : ça marche de bout en bout, mais (a) 2 confirmations Illustrator en plus à l'étape des fonds perdus,
+      (b) défauts aux angles sur tout sauf Camif, (c) c'est long, sans aucun retour → corrigé ci-dessous
+- [x] Angles (défauts du test réel, reproduits hors ligne à partir des VRAIS relevés Illustrator `reel_*.json`) : micro-trou de la soudure pris pour un
+      angle, bissectrice instable aux angles fermés, partage approché dans l'angle → demi-disques aux sommets (bissectrice exacte sur toute la largeur),
+      nettoyage `sansAiguilles` (pointes des rencontres rendues), lissage sur la LIGNE de partage et non sur les surfaces
+- [x] Tout automatique : UN SEUL lancement de script. `full_automation.jsx` enchaîne lui-même sur `fp_intelligent.jsx` (étape « tout », lu à côté de lui
+      puis `eval`) → plus de 2e/3e confirmation d'Illustrator. Dialogue par fichiers du dossier temp, avec jeton de lancement :
+      `graphidesk_adhesif_fin.json` → `graphidesk_fp_geometrie.json` → (`graphidesk_fp_progression.json`) → `graphidesk_fp_correctifs.json` → `graphidesk_fp_fin.json`.
+      GraphiDesk muet 2 min → Illustrator termine seul (fonds perdus de l'outil habituel, message explicite)
+- [x] Barre de progression dans Illustrator (palette ScriptUI) sur TOUTES les étapes : ouverte par `full_automation.jsx` (option FP seulement), confiée à
+      `fp_intelligent.jsx` ; % réel pendant le relevé (tracés lus / tracés du document) et pendant le calcul (avancement envoyé par GraphiDesk)
+- [x] Vitesse du calcul : 28 s → 2,5 s (Viva Sète N7), 21 s → 2,2 s (Destia), tous les fichiers ≤ 3 s, résultat équivalent (écart = bruit du lissage).
+      Partage « au plus proche » ADAPTATIF (on n'affine un intervalle de distances que si deux couleurs s'y disputent du terrain) + tronçons allégés
+      avant décalage + réunions faites en une fois. Calcul dans un Web Worker (`calcul.worker.ts`) : l'interface ne fige plus, repli sur place si indisponible
+- [x] Preuves SANS Illustrator (Jordan : « ne lance pas toi de script ») : `essai/a_blanc.mjs` exécute les VRAIS .jsx dans un faux Illustrator reconstruit
+      depuis un relevé réel (enchaînement, relevé identique à l'original, jeton, fichier partiel, GraphiDesk muet, erreur de calcul, barre croissante 0→1,
+      une seule palette fermée avant le message, tracés fermés) ; `verif_es3.mjs` (syntaxe ES3 stricte, acorn) ; worker testé dans le serveur Vite local ;
+      `vite build` produit bien `assets/calcul.worker-*.js`
+- [ ] **RELEVÉ LENT ET QUI S'ALOURDIT — cause trouvée, correctif à faire** : Illustrator garde en mémoire, pour toute la session, un tableau par
+      coordonnée lue (`anchor`, `leftDirection`, `rightDirection`, `geometricBounds` : `$.summary()` → 664 000 Array après une journée d'essais, jamais
+      libérés, même document fermé, même après `$.gc()`), et chaque NOUVELLE lecture coûte un temps proportionnel à ce stock (0,6 ms à 664 000).
+      Relevé Camif (78 000 lectures) : ~3 s dans un Illustrator frais, puis +5 s à chaque utilisation de la session (7 s, 17 s… 60 s mesurés).
+      Correctif visé : ne plus lire les points un par un — `doc.exportFile(SVG)` (essai : 1,1 Mo écrit en < 1 s, calques = `<g id>`, 7 décimales),
+      lecture du SVG dans GraphiDesk, couleurs exactes prises sur l'objet d'origine (lectures numériques `left/top/width/height`, sans tableau),
+      repli sur le relevé actuel si le SVG ne colle pas. ⚠ l'export SVG a laissé une boîte de dialogue ouverte chez Jordan (pas de `DONTDISPLAYALERTS`
+      dans l'essai) → à encadrer. À valider par les tests de Jordan (je ne lance plus de script dans son Illustrator)
+- [ ] Reste aux angles : quand deux débords se croisent dans la chute (pas sur le trait de coupe), la pointe du correctif est rabotée de ~0,35 mm
+      (ex. Viva Sète N7, bout de la frontière vert/orange, à 5 mm de la coupe). Essai « rendre le triangle de chaque sommet franc » : trop de retouches
+      ailleurs (20 mm² sur Destia) → annulé. Piste : ouvertures de rayon décroissant, acceptées de proche en proche
+- [x] 2e test réel de Jordan (10/11, 15 h 07) : ÉCHEC — Illustrator figé 2 minutes (« Ne répond pas »), puis « GraphiDesk ne répond pas », aucun correctif.
+      Cause (horodatage des fichiers d'échange : relevé écrit à 15:07:51, réponse de GraphiDesk à 15:10:02, soit juste après la fin du script) :
+      `Illustrator.exe -run` ne rend la main au lanceur qu'une fois le script TERMINÉ ; GraphiDesk attendait ce retour avant de dialoguer, le script
+      attendait GraphiDesk → les deux s'attendaient. Mon essai de bout en bout passait par COM + un programme à part : il ne couvrait pas ce point.
+- [x] Correction : le lancement n'est plus attendu (`deroulement.ts`, sans rien de propre à Tauri ; `orchestration.ts` = branchement). Signe de vie
+      immédiat puis battement chaque seconde ; Illustrator abandonne après 30 s de silence (au lieu de 2 min) ; calcul borné à 3 min ; barre jamais en arrière.
+- [x] Preuve : `essai/protocole.mjs` — vrai déroulement + vrais .jsx (faux Illustrator sur un fil bloquant) + lanceur qui ne rend la main qu'à la fin.
+      Sur le relevé du test raté de Jordan : ancienne façon → même échec ; nouvelle → 18 correctifs en 3 s ; calcul de 40 s → Illustrator patiente ;
+      GraphiDesk disparu → abandon en 32 s. Idem Camif (8) et Destia (31).
+- [ ] 3e TEST RÉEL PAR JORDAN : une seule confirmation ? barre visible sur toutes les étapes ? correctifs posés ? angles ?
+      (« Ne répond pas » peut encore s'afficher quelques secondes si on clique dans Illustrator pendant le script : Windows l'écrit dès qu'une
+      application est occupée plus de 5 s — relevé + calcul + pose. Le supprimer vraiment = rendre la main entre le relevé et la pose, donc 2 lancements.)
+- [ ] Règle à trancher par Jordan : pièce blanche à 5–10 mm d'une couleur (Destia, femme/maison) → moitié/moitié (actuel) ou laisser les 5 mm ?
+- [ ] Dégradé : hors V1 (accord Jordan) — un dégradé garde sa zone, n'a pas de correctif, et un doute est signalé s'il en faudrait un
+- [ ] Si validé : bump de version (3 fichiers), message de commit à faire valider, Kit du graphiste si un script/gabarit change

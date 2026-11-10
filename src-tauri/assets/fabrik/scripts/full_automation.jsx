@@ -1,10 +1,15 @@
 (function (params) {
+    // Barre de progression — seulement avec l'option fonds perdus intelligents (sans elle, l'outil est strictement inchangé).
+    // Ouverte ici, elle est confiée à fp_intelligent.jsx qui la mène jusqu'au message de fin.
+    var barre = { maj: function () {}, fermer: function () {} };
     try {
         if (!app || app.documents.length === 0) {
             throw new Error("Aucun document Illustrator n'est ouvert.");
         }
 
         var doc = app.activeDocument;
+        if (params.fpIntelligent === true) barre = creerBarre();
+        barre.maj(0.02, "Vectorisation des textes et des contours…");
 
         // ===== ÉTAPE 1: VECTORISATION CONDITIONNELLE =====
         try {
@@ -59,21 +64,27 @@
         doc.selection = null;
 
         // ===== ÉTAPE 2: PHASE 1 =====
+        barre.maj(0.06, "Préparation des calques…");
         prepareLayersStructure(doc);
         processArtworkLayer(doc, params.dejaEchelle === true);
+        barre.maj(0.1, "Création du contour de découpe…");
         duplicateToCutContour(doc);
 
         // ===== ÉTAPE 3: PHASE 2 =====
+        barre.maj(0.13, "Fonds perdus : décalage de 5 mm…");
         executePhase2Logic(doc, params);
 
         // ===== ÉTAPE 4: FINALISATION CUTCONTOUR =====
+        barre.maj(0.18, "Finalisation du contour de découpe…");
         finalizeCutContour(doc, params);
 
         // ===== ÉTAPE 5: BLANC DE SOUTIEN (pose en intérieur / vitrophanie) =====
         var blancOk = false;
         if (params.poseInterieur === true) {
+            barre.maj(0.21, "Blanc de soutien…");
             blancOk = executeWHITE(doc, params);
         }
+        barre.maj(0.23, "Alignement du contour de découpe…");
 
         // ===== ÉTAPE 6: ALIGNEMENT DU CONTOUR DE DÉCOUPE =====
         // L'alignement d'un contour n'est PAS accessible au script Illustrator
@@ -105,16 +116,104 @@
               "• Vérifier les tracés\n" +
               "• Valider la laize de votre adhésif\n\n" +
               "✅ Votre fichier de fabrication est prêt !";
-        alert(msgFin);
+        // Fonds perdus intelligents : on signale à GraphiDesk que l'automatisation est terminée (petit fichier
+        // temporaire), puis on enchaîne ICI MÊME sur la correction des fonds perdus — dans le même lancement, donc sans
+        // nouvelle confirmation d'Illustrator. C'est elle qui affichera ce message à la fin.
+        // Sans cette option, rien ne change : le message s'affiche comme avant.
+        if (params.fpIntelligent === true) {
+            signalerFin(true, msgFin);
+            params.messageFin = msgFin;
+            params.barre = barre;
+            if (!enchainerFondsPerdus()) {
+                barre.fermer();
+                if (params.silencieux !== true) alert(msgFin);
+            }
+        } else {
+            alert(msgFin);
+        }
 
         return { success: true, message: "Automatisation terminée" };
 
     } catch (error) {
-        alert("❌ Erreur : " + error.message);
+        barre.fermer();
+        if (params && params.fpIntelligent === true) signalerFin(false, error.message);
+        if (!(params && params.silencieux === true)) alert("❌ Erreur : " + error.message);
         return { success: false, error: error.message };
     }
 
     // ===== FONCTIONS =====
+    // Barre de progression : une petite palette au milieu de l'écran, mise à jour entre les étapes.
+    // Si elle ne peut pas s'afficher, l'outil continue sans elle. (La même existe dans fp_intelligent.jsx.)
+    function creerBarre() {
+        var w = null, libelle = null, jauge = null;
+        try {
+            w = new Window("palette", "GraphiDesk \u2014 Adh\u00e9sif", undefined, { closeButton: false });
+            w.orientation = "column"; w.alignChildren = "fill"; w.margins = 18; w.spacing = 10;
+            libelle = w.add("statictext", undefined, "Pr\u00e9paration\u2026");
+            libelle.preferredSize.width = 400;
+            jauge = w.add("progressbar", undefined, 0, 1000);
+            jauge.preferredSize = [400, 14];
+            w.center(); w.show(); w.update();
+        } catch (eBarre) { w = null; }
+        return {
+            // fraction : 0 à 1 (null = inchangée) ; texte : libellé (null = inchangé)
+            maj: function (fraction, texte) {
+                if (!w) return;
+                try {
+                    if (texte !== null && texte !== undefined && libelle.text !== texte) libelle.text = texte;
+                    if (fraction !== null && fraction !== undefined) jauge.value = Math.round(Math.max(0, Math.min(1, fraction)) * 1000);
+                    w.update();
+                } catch (eMaj) {}
+            },
+            fermer: function () { if (w) { try { w.close(); } catch (eFerme) {} w = null; } }
+        };
+    }
+
+    // Fonds perdus intelligents : exécute fp_intelligent.jsx (rangé à côté de ce script) à la suite, étape « tout ».
+    // Renvoie false s'il n'a pas pu être lancé — GraphiDesk en est alors prévenu et l'outil se termine comme d'habitude.
+    function enchainerFondsPerdus() {
+        try {
+            var f = new File(new File(params.offsetActionPath).parent.parent.fsName + "/scripts/fp_intelligent.jsx");
+            if (!f.exists) throw new Error("script fp_intelligent.jsx introuvable");
+            f.encoding = "UTF-8";
+            if (!f.open("r")) throw new Error("script fp_intelligent.jsx illisible");
+            var code = f.read();
+            f.close();
+            params.etape = "tout";
+            eval(code);
+            return true;
+        } catch (eSuite) {
+            ecrireSignal("graphidesk_fp_geometrie.json", false, eSuite.message);
+            ecrireSignal("graphidesk_fp_fin.json", false, eSuite.message);
+            return false;
+        }
+    }
+
+    // Écrit <temp>/graphidesk_adhesif_fin.json : {"ok":true|false,"message":"…"} (ou "erreur")
+    function signalerFin(ok, texte) { ecrireSignal("graphidesk_adhesif_fin.json", ok, texte); }
+    function ecrireSignal(nom, ok, texte) {
+        try {
+            var s = String(texte), r = "", i, c, n, h;
+            for (i = 0; i < s.length; i++) {
+                c = s.charAt(i); n = s.charCodeAt(i);
+                if (c === "\\") r += "\\\\";
+                else if (c === "\"") r += "\\\"";
+                else if (n === 10) r += "\\n";
+                else if (n === 13) r += "\\r";
+                else if (n < 32 || n > 126) { h = n.toString(16); while (h.length < 4) h = "0" + h; r += "\\u" + h; }
+                else r += c;
+            }
+            var tmp = new File(Folder.temp + "/" + nom + ".tmp");
+            tmp.encoding = "UTF-8";
+            tmp.open("w");
+            tmp.write("{\"ok\":" + (ok ? "true" : "false") + ",\"" + (ok ? "message" : "erreur") + "\":\"" + r + "\"}");
+            tmp.close();
+            var cible = new File(Folder.temp + "/" + nom);
+            if (cible.exists) cible.remove();
+            tmp.rename(nom);
+        } catch (eFin) {}
+    }
+
     function alignerContourDecoupe(doc, params) {
         if (!params || !params.alignCentreActionPath) return;
         var fichier = new File(params.alignCentreActionPath);

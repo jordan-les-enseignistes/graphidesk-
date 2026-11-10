@@ -9,7 +9,13 @@ export interface AdhesifParams {
   /** true = pose en intérieur (vitrophanie) : calque WHITE fusionné,
    *  blanc repère + surimpression du fond, tout au-dessus */
   poseInterieur: boolean;
+  /** true = après l'automatisation, GraphiDesk corrige les fonds perdus aux croisements de couleurs
+   *  (version de test). false = comportement d'origine, strictement inchangé. */
+  fpIntelligent: boolean;
 }
+
+// option mémorisée par poste ; cochée par défaut pendant la phase de test
+const FP_INTELLIGENT_KEY = "fabrik_adhesif_fp_intelligent";
 
 interface AdhesifFormProps {
   onGenerate: (params: AdhesifParams) => void;
@@ -19,6 +25,13 @@ interface AdhesifFormProps {
 export function AdhesifForm({ onGenerate, isProcessing }: AdhesifFormProps) {
   const [dejaEchelle, setDejaEchelle] = useState(false);
   const [poseInterieur, setPoseInterieur] = useState(false);
+  const [fpIntelligent, setFpIntelligent] = useState(() => localStorage.getItem(FP_INTELLIGENT_KEY) !== "0");
+  const basculerFp = () => {
+    setFpIntelligent((v) => {
+      localStorage.setItem(FP_INTELLIGENT_KEY, v ? "0" : "1");
+      return !v;
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -52,7 +65,7 @@ export function AdhesifForm({ onGenerate, isProcessing }: AdhesifFormProps) {
 
       {/* Bouton générer */}
       <Button
-        onClick={() => onGenerate({ dejaEchelle, poseInterieur })}
+        onClick={() => onGenerate({ dejaEchelle, poseInterieur, fpIntelligent })}
         disabled={isProcessing}
         className="w-full py-6 text-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700"
       >
@@ -97,6 +110,19 @@ export function AdhesifForm({ onGenerate, isProcessing }: AdhesifFormProps) {
         >
           {poseInterieur && <Check className="h-3.5 w-3.5" />}
           Adhésif pose en intérieur (vitrophanie — blanc de soutien)
+        </button>
+        <button
+          type="button"
+          onClick={basculerFp}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-md border text-xs font-medium transition-colors ${
+            fpIntelligent
+              ? "bg-teal-600 border-teal-600 text-white"
+              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+          }`}
+          title="Après l'automatisation, GraphiDesk ajoute sur le calque FondPerdu les correctifs aux croisements de couleurs (groupe « Correctifs FP (GraphiDesk) »). Décoché : outil d'origine, rien ne change."
+        >
+          {fpIntelligent && <Check className="h-3.5 w-3.5" />}
+          Fonds perdus intelligents
         </button>
       </div>
 
@@ -147,7 +173,10 @@ export function AdhesifForm({ onGenerate, isProcessing }: AdhesifFormProps) {
             <div className="flex items-start gap-2">
               <X className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
               <span>
-                <strong>Vérifier les fonds perdus</strong> : En cas de croisements de couleurs, retoucher manuellement le calque FondPerdu
+                <strong>Vérifier les fonds perdus</strong> :{" "}
+                {fpIntelligent
+                  ? "les croisements de couleurs sont corrigés automatiquement — contrôler le groupe « Correctifs FP (GraphiDesk) » et les endroits cerclés en rouge"
+                  : "En cas de croisements de couleurs, retoucher manuellement le calque FondPerdu"}
               </span>
             </div>
             <div className="flex items-start gap-2">

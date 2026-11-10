@@ -27,6 +27,7 @@ import { CaissonSimpleForm } from "@/components/fabrik/CaissonSimpleForm";
 import { CaissonMultiForm } from "@/components/fabrik/CaissonMultiForm";
 import { CaissonDoubleForm } from "@/components/fabrik/CaissonDoubleForm";
 import { AdhesifForm, type AdhesifParams } from "@/components/fabrik/AdhesifForm";
+import { lancerAdhesifAvecFondsPerdus } from "@/lib/fabrik/fondPerdu/orchestration";
 import { LettresBoitiersForm } from "@/components/fabrik/LettresBoitiersForm";
 import { LettresReliefForm } from "@/components/fabrik/LettresReliefForm";
 import {
@@ -202,8 +203,32 @@ export default function FabRik() {
   };
 
   // Handlers pour chaque type
-  const handleAdhesifGenerate = (params: AdhesifParams) => {
-    runScript("full_automation.jsx", params);
+  const handleAdhesifGenerate = async (params: AdhesifParams) => {
+    // option décochée : l'outil d'origine, strictement inchangé
+    if (!params.fpIntelligent) {
+      runScript("full_automation.jsx", params);
+      return;
+    }
+    // option cochée : automatisation habituelle, puis correction des fonds perdus aux croisements de couleurs
+    setIsProcessing(true);
+    const suivi = toast.loading("Automatisation adhésif en cours dans Illustrator…");
+    try {
+      const bilan = await lancerAdhesifAvecFondsPerdus(illustratorPath, params, (libelle) =>
+        toast.loading(libelle, { id: suivi })
+      );
+      const doutes = bilan.doutes ? ` — ${bilan.doutes} endroit(s) à vérifier (cerclés en rouge)` : "";
+      if (bilan.erreur) {
+        toast.warning(`Automatisation terminée, mais fonds perdus non corrigés : ${bilan.erreur}`, { id: suivi, duration: 10000 });
+      } else if (bilan.poses) {
+        toast.success(`Automatisation terminée — ${bilan.poses} correctif(s) de fond perdu posé(s)${doutes}`, { id: suivi, duration: 8000 });
+      } else {
+        toast.success(`Automatisation terminée — aucun croisement de couleurs à corriger${doutes}`, { id: suivi, duration: 8000 });
+      }
+    } catch (error) {
+      toast.error(String(error instanceof Error ? error.message : error), { id: suivi, duration: 10000 });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleCaissonSimpleGenerate = (params: CaissonSimpleParams) => {
