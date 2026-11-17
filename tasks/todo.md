@@ -843,3 +843,11 @@ entre les rainures (invisibles), jamais dans le vide ; PDP = fichier à part, vu
       rainure de 2 à 6 mm : les lettres sont réellement fines. Exemples vectoriels : Y:\JORDAN\TEST\LETTRES_RETRO\exemples\adaptatif\
       Guide des fraises (atelier) : gravure PVC 19 = fraise 6 ou 10 → rainure < 6 mm = fraise plus fine, À VALIDER avec Léa.
 - [ ] Test réel par Jordan (réunion Léa 17/11 15h) → retours
+- [x] v1.18.1 (17/11, retours du 1er test de Jordan) : « Illegal Argument » dans Illustrator sur Peppino (Placer arrêté en plein
+      dessin : ni rainure sur m / n / point du i, ni entretoises) et sur Centre Services (Finaliser : ancienne rainure effacée puis
+      dessin en échec → rainure perdue). Cause exacte non reproduite hors Illustrator (tracés valides au banc).
+      → dessin forme par forme protégé (d'un bloc, sinon point par point, sinon allégé), anomalies listées dans le message de fin ;
+        Finaliser dessine la nouvelle rainure à part et ne remplace l'ancienne qu'en cas de succès ; erreur avec n° de ligne ;
+        tracés allégés (≤ 0,01 mm, Peppino 4466 → 421 points max) ; tracé « ouvert » à moins de 2 mm de se fermer = fermé ;
+        prérequis « Pathfinder › Réunion » dans l'écran.
+- [ ] Récupérer de Jordan %TEMP%\graphidesk_retro_geometrie.json + graphidesk_retro_resultat.json si l'erreur revient

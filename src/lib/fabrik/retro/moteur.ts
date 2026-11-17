@@ -257,7 +257,7 @@ export function finaliserRetro(D, parametres = {}) {
   pieces.forEach((f, i) => { if (!parPiece[i]) doutes.push({ motif: "pièce sans entretoise", boite: boiteMm(f, 5) }); });
   const sansEntretoise = parPiece.filter((n) => !n).length;
   return {
-    rainure: formes(G).map((f) => f.map(versMm)),
+    rainure: formes(G).map((f) => f.map((r) => versMm(allege(r)))),
     etroit: zonesEtroites(G, P.rainureMin).map((f) => f.map(versMm)),
     doutes,
     stats: { pieces: pieces.length, entretoises: (D.entretoises || []).length, ecourtees, horsLettre, coupees, sansEntretoise, secondes: +((Date.now() - t0) / 1000).toFixed(1) },
@@ -396,6 +396,8 @@ function adoucir(paths, sigma) {
   }
   return union(sortie);
 }
+/** contour envoyé à Illustrator : points superflus retirés (écart ≤ 0,01 mm), pour des tracés légers */
+const allege = (r) => (r.length > 16 ? simplifierFerme(r, 0.01 * E) : r);
 /** Douglas-Peucker sur un contour fermé (coupé en deux au point le plus éloigné du premier) */
 function simplifierFerme(pts, tol) {
   let loin = 0, dmax = -1;
@@ -492,7 +494,7 @@ export function calculerRetro(D, parametres = {}, surProgression?) {
     if (P.adaptative && G.length) G = ouverture(inter(adoucir(G, P.adoucissement), decale(piece, -P.bordureMin)), P.rainureCable * 0.45);
     res.liaisons.push(...liaisonsPiece);
     const enregistrer = () => {
-      const cs = formes(G); nRainures += cs.length; for (const f of cs) res.rainure.push(f.map(versMm));
+      const cs = formes(G); nRainures += cs.length; for (const f of cs) res.rainure.push(f.map((r) => versMm(allege(r))));
       for (const z of zonesEtroites(G, P.rainureMin)) res.etroit.push(z.map(versMm));
       return cs.length;
     };

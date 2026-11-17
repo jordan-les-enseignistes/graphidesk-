@@ -13,7 +13,9 @@ const PT = 25.4 / 72; // 1 point = 0,3528 mm
 function traces(liste) {
   return (liste || []).map((sc) => {
     const pts = aplatir(sc);
-    const ferme = !!sc.f || (pts.length > 2 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 0.01);
+    // un tracé « ouvert » dont les deux bouts se touchent presque (moins de 2 mm, fréquent après un import de PDF) est
+    // une découpe fermée : la CNC le ferme de toute façon
+    const ferme = !!sc.f || (pts.length > 2 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 2);
     if (ferme && pts.length > 2 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 0.01) pts.pop();
     return { ferme, objet: sc.o, pts };
   }).filter((c) => c.pts.length >= 2);

@@ -128,7 +128,11 @@ export function RetroEntretoisesForm({ onLancer, isProcessing }: Props) {
         </h4>
         <ul className="text-sm space-y-1.5 list-disc pl-5">
           <li><strong>Adobe Illustrator</strong> ouvert avec le fichier <strong>à l'échelle 1:1</strong>, enregistré (le PDP est enregistré à côté).</li>
-          <li><strong>Sélectionne le contour des lettres</strong> (vectorisé) avant « Placer ». Sans sélection : le calque « Découpe », sinon tout le document.</li>
+          <li>
+            Contour des lettres <strong>vectorisé, réuni et fermé</strong> : <strong>Pathfinder › Réunion</strong> sur les lettres avant de lancer
+            (une lettre faite de plusieurs morceaux ou d'un tracé ouvert n'aura ni rainure ni entretoise).
+          </li>
+          <li><strong>Sélectionne le contour des lettres</strong> avant « Placer ». Sans sélection : le calque « Découpe », sinon tout le document.</li>
         </ul>
       </Card>
 

@@ -193,17 +193,62 @@
     }
 
     // ---------- dessin ----------
-    function dessinerForme(l, forme, couleur) {           // forme = [contour, trous\u2026], points [[x, y], \u2026]
-        var p, cp, j, sub;
-        if (forme.length === 1) {
-            p = l.pathItems.add(); p.setEntirePath(forme[0]); p.closed = true;
-            p.filled = false; p.stroked = true; p.strokeColor = couleur; p.strokeWidth = 1;
-        } else {
-            cp = l.compoundPathItems.add();
-            for (j = 0; j < forme.length; j++) {
-                sub = cp.pathItems.add(); sub.setEntirePath(forme[j]); sub.closed = true;
-                sub.filled = false; sub.stroked = true; sub.strokeColor = couleur; sub.strokeWidth = 1;
+    // anomalies de dessin (formes redessin\u00e9es autrement ou abandonn\u00e9es), rapport\u00e9es dans le message de fin
+    var anomalies = [];
+    function propres(pts) {                              // points valides, sans doublons cons\u00e9cutifs
+        var out = [], i, x, y, d;
+        for (i = 0; i < pts.length; i++) {
+            x = Number(pts[i][0]); y = Number(pts[i][1]);
+            if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) continue;
+            if (out.length) { d = out[out.length - 1]; if (Math.abs(d[0] - x) < 0.001 && Math.abs(d[1] - y) < 0.001) continue; }
+            out.push([x, y]);
+        }
+        return out;
+    }
+    // un anneau dans un trac\u00e9 vide : d'un bloc ; sinon point par point ; sinon all\u00e9g\u00e9 (un point sur deux)
+    function remplir(p, pts) {
+        var essai = propres(pts), k, q, j, err = "";
+        if (essai.length < 2) throw new Error("anneau vide");
+        try { p.setEntirePath(essai); return ""; } catch (e1) { err = e1.message; }
+        try {
+            while (p.pathPoints.length) p.pathPoints[0].remove();
+        } catch (e2) {}
+        try {
+            for (k = 0; k < essai.length; k++) {
+                q = p.pathPoints.add();
+                q.anchor = essai[k]; q.leftDirection = essai[k]; q.rightDirection = essai[k];
             }
+            return "point par point (" + err + ")";
+        } catch (e3) { err += " / " + e3.message; }
+        for (j = 0; j < 4 && essai.length > 8; j++) {
+            var moitie = [];
+            for (k = 0; k < essai.length; k += 2) moitie.push(essai[k]);
+            essai = moitie;
+            try { p.setEntirePath(essai); return "all\u00e9g\u00e9 (" + err + ")"; } catch (e4) {}
+        }
+        throw new Error(err);
+    }
+    function dessinerForme(l, forme, couleur, nom) {     // forme = [contour, trous\u2026], points [[x, y], \u2026]
+        var p, cp, j, sub, note;
+        try {
+            if (forme.length === 1) {
+                p = l.pathItems.add();
+                note = remplir(p, forme[0]);
+                p.closed = true; p.filled = false; p.stroked = true; p.strokeColor = couleur; p.strokeWidth = 1;
+            } else {
+                cp = l.compoundPathItems.add();
+                for (j = 0; j < forme.length; j++) {
+                    sub = cp.pathItems.add();
+                    note = remplir(sub, forme[j]) || note;
+                    sub.closed = true; sub.filled = false; sub.stroked = true; sub.strokeColor = couleur; sub.strokeWidth = 1;
+                }
+            }
+            if (note) anomalies.push(nom + " : " + note);
+            return true;
+        } catch (e) {
+            anomalies.push(nom + " NON DESSIN\u00c9E : " + e.message + " (" + forme.length + " anneau(x), " + (forme[0] ? forme[0].length : 0) + " points)");
+            try { if (p) p.remove(); if (cp) cp.remove(); } catch (e2) {}
+            return false;
         }
     }
     function cercle(l, cx, cy, r, couleur, epaisseur) {    // cercle de B\u00e9zier exact, dans le rep\u00e8re des ancres
@@ -312,11 +357,14 @@
         supprimerCalque(doc, L_ENTIERE);
         var lr = assurerCalque(doc, L_RAINURE), le = assurerCalque(doc, L_ENTRETOISES), i;
         vider(lr); vider(le);
-        for (i = 0; i < res.rainure.length; i++) dessinerForme(lr, res.rainure[i], VERT);
-        dessinerEtroit(doc, res.etroit);
+        for (i = 0; i < res.rainure.length; i++) dessinerForme(lr, res.rainure[i], VERT, "rainure " + (i + 1));
+        try { dessinerEtroit(doc, res.etroit); } catch (eE) { anomalies.push("zones inf\u00e9rieures au minimum : " + eE.message); }
         barre.maj(0.94, "Pose des entretoises\u2026");
         var r = res.diametre / 2;
-        for (i = 0; i < res.entretoises.length; i++) cercle(le, res.entretoises[i].x, res.entretoises[i].y, r, BLEU, 1);
+        for (i = 0; i < res.entretoises.length; i++) {
+            try { cercle(le, res.entretoises[i].x, res.entretoises[i].y, r, BLEU, 1); }
+            catch (eC) { anomalies.push("entretoise " + (i + 1) + " : " + eC.message); }
+        }
         dessinerDoutes(doc, res.doutes);
         ordonner(doc);
         barre.maj(1, null);
@@ -416,16 +464,26 @@
         if (res.erreur) throw new Error(String(res.erreur));
 
         barre.maj(0.86, "Rainure finale\u2026");
+        var i;
         // garde la rainure enti\u00e8re (cach\u00e9e, non imprimable) pour pouvoir re-finaliser apr\u00e8s un nouveau d\u00e9placement
         if (!lent || !lent.pageItems.length) {
             lent = assurerCalque(doc, L_ENTIERE);
-            for (var i = 0; lr && i < lr.pageItems.length; i++) lr.pageItems[i].duplicate(lent, ElementPlacement.PLACEATEND);
+            for (i = 0; lr && i < lr.pageItems.length; i++) lr.pageItems[i].duplicate(lent, ElementPlacement.PLACEATEND);
         }
         lent.printable = false; lent.visible = false; lent.locked = true;
+        // la nouvelle rainure est d'abord dessin\u00e9e \u00e0 part : l'ancienne n'est remplac\u00e9e que si tout s'est bien dessin\u00e9
+        var provisoire = doc.layers.add(), echecs = 0;
+        provisoire.name = "Rainure LED (calcul en cours)";
+        for (i = 0; i < res.rainure.length; i++) if (!dessinerForme(provisoire, res.rainure[i], VERT, "rainure " + (i + 1))) echecs++;
+        if (echecs) {
+            try { provisoire.remove(); } catch (eP) {}
+            throw new Error(echecs + " forme(s) de rainure impossibles \u00e0 dessiner : la rainure d'avant est GARD\u00c9E, rien n'a \u00e9t\u00e9 chang\u00e9.\n" + anomalies.join("\n"));
+        }
         lr = assurerCalque(doc, L_RAINURE);
         vider(lr);
-        for (i = 0; i < res.rainure.length; i++) dessinerForme(lr, res.rainure[i], VERT);
-        dessinerEtroit(doc, res.etroit);
+        for (i = provisoire.pageItems.length - 1; i >= 0; i--) provisoire.pageItems[i].move(lr, ElementPlacement.PLACEATBEGINNING);
+        try { provisoire.remove(); } catch (eP2) {}
+        try { dessinerEtroit(doc, res.etroit); } catch (eE) { anomalies.push("zones inf\u00e9rieures au minimum : " + eE.message); }
         contour(dec, ROSE, 1);
         contour(le, BLEU, 1);
         dessinerDoutes(doc, res.doutes);
@@ -447,6 +505,7 @@
         if (f.bordsNonEclaires) m += "\u2022 " + f.bordsNonEclaires + " endroit(s) o\u00f9 la rainure ne rentre pas (bord non \u00e9clair\u00e9)\n";
         if (res.doutes.length) m += "\u2022 " + res.doutes.length + " point(s) BLOQUANT(S), cercl\u00e9(s) en rouge\n";
         if (PDP.horsStandard) m += "\n\u26a0 HORS STANDARD ATELIER : " + PDP.horsStandard + "\n";
+        if (anomalies.length) m += "\n\u26a0 \u00c0 SIGNALER \u00c0 JORDAN (" + anomalies.length + ") :\n   " + anomalies.slice(0, 6).join("\n   ") + "\n";
         m += "\nD\u00e9place, ajoute ou supprime les entretoises si besoin (rien n'est fusionn\u00e9),\npuis \u00ab 2. Finaliser \u00bb dans GraphiDesk.";
         return m;
     }
@@ -462,6 +521,7 @@
         } else if (res.pdp && res.pdp.chemin) m += "\n\u2714 PDP enregistr\u00e9 :\n" + res.pdp.chemin;
         else if (res.pdp) m += "\n\u2714 PDP cr\u00e9\u00e9 (document ouvert, \u00e0 enregistrer sous \u00ab " + res.pdp.nom + " \u00bb :\nle fichier de FAB n'est pas encore enregistr\u00e9).";
         if (PDP.horsStandard) m += "\n\n\u26a0 HORS STANDARD ATELIER : " + PDP.horsStandard;
+        if (anomalies.length) m += "\n\n\u26a0 \u00c0 SIGNALER \u00c0 JORDAN (" + anomalies.length + ") :\n   " + anomalies.slice(0, 6).join("\n   ");
         return m;
     }
 
@@ -485,6 +545,6 @@
             if (!geoEcrit) ecrire(FICHIER_GEO, "{\"ok\":false,\"jeton\":" + chaine(jeton) + ",\"erreur\":" + chaine(texte) + "}");
             else ecrire(FICHIER_FIN, "{\"ok\":false,\"jeton\":" + chaine(jeton) + ",\"erreur\":" + chaine(texte) + "}");
         } catch (e9) {}
-        alert("Lettres r\u00e9tro\u00e9clair\u00e9es : " + texte);
+        alert("Lettres r\u00e9tro\u00e9clair\u00e9es (" + etape + ") : " + texte + (erreur && erreur.line ? "\n(ligne " + erreur.line + " du script)" : ""));
     }
 })(params);
