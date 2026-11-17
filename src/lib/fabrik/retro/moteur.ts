@@ -36,7 +36,10 @@ export const PARAMETRES_RETRO = {
   largeurMilieu: 500,  // mm : au-delà de cette largeur de surface, des entretoises aussi au milieu
   equilibre: 2,
   bonusBout: 20,
-  mietteRainure: 30,   // mm² : un bout de rainure plus petit, détaché par une entretoise, est supprimé (rainure raccourcie)       // mm « offerts » à une entretoise posée au bout d'un trait (lettre fine)        // poids de l'équilibre (ligne entre les deux entretoises d'une lettre fine passant près de son centre)
+  mietteRainure: 30,
+  brancheMin: 8,
+  angleMin: 35,        // degrés : un angle de la forme plus marqué reçoit une entretoise (grandes surfaces)
+  distanceAngle: 60,   // mm : distance max entre un angle et la ligne des entretoises pour qu'il en reçoive une       // mm : une branche de l'axe plus courte n'est pas un bout de trait (angle du contour)   // mm² : un bout de rainure plus petit, détaché par une entretoise, est supprimé (rainure raccourcie)       // mm « offerts » à une entretoise posée au bout d'un trait (lettre fine)        // poids de l'équilibre (ligne entre les deux entretoises d'une lettre fine passant près de son centre)
   couverture: 130,     // mm : tout point d'une pièce est à moins de cette distance d'une entretoise (≈ 6 par lettre Peppino, 4–5 sur le logo Quimper)
   profondeurMax: 15,   // mm : dans une grande surface, l'entretoise reste à cette distance de la rainure au plus (placement de Jordan)
   ecartMin: 40,        // mm entre deux entretoises d'une même pièce (sauf pièce trop petite)
@@ -492,7 +495,7 @@ function distanceAuBord(paths, pas) {
  * « Crête » d'une zone : points d'une grille de `pas` mm plus loin du bord que leurs deux voisins dans au moins une
  * direction — c'est l'axe des traits, continu aux jonctions (bas d'un v).
  */
-function crete(paths, pas) {
+function crete(paths, pas, brancheMin = 8) {
   const dB = distanceAuBord(paths, Math.min(0.5, pas / 2)), s0 = pas * E, [x0, y0, x1, y1] = boite(paths);
   const nx = Math.ceil((x1 - x0) / s0) + 3, ny = Math.ceil((y1 - y0) / s0) + 3, ox = x0 - s0, oy = y0 - s0;
   const dist = new Float64Array(nx * ny).fill(-1);
@@ -510,18 +513,65 @@ function crete(paths, pas) {
       if (a1 >= 0 && a2 >= 0 && d >= a1 + m * 0.25 && d >= a2 + m * 0.25 && d - a1 + d - a2 > m) { garde[k] = 1; break; }
     }
   }
-  // ébarbage : les petites branches (vers les angles du contour, bruit de calcul) sont retirées par le bout, 6 fois
-  for (let passe = 0; passe < 6; passe++) {
-    const retirer = [];
+  // les petites coupures de la crête (arrondis de calcul) sont refermées : on l'épaissit de 2 points (dans la pièce), puis
+  // l'affinage ci-dessous la ramène à un seul point d'épaisseur — continue
+  for (let passe = 0; passe < 2; passe++) {
+    const ajouter = [];
     for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
-      const k = j * nx + i; if (!garde[k]) continue;
-      let n = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) if ((di || dj) && garde[k + dj * nx + di]) n++;
-      if (n <= 1) retirer.push(k);
+      const k = j * nx + i; if (garde[k] || dist[k] <= 0) continue;
+      for (let dj = -1; dj <= 1 && !garde[k] ; dj++) for (let di = -1; di <= 1; di++) if (garde[k + dj * nx + di]) { ajouter.push(k); dj = 2; break; }
     }
-    if (!retirer.length) break;
-    for (const k of retirer) garde[k] = 0;
+    for (const k of ajouter) garde[k] = 1;
   }
+  // affinage à un point d'épaisseur (Zhang-Suen) : chaque point de l'axe a alors 1 voisin (bout), 2 (trait) ou 3+ (jonction)
+  const N8 = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+  for (let change = true, tour = 0; change && tour < 200; tour++) {
+    change = false;
+    for (const passe of [0, 1]) {
+      const retirer = [];
+      for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+        const k = j * nx + i; if (!garde[k]) continue;
+        const v = N8.map(([di, dj]) => garde[k + dj * nx + di]);
+        const b = v.reduce((t, x) => t + x, 0); if (b < 2 || b > 6) continue;
+        let a = 0; for (let t = 0; t < 8; t++) if (!v[t] && v[(t + 1) % 8]) a++;
+        if (a !== 1) continue;
+        if (passe === 0 ? (v[0] && v[2] && v[4]) || (v[2] && v[4] && v[6]) : (v[0] && v[2] && v[6]) || (v[0] && v[4] && v[6])) continue;
+        retirer.push(k);
+      }
+      for (const k of retirer) garde[k] = 0;
+      if (retirer.length) change = true;
+    }
+  }
+  const voisins = (k) => N8.map(([di, dj]) => k + dj * nx + di).filter((kk) => garde[kk]);
+  // nombre de branches qui partent d'un point = nombre de passages vide → plein autour de lui
+  const branches = (k) => { const v = N8.map(([di, dj]) => garde[k + dj * nx + di]); let c = 0; for (let t = 0; t < 8; t++) if (!v[t] && v[(t + 1) % 8]) c++; return c; };
+  // ébranchage : une branche qui part d'un bout et rejoint une jonction en moins de brancheMin mm (vers un angle du contour)
+  // est retirée ; on recommence (une fourche au bout d'un trait disparaît, le trait garde son vrai bout)
+  for (let tour = 0; tour < 6; tour++) {
+    let retire = 0; const aRetirer = [];            // (retirées toutes ensemble : les deux branches d'une fourche partent, le bout reste centré)
+    for (let k = 0; k < garde.length; k++) {
+      if (!garde[k] || branches(k) !== 1) continue;
+      const chemin = [k], vu = new Set([k]); let cur = k, L = 0, jonction = false, seuil = brancheMin;
+      for (let n = 0; n < 100000; n++) {
+        const v = voisins(cur).filter((x) => !vu.has(x));
+        if (!v.length) break;
+        const suiv = v.find((x) => branches(x) >= 3) ?? v[0];
+        L += Math.hypot((suiv % nx) - (cur % nx), Math.floor(suiv / nx) - Math.floor(cur / nx)) * pas;
+        // seuil : une branche vers un angle du contour fait environ 1,4 × la demi-épaisseur du trait à la jonction
+        if (branches(suiv) >= 3) { jonction = true; seuil = Math.max(brancheMin, 1.7 * dist[suiv] / E); break; }
+        vu.add(suiv); chemin.push(suiv); cur = suiv;
+        if (L >= 4 * brancheMin) break;
+      }
+      if (jonction && L < seuil) { aRetirer.push(...chemin); retire++; }
+    }
+    for (const x of aRetirer) garde[x] = 0;
+    if (!retire) break;
+  }
+  out.length = 0;
   for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) if (garde[j * nx + i]) out.push({ X: Math.round(ox + i * s0), Y: Math.round(oy + j * s0) });
+  const bouts = [];
+  for (let k = 0; k < garde.length; k++) if (garde[k] && branches(k) === 1) bouts.push({ X: Math.round(ox + (k % nx) * s0), Y: Math.round(oy + Math.floor(k / nx) * s0) });
+  out.bouts = bouts;
   return out;
 }
 /** rainure coupée par une entretoise en c (marge de 1 mm), sans les miettes : un bout raccourci ne laisse pas de morceau */
@@ -565,6 +615,30 @@ function coupeLaRainure(G, c, P, surplus = 0) {
   return false;
 }
 
+/** angles marqués d'une pièce (contour et trous) : points où le tracé tourne de plus de `angleMin` degrés sur ±6 mm */
+function anglesDe(piece, angleMin) {
+  const out = [];
+  // (seulement le contour extérieur : les pointes des intérieurs de lettres — fente d'un p — ne demandent pas d'entretoise)
+  for (const anneau of piece.slice(0, 1)) {
+    const pts = jalons([anneau], 1), n = pts.length;
+    if (n < 20) continue;
+    const w = 6, cand = [];
+    for (let i = 0; i < n; i++) {
+      const a = pts[(i - w + n) % n], b = pts[i], c = pts[(i + w) % n];
+      const a1 = Math.atan2(b.Y - a.Y, b.X - a.X), a2 = Math.atan2(c.Y - b.Y, c.X - b.X);
+      let t = Math.abs(a2 - a1); if (t > Math.PI) t = 2 * Math.PI - t;
+      cand.push((t * 180) / Math.PI);
+    }
+    // un seul point par angle : le plus marqué dans un voisinage de 10 mm
+    for (let i = 0; i < n; i++) {
+      if (cand[i] < angleMin) continue;
+      let max = true; for (let k = -10; k <= 10 && max; k++) if (k && cand[(i + k + n) % n] > cand[i]) max = false;
+      if (max && !out.some((q) => Math.hypot(q.X - pts[i].X, q.Y - pts[i].Y) < 10 * E)) out.push(pts[i]);
+    }
+  }
+  return out;
+}
+
 /**
  * Entretoises d'une pièce (règles de Jordan, 17/11/2026) :
  *  - « bord » : là où il y a la place, LE LONG DE LA RAINURE, côté intérieur, à `profondeurMax` mm d'elle, tous les
@@ -581,7 +655,7 @@ function placerEntretoises(piece, G, P) {
   const [bx0, by0, bx1, by1] = boite(piece), taille = Math.hypot(bx1 - bx0, by1 - by0) / E;
   const minimum = taille < 60 ? 1 : 2;
   const pos = [], modes = [];
-  const ecart = Math.max(P.diametre * 2, Math.min(P.ecartMin, taille / 4)) * E;
+  const ecart = P.diametre * 2 * E;                                         // (deux angles proches — coins du bout d'une branche — gardent chacun la leur)
   const libre = (c) => !pos.some((p) => Math.hypot(p.X - c.X, p.Y - c.Y) < ecart);
   const ajouter = (c, mode) => { if (libre(c)) { pos.push(c); modes.push(mode); return true; } return false; };
   // centres possibles sur la matière pleine : cercle entier dans la lettre, à `garde` mm au moins de la rainure
@@ -591,20 +665,51 @@ function placerEntretoises(piece, G, P) {
   if (G.length && plein.length) {
     const d = Math.max(P.garde + r, P.profondeurMax);
     const lignes = couperLignes(decale(G, d).map((a) => a.concat([a[0]])), plein).filter((l) => longueur(l) > 10 * E);
-    lignes.sort((u, v) => longueur(v) - longueur(u));                      // la plus grande boucle d'abord (contour de la lettre)
+    // angles de la forme (pointes, creux, coins du bout d'une branche) : l'atelier y met toujours une entretoise
+    const coins = anglesDe(piece, P.angleMin);
     for (const l of lignes) {
       const L = longueur(l), boucle = Math.hypot(l[0].X - l[l.length - 1].X, l[0].Y - l[l.length - 1].Y) < 1 * E;
-      if (boucle) {
-        // boucle : nombre pair (symétrie), départ au point le plus à gauche (une entretoise à chaque bout d'une forme allongée)
-        // petite boucle (intérieur d'un o, d'un p) : rien si la lettre a déjà ses entretoises (trop serré sinon)
-        const n = 2 * Math.round(L / (2 * P.espacement * E)) || (pos.length ? 0 : 2);
-        let i0 = 0; for (let i = 1; i < l.length; i++) if (l[i].X < l[i0].X) i0 = i;
-        const tour = l.slice(i0, l.length - 1).concat(l.slice(0, i0 + 1));
-        for (let k = 0; k < n; k++) ajouter(pointA(tour, (k * L) / n), "bord");
-      } else {
-        const n = Math.max(1, Math.round(L / (P.espacement * E)));
-        for (let k = 0; k < n; k++) ajouter(pointA(l, ((k + 0.5) * L) / n), "bord");
+      // abscisses (le long de la ligne) des angles proches de cette ligne
+      const cum = [0]; for (let i = 1; i < l.length; i++) cum.push(cum[i - 1] + Math.hypot(l[i].X - l[i - 1].X, l[i].Y - l[i - 1].Y));
+      const abs = [];
+      for (const c of coins) {
+        let bi = -1, bd = Infinity;
+        for (let i = 0; i < l.length; i++) { const dd = Math.hypot(l[i].X - c.X, l[i].Y - c.Y); if (dd < bd) { bd = dd; bi = i; } }
+        if (bi >= 0 && bd < P.distanceAngle * E && !abs.some((t) => Math.abs(t - cum[bi]) < 2 * P.diametre * E)) abs.push(cum[bi]);
       }
+      abs.sort((u, v) => u - v);
+      // compléments : aucun écart de plus de `espacement` entre deux entretoises le long de la ligne
+      const points = abs.slice();
+      const combler = (a, b) => { const n = Math.ceil((b - a) / (P.espacement * E)) - 1; for (let k = 1; k <= n; k++) points.push(a + ((b - a) * k) / (n + 1)); };
+      if (boucle) {
+        if (!abs.length) {
+          // boucle sans angle (pilule, intérieur d'un o) : départ au point le plus à gauche, nombre pair (symétrie) ;
+          // petite boucle : rien si la lettre a déjà ses entretoises
+          const n = 2 * Math.round(L / (2 * P.espacement * E)) || (pos.length ? 0 : 2);
+          let i0 = 0; for (let i = 1; i < l.length; i++) if (l[i].X < l[i0].X) i0 = i;
+          for (let k = 0; k < n; k++) points.push((cum[i0] + (k * L) / n) % L);
+        } else {
+          for (let k = 0; k < abs.length - 1; k++) combler(abs[k], abs[k + 1]);
+          combler(abs[abs.length - 1], abs[0] + L);
+        }
+      } else {
+        if (!abs.length) { const n = Math.max(1, Math.round(L / (P.espacement * E))); for (let k = 0; k < n; k++) points.push(((k + 0.5) * L) / n); }
+        else {
+          // bouts de ligne : une entretoise si l'angle le plus proche est loin
+          if (abs[0] > P.espacement * E / 2) points.push(Math.min(abs[0] / 2, P.espacement * E / 2));
+          if (L - abs[abs.length - 1] > P.espacement * E / 2) points.push(L - Math.min((L - abs[abs.length - 1]) / 2, P.espacement * E / 2));
+          const tous = points.slice().sort((u, v) => u - v);
+          for (let k = 0; k < tous.length - 1; k++) combler(tous[k], tous[k + 1]);
+        }
+      }
+      // angles d'abord, puis compléments — un complément trop près d'une entretoise déjà posée (bouts de deux morceaux de
+      // ligne qui se touchent) est inutile
+      const nAngles = abs.length;
+      points.forEach((t, k) => {
+        const q = pointA(l, ((t % L) + L) % L);
+        if (k < nAngles) ajouter(q, "bord");
+        else if (!pos.some((p) => Math.hypot(p.X - q.X, p.Y - q.Y) < 0.4 * P.espacement * E)) ajouter(q, "bord");
+      });
     }
   }
   // (2) au milieu, seulement pour une surface vraiment large
@@ -626,37 +731,35 @@ function placerEntretoises(piece, G, P) {
   const centre = centreDe(piece);
   const dPiece = distanceAuBord(piece, 0.5);
   const tient = (q) => dPiece(q.X, q.Y) >= (r + 0.5) * E;
-  const axe0 = (G.length ? crete(G, 0.5) : []).filter(tient);
-  const axe = axe0.length ? axe0 : crete(piece, 0.5).filter(tient);
+  // axe de la lettre (centré dans le trait), affiné ; ses bouts = vrais bouts de trait
+  const sq = crete(piece, 0.5, P.brancheMin);
+  const axe = sq.filter(tient);
   if (!axe.length) return { pos, modes, minimum };
   let garde = []; for (const q of axe) if (!garde.some((g) => Math.abs(g.X - q.X) + Math.abs(g.Y - q.Y) < 1.5 * E)) garde.push(q);
   { const g2 = garde.filter((q) => garde.filter((v) => v !== q && Math.hypot(v.X - q.X, v.Y - q.Y) < 3.5 * E).length >= 2); if (g2.length) garde = g2; }
-  // bouts de l'axe : voisins tous du même côté ; un seul représentant par bout (le plus avancé)
-  const R = 6 * E, bouts = [];
-  for (const q of garde) {
-    let sx = 0, sy = 0, n = 0;
-    for (const v of garde) { const d = Math.hypot(v.X - q.X, v.Y - q.Y); if (d > 0 && d < R) { sx += v.X - q.X; sy += v.Y - q.Y; n++; } }
-    if (n < 4) continue;
-    const m = Math.hypot(sx / n, sy / n);
-    if (m > 0.42 * R) bouts.push({ q, avance: m });
-  }
+  // bouts de trait : extrémités du squelette, ramenées sur le dernier point de l'axe où l'entretoise tient
   const tetes = [];
-  for (const b of bouts.sort((u, v) => v.avance - u.avance)) if (!tetes.some((t) => Math.hypot(t.X - b.q.X, t.Y - b.q.Y) < 20 * E)) tetes.push(b.q);
+  for (const b of sq.bouts) {
+    let m = null, dm = Infinity;
+    for (const q of garde) { const d = Math.hypot(q.X - b.X, q.Y - b.Y); if (d < dm) { dm = d; m = q; } }
+    if (m && dm < 12 * E && !tetes.some((t) => Math.hypot(t.X - m.X, t.Y - m.Y) < 15 * E)) tetes.push(m);
+  }
   if (P.debug) P.debug.push({ garde, tetes, centre });
   const [, py0, , py1] = boite(piece);
   const bas = (q) => q.Y > centre.Y + 0.1 * (py1 - py0);
   let Gc = G;
   const valider = (c) => {
-    const sur = 0.5;
-    if (!Gc.length || !coupeLaRainure(Gc, c, P, sur)) return c;
+    const ok = (q) => !coupeLaRainure(Gc, q, P, 0) && !coupeLaRainure(Gc, q, P, 0.5);
+    if (!Gc.length || ok(c)) return c;
     for (let d = 1; d <= 10; d++) for (let a = 0; a < 16; a++) {
       const q = { X: Math.round(c.X + Math.cos((a * Math.PI) / 8) * d * E), Y: Math.round(c.Y + Math.sin((a * Math.PI) / 8) * d * E) };
-      if (tient(q) && !coupeLaRainure(Gc, q, P, sur)) return q;
+      if (tient(q) && ok(q)) return q;
     }
     return null;
   };
   const poser = (q) => { pos.push(q); modes.push("trait"); if (Gc.length) Gc = couperRainure(Gc, q, P); };
   const proche = (q, l, d) => l.some((p) => Math.hypot(p.X - q.X, p.Y - q.Y) < d * E);
+  const ecartTrait = Math.max(15, taille / 4);                             // mm entre deux entretoises d'une même lettre fine
 
   if (minimum === 1) {
     // une seule (point du i, petite pièce) : un bout de rainure s'il y en a, sinon le côté droit (schéma de Jordan)
@@ -667,14 +770,15 @@ function placerEntretoises(piece, G, P) {
   // pieds : les bouts dans le bas de la lettre ; aucun (v) → le point le plus bas de l'axe
   let pieds = tetes.filter(bas);
   if (!pieds.length) pieds = [garde.reduce((m, q) => (q.Y > m.Y ? q : m), garde[0])];
-  for (const q of pieds) { const v = valider(q); if (v && !proche(v, pos, 15)) poser(v); }
+  for (const q of pieds) { const v = valider(q); if (v && !proche(v, pos, ecartTrait)) poser(v); }
   // équilibre : parmi les autres bouts et les points extrêmes de l'axe (gauche, droite, haut), celui qui porte le mieux
-  if (pos.length && pos.length < 3) {
+  // (petite pièce — point d'un i, jusqu'à 15 cm — : deux suffisent)
+  if (pos.length && pos.length < 3 && !(taille < 150 && pos.length >= 2)) {
     const ext = [
       garde.reduce((m, q) => (q.X < m.X ? q : m), garde[0]), garde.reduce((m, q) => (q.X > m.X ? q : m), garde[0]),
       garde.reduce((m, q) => (q.Y < m.Y ? q : m), garde[0]),
     ];
-    const cands = tetes.concat(ext).filter((q) => !proche(q, pos, 15));
+    const cands = tetes.concat(ext).filter((q) => !proche(q, pos, ecartTrait));
     const qualite = (q) => {
       if (pos.length === 1) return Math.hypot(q.X - pos[0].X, q.Y - pos[0].Y) - distSegment(centre, pos[0], q);
       // deux pieds : le triangle formé doit contenir le centre de la lettre, le plus grand possible
@@ -685,7 +789,7 @@ function placerEntretoises(piece, G, P) {
       const dedansT = s1 === s2 && s2 === s3;
       return Math.sqrt(aireT) + (dedansT ? 1e9 : 0);
     };
-    for (const q of cands.sort((u, v) => qualite(v) - qualite(u))) { const v = valider(q); if (v && !proche(v, pos, 15)) { poser(v); break; } }
+    for (const q of cands.sort((u, v) => qualite(v) - qualite(u))) { const v = valider(q); if (v && !proche(v, pos, ecartTrait)) { poser(v); break; } }
   }
   return { pos, modes, minimum };
 }
@@ -779,4 +883,4 @@ export function calculerRetro(D, parametres = {}, surProgression?) {
 }
 
 /** pour le banc d'essai uniquement */
-export const _interne = { couperRainure, coupeLaRainure, distSegment, placerEntretoises, centreDe, rainureAdaptative, piecesDe, decale, formes, aire, boite, diff, union, ouverture, E };
+export const _interne = { anglesDe, crete, couperRainure, coupeLaRainure, distSegment, placerEntretoises, centreDe, rainureAdaptative, piecesDe, decale, formes, aire, boite, diff, union, ouverture, E };

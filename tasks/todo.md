@@ -865,3 +865,9 @@ entre les rainures (invisibles), jamais dans le vide ; PDP = fichier à part, vu
       garder de la lumière. Test « coupe » rendu monotone (cercle élargi de la largeur du câble) : Placer et Finaliser
       d'accord sur les 6 fichiers (protocole_retro.mjs, chemin points Illustrator), 0 bloquant hors rameau Peppino N2.
 - [ ] Mesurer l'écart auto / main par lettre sur le fichier placé à la main par Jordan (à demander)
+- [x] v1.18.4 (17/11, prête, non poussée) — règles générales du placement, d'après le placement main de Jordan (Services,
+      relevé sur sa capture : banc/main_jordan.py) et celui de l'atelier sur le cœur YesAgain (PDP papier) :
+      lettres fines = squelette affiné (Zhang-Suen) + ébranchage des fourches/branches d'angle (seuil 1,7 × demi-épaisseur),
+      un par PIED (bout de trait du bas) + un d'ÉQUILIBRE (meilleur appui : longueur − écart au centre) ; jamais de boucle
+      ouverte ni de rainure coupée (test monotone, Placer = Finaliser) ; grandes surfaces = ANGLES de la forme d'abord
+      (contour extérieur, > 35°), puis compléments ≤ 30 cm. Mesure Services : 15/17 à ≤ 4,4 mm de la main.
