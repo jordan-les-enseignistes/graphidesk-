@@ -16,9 +16,9 @@ export interface ReglagesRetro {
   bordureMin: number;
   diametre: number;
   garde: number;
-  couverture: number;
+  espacement: number;
   profondeurMax: number;
-  ecartMin: number;
+  largeurMilieu: number;
   cable: number;
   bordureCable: number;
 }
@@ -28,9 +28,9 @@ export interface PdpRetro {
   miroir: boolean;
 }
 
-const CLES: Array<keyof ReglagesRetro> = ["bordure", "rainureMax", "rainureMin", "rainureCable", "bordureMin", "diametre", "garde", "couverture", "profondeurMax", "ecartMin", "cable", "bordureCable"];
+const CLES: Array<keyof ReglagesRetro> = ["bordure", "rainureMax", "rainureMin", "rainureCable", "bordureMin", "diametre", "garde", "espacement", "profondeurMax", "largeurMilieu", "cable", "bordureCable"];
 const STANDARD: ReglagesRetro = Object.fromEntries(CLES.map((k) => [k, (PARAMETRES_RETRO as unknown as Record<string, number>)[k]])) as unknown as ReglagesRetro;
-const MEMO = "fabrik_retro_reglages_v2";
+const MEMO = "fabrik_retro_reglages_v3";
 
 /** écarts au standard de l'atelier (bordure 6 mm, rainure entre 6 et 10 mm) — texte vide si tout est standard */
 export function horsStandard(r: ReglagesRetro): string {
@@ -152,7 +152,7 @@ export function RetroEntretoisesForm({ onLancer, isProcessing }: Props) {
           <Champ id="rt-rainuremin" label="Seuil LED (mm)" aide="Rainure plus fine : surlignée en jaune (le ruban ne passe pas)" valeur={r.rainureMin} standard={STANDARD.rainureMin} onChange={maj("rainureMin")} />
           <Champ id="rt-rainurecable" label="Rainure mini / câble (mm)" aide="La rainure s'affine jusqu'à cette largeur avant de s'arrêter" valeur={r.rainureCable} standard={STANDARD.rainureCable} onChange={maj("rainureCable")} min={0.5} />
           <Champ id="rt-diam" label="Diamètre entretoise (mm)" valeur={r.diametre} standard={STANDARD.diametre} onChange={maj("diametre")} min={4} />
-          <Champ id="rt-couv" label="Couverture (mm)" aide="Aucun point de lettre à plus de cette distance d'une entretoise. Plus petit = plus d'entretoises" valeur={r.couverture} standard={STANDARD.couverture} onChange={maj("couverture")} min={30} step={10} />
+          <Champ id="rt-esp" label="Espacement (mm)" aide="Grandes surfaces : une entretoise tous les X mm le long de la rainure" valeur={r.espacement} standard={STANDARD.espacement} onChange={maj("espacement")} min={50} step={10} />
           <Champ id="rt-garde" label="Garde rainure (mm)" aide="Matière laissée entre une entretoise et la rainure" valeur={r.garde} standard={STANDARD.garde} onChange={maj("garde")} />
         </div>
 
@@ -167,8 +167,8 @@ export function RetroEntretoisesForm({ onLancer, isProcessing }: Props) {
         {avance && (
           <div className="grid grid-cols-4 gap-4 mt-3 pt-3 border-t dark:border-slate-700">
             <Champ id="rt-bordmin" label="Bordure mini (mm)" aide="Sur un trait trop fin, la rainure continue au milieu en réduisant la bordure jusqu'à cette valeur" valeur={r.bordureMin} standard={STANDARD.bordureMin} onChange={maj("bordureMin")} />
-            <Champ id="rt-prof" label="Profondeur max (mm)" aide="Dans une grande surface, distance max entre l'entretoise et la rainure" valeur={r.profondeurMax} standard={STANDARD.profondeurMax} onChange={maj("profondeurMax")} />
-            <Champ id="rt-ecart" label="Écart min (mm)" aide="Entre deux entretoises d'une même lettre" valeur={r.ecartMin} standard={STANDARD.ecartMin} onChange={maj("ecartMin")} step={5} />
+            <Champ id="rt-prof" label="Distance à la rainure (mm)" aide="Grandes surfaces : centre des entretoises à cette distance de la rainure" valeur={r.profondeurMax} standard={STANDARD.profondeurMax} onChange={maj("profondeurMax")} />
+            <Champ id="rt-milieu" label="Largeur pour le milieu (mm)" aide="Au-delà de cette largeur de surface, des entretoises aussi au milieu" valeur={r.largeurMilieu} standard={STANDARD.largeurMilieu} onChange={maj("largeurMilieu")} step={50} />
             <Champ id="rt-cable" label="Passage de câble (mm)" aide="Raccords entre rainures quand aucune autre solution ne passe" valeur={r.cable} standard={STANDARD.cable} onChange={maj("cable")} />
             <Champ id="rt-bcable" label="Bordure câble (mm)" aide="Matière entre le passage de câble et le bord" valeur={r.bordureCable} standard={STANDARD.bordureCable} onChange={maj("bordureCable")} />
           </div>

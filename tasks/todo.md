@@ -851,3 +851,17 @@ entre les rainures (invisibles), jamais dans le vide ; PDP = fichier à part, vu
         tracés allégés (≤ 0,01 mm, Peppino 4466 → 421 points max) ; tracé « ouvert » à moins de 2 mm de se fermer = fermé ;
         prérequis « Pathfinder › Réunion » dans l'écran.
 - [ ] Récupérer de Jordan %TEMP%\graphidesk_retro_geometrie.json + graphidesk_retro_resultat.json si l'erreur revient
+- [x] v1.18.2 (17/11, 2e test de Jordan) : après « Finaliser » la rainure était en facettes (~15 mm) : c'était la roue de secours
+      de la v1.18.1 (un point sur deux, jusqu'à 4 fois) quand Illustrator refuse setEntirePath → remplacée par un dessin point
+      par point qui n'écarte QUE les points refusés, avec leurs coordonnées dans le message (pour enfin trouver la cause).
+      Finaliser nettoie le fichier pour la CNC (elle lit même les calques cachés) : restent Découpe / Rainure LED / Entretoises,
+      calques vides supprimés ; la rainure entière est mémorisée hors du document (Folder.userData/GraphiDesk/retro/), effacée
+      au prochain « Placer » → on peut toujours re-déplacer et re-finaliser.
+- [x] v1.18.2 (suite, 17/11) — placement des entretoises refait d'après le replacement à la main de Jordan (Centre Services) :
+      grandes surfaces = le long de la rainure côté intérieur, tous les 30 cm (réglable), rien au milieu sauf surface > 50 cm
+      (réglable) ; lettres fines = 2 entretoises sur l'AXE de la lettre (centrées, moins visibles), bouts de trait en priorité,
+      écartées en largeur + hauteur et équilibrées autour du centre (c, e : un bout + côté gauche) ; JAMAIS de morceau de rainure
+      isolé : au bout (rainure raccourcie, pointe supprimée) ou décalée sur le côté (passage ≥ câble), point du i décalé pour
+      garder de la lumière. Test « coupe » rendu monotone (cercle élargi de la largeur du câble) : Placer et Finaliser
+      d'accord sur les 6 fichiers (protocole_retro.mjs, chemin points Illustrator), 0 bloquant hors rameau Peppino N2.
+- [ ] Mesurer l'écart auto / main par lettre sur le fichier placé à la main par Jordan (à demander)

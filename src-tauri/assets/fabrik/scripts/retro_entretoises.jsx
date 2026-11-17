@@ -205,28 +205,26 @@
         }
         return out;
     }
-    // un anneau dans un trac\u00e9 vide : d'un bloc ; sinon point par point ; sinon all\u00e9g\u00e9 (un point sur deux)
+    // un anneau dans un trac\u00e9 vide : d'un bloc ; sinon point par point, en \u00e9cartant SEULEMENT les points refus\u00e9s
+    // (signal\u00e9s avec leurs coordonn\u00e9es : c'est ce qui dira pourquoi Illustrator les refuse)
     function remplir(p, pts) {
-        var essai = propres(pts), k, q, j, err = "";
+        var essai = propres(pts), k, q, err = "", refuses = [];
         if (essai.length < 2) throw new Error("anneau vide");
         try { p.setEntirePath(essai); return ""; } catch (e1) { err = e1.message; }
-        try {
-            while (p.pathPoints.length) p.pathPoints[0].remove();
-        } catch (e2) {}
-        try {
-            for (k = 0; k < essai.length; k++) {
+        try { while (p.pathPoints.length) p.pathPoints[p.pathPoints.length - 1].remove(); } catch (e2) {}
+        for (k = 0; k < essai.length; k++) {
+            q = null;
+            try {
                 q = p.pathPoints.add();
                 q.anchor = essai[k]; q.leftDirection = essai[k]; q.rightDirection = essai[k];
+            } catch (e3) {
+                if (refuses.length < 3) refuses.push("n\u00b0" + k + " [" + n3(essai[k][0]) + ", " + n3(essai[k][1]) + "] " + e3.message);
+                else refuses.push("");
+                try { if (q) q.remove(); } catch (e4) {}
             }
-            return "point par point (" + err + ")";
-        } catch (e3) { err += " / " + e3.message; }
-        for (j = 0; j < 4 && essai.length > 8; j++) {
-            var moitie = [];
-            for (k = 0; k < essai.length; k += 2) moitie.push(essai[k]);
-            essai = moitie;
-            try { p.setEntirePath(essai); return "all\u00e9g\u00e9 (" + err + ")"; } catch (e4) {}
         }
-        throw new Error(err);
+        if (p.pathPoints.length < 2) throw new Error(err + " (aucun point accept\u00e9)");
+        return "dessin\u00e9e point par point (" + err + ")" + (refuses.length ? ", " + refuses.length + " point(s) \u00e9cart\u00e9(s) sur " + essai.length + " : " + refuses.slice(0, 3).join(" ; ") : "");
     }
     function dessinerForme(l, forme, couleur, nom) {     // forme = [contour, trous\u2026], points [[x, y], \u2026]
         var p, cp, j, sub, note;
@@ -310,6 +308,40 @@
         l.zOrder(ZOrderMethod.BRINGTOFRONT);
     }
 
+    // ---------- m\u00e9moire de la rainure enti\u00e8re (hors du document : la CNC lit tous les calques, m\u00eame cach\u00e9s) ----------
+    function fichierMemoire(doc) {
+        var cle = "";
+        try { cle = String(doc.fullName.fsName); } catch (e) { cle = String(doc.name); }
+        var h = 0, i;
+        for (i = 0; i < cle.length; i++) h = (h * 31 + cle.charCodeAt(i)) % 2147483647;
+        var dossier = new Folder(Folder.userData + "/GraphiDesk/retro");
+        if (!dossier.exists) dossier.create();
+        var nom = String(doc.name).replace(/[^A-Za-z0-9_.-]+/g, "_").slice(0, 60);
+        return new File(dossier.fsName + "/rainure_entiere_" + nom + "_" + h + ".json");
+    }
+    function lireMemoire(doc) {
+        var f = fichierMemoire(doc), t = "";
+        if (!f.exists) return "";
+        try { f.encoding = "UTF-8"; f.open("r"); t = f.read(); f.close(); } catch (e) { try { f.close(); } catch (e2) {} t = ""; }
+        return t;
+    }
+    function ecrireMemoire(doc, texte) {
+        var f = fichierMemoire(doc);
+        try { f.encoding = "UTF-8"; f.open("w"); f.write(texte); f.close(); } catch (e) {}
+    }
+    function oublierMemoire(doc) { try { var f = fichierMemoire(doc); if (f.exists) f.remove(); } catch (e) {} }
+    // fichier pr\u00eat pour la CNC : seuls D\u00e9coupe, Rainure LED et Entretoises restent ; calques vides supprim\u00e9s
+    function nettoyer(doc) {
+        var i, l;
+        supprimerCalque(doc, L_ETROIT);
+        supprimerCalque(doc, L_ENTIERE);
+        for (i = doc.layers.length - 1; i >= 0; i--) {
+            l = doc.layers[i];
+            if (estNotre(String(l.name))) continue;
+            try { if (!l.pageItems.length && !l.layers.length) { l.locked = false; l.visible = true; l.remove(); } } catch (e) {}
+        }
+    }
+
     // ---------- \u00e9tape \u00ab placer \u00bb ----------
     function preparerDecoupe(doc) {
         var dec = calque(doc, L_DECOUPE), sel = [], i, j, l, it, a;
@@ -355,6 +387,7 @@
 
         barre.maj(0.86, "Dessin de la rainure\u2026");
         supprimerCalque(doc, L_ENTIERE);
+        oublierMemoire(doc);                             // nouveau placement : nouvelle rainure enti\u00e8re
         var lr = assurerCalque(doc, L_RAINURE), le = assurerCalque(doc, L_ENTRETOISES), i;
         vider(lr); vider(le);
         for (i = 0; i < res.rainure.length; i++) dessinerForme(lr, res.rainure[i], VERT, "rainure " + (i + 1));
@@ -454,23 +487,18 @@
         barre.maj(0.02, "Rel\u00e9v\u00e9 des entretoises\u2026");
         dec.locked = false; le.locked = false; le.visible = true;
         // la rainure ENTI\u00c8RE : celle gard\u00e9e \u00e0 la premi\u00e8re finalisation, sinon celle du calque Rainure LED
-        var source = (lent && lent.pageItems.length) ? lent : lr;
+        var memoire = lireMemoire(doc);
+        var rainureTexte = memoire || relever((lent && lent.pageItems.length) ? lent : lr);
         var entretoises = releverEntretoises(le);
         if (!entretoises.length) throw new Error("Aucune entretoise sur le calque \u00ab Entretoises \u00bb.");
         ecrire(FICHIER_GEO, "{\"ok\":true,\"jeton\":" + chaine(jeton) + ",\"etape\":\"finaliser\",\"coupe\":" + relever(dec) +
-            ",\"rainure\":" + relever(source) + ",\"entretoises\":[" + entretoises.join(",") + "]}");
+            ",\"rainure\":" + rainureTexte + ",\"entretoises\":[" + entretoises.join(",") + "]}");
         geoEcrit = true;
         var res = attendreResultat(0.1);
         if (res.erreur) throw new Error(String(res.erreur));
 
         barre.maj(0.86, "Rainure finale\u2026");
         var i;
-        // garde la rainure enti\u00e8re (cach\u00e9e, non imprimable) pour pouvoir re-finaliser apr\u00e8s un nouveau d\u00e9placement
-        if (!lent || !lent.pageItems.length) {
-            lent = assurerCalque(doc, L_ENTIERE);
-            for (i = 0; lr && i < lr.pageItems.length; i++) lr.pageItems[i].duplicate(lent, ElementPlacement.PLACEATEND);
-        }
-        lent.printable = false; lent.visible = false; lent.locked = true;
         // la nouvelle rainure est d'abord dessin\u00e9e \u00e0 part : l'ancienne n'est remplac\u00e9e que si tout s'est bien dessin\u00e9
         var provisoire = doc.layers.add(), echecs = 0;
         provisoire.name = "Rainure LED (calcul en cours)";
@@ -483,10 +511,12 @@
         vider(lr);
         for (i = provisoire.pageItems.length - 1; i >= 0; i--) provisoire.pageItems[i].move(lr, ElementPlacement.PLACEATBEGINNING);
         try { provisoire.remove(); } catch (eP2) {}
-        try { dessinerEtroit(doc, res.etroit); } catch (eE) { anomalies.push("zones inf\u00e9rieures au minimum : " + eE.message); }
+        // rainure enti\u00e8re m\u00e9moris\u00e9e (premi\u00e8re finalisation) : on pourra re-d\u00e9placer et re-finaliser
+        if (!memoire) ecrireMemoire(doc, rainureTexte);
         contour(dec, ROSE, 1);
         contour(le, BLEU, 1);
         dessinerDoutes(doc, res.doutes);
+        nettoyer(doc);
         ordonner(doc);
         var pdp = null;
         if (!res.doutes.length) { barre.maj(0.92, "PDP\u2026"); pdp = fairePdp(doc, dec, le); }
@@ -514,6 +544,7 @@
         m += "\u2022 " + s.entretoises + " entretoise(s) sur " + s.pieces + " pi\u00e8ce(s)\n";
         if (res.etroit && res.etroit.length) m += "\u2022 " + res.etroit.length + " zone(s) de rainure plus fine(s) que " + (P.rainureMin || 6) + " mm (en jaune)\n";
         if (s.ecourtees) m += "\u2022 Rainure \u00e9court\u00e9e (1 mm avant l'entretoise) \u00e0 " + s.ecourtees + " endroit(s)\n";
+        m += "\u2022 Fichier nettoy\u00e9 pour la CNC : calques D\u00e9coupe, Rainure LED, Entretoises\n   (tu peux encore d\u00e9placer des entretoises et relancer \u00ab Finaliser \u00bb)\n";
         if (res.doutes.length) {
             m += "\n\u26d4 " + res.doutes.length + " point(s) \u00e0 corriger, cercl\u00e9(s) en rouge :\n";
             for (var i = 0; i < res.doutes.length && i < 8; i++) m += "   - " + res.doutes[i].motif + "\n";

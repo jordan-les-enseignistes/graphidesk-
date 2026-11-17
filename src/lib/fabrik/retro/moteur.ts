@@ -32,6 +32,11 @@ export const PARAMETRES_RETRO = {
   fraise: 3,           // mm, diamètre minimal de la fraise
   diametre: 9,         // mm, diamètre d'une entretoise
   garde: 2,            // mm de matière pleine laissés entre une entretoise et la rainure
+  espacement: 300,     // mm entre deux entretoises le long de la rainure (Jordan, 17/11 : « partons sur 30 cm »)
+  largeurMilieu: 500,  // mm : au-delà de cette largeur de surface, des entretoises aussi au milieu
+  equilibre: 2,
+  bonusBout: 20,
+  mietteRainure: 30,   // mm² : un bout de rainure plus petit, détaché par une entretoise, est supprimé (rainure raccourcie)       // mm « offerts » à une entretoise posée au bout d'un trait (lettre fine)        // poids de l'équilibre (ligne entre les deux entretoises d'une lettre fine passant près de son centre)
   couverture: 130,     // mm : tout point d'une pièce est à moins de cette distance d'une entretoise (≈ 6 par lettre Peppino, 4–5 sur le logo Quimper)
   profondeurMax: 15,   // mm : dans une grande surface, l'entretoise reste à cette distance de la rainure au plus (placement de Jordan)
   ecartMin: 40,        // mm entre deux entretoises d'une même pièce (sauf pièce trop petite)
@@ -200,14 +205,14 @@ function passagesCable(piece, G, P) {
  * intérieurs des lettres sont des trous. Des objets distincts qui se chevauchent (feuilles d'un rameau dessinées l'une sur
  * l'autre) sont réunis : la CNC découpe une seule pièce. Les tracés ouverts sont signalés dans `doutes`.
  */
-function piecesDe(traces, doutes, motifOuverts = "tracé(s) de découpe ouvert(s), ignoré(s)") {
+function piecesDe(traces, doutes, motifOuverts = "tracé(s) de découpe ouvert(s), ignoré(s)", aireMin = 20) {
   const parObjet = new Map();
   traces.forEach((c, i) => { if (!c.ferme || c.pts.length < 3) return; const k = c.objet ?? i; if (!parObjet.has(k)) parObjet.set(k, []); parObjet.get(k).push(versC(c.pts)); });
   const fermes = [];
   for (const anneaux of parObjet.values()) fermes.push(...combinerObjet(anneaux));
   const ouverts = traces.filter((c) => !c.ferme);
   if (ouverts.length && doutes) doutes.push({ motif: `${ouverts.length} ${motifOuverts}`, boite: boiteMm(ouverts.map((c) => versC(c.pts)), 10) });
-  return formes(union(fermes)).filter((f) => aire(f) > 20);
+  return formes(union(fermes)).filter((f) => aire(f) > aireMin);
 }
 
 /** cercle (Clipper) de centre (x, y) et de rayon r, en mm */
@@ -232,7 +237,8 @@ export function finaliserRetro(D, parametres = {}) {
   const pieces = piecesDe(D.coupe, doutes);
   const boites = pieces.map((f) => boite(f));
   const chevauche = (a, b) => !(a[2] < b[0] || b[2] < a[0] || a[3] < b[1] || b[3] < a[1]);
-  let G = union(piecesDe(D.rainure || [], null).flat());
+  // (aucun seuil de surface pour la rainure : une toute petite rainure — feuille d'un rameau — ne doit pas disparaître)
+  let G = union(piecesDe(D.rainure || [], null, undefined, 0.5).flat());
   const parPiece = pieces.map(() => 0);
   let horsLettre = 0, coupees = 0, ecourtees = 0;
   for (const e of D.entretoises || []) {
@@ -248,9 +254,12 @@ export function finaliserRetro(D, parametres = {}) {
     const bm = boite(marge), touche = G.length && chevauche(boite(G), bm) ? formes(G).filter((f) => chevauche(boite(f), bm)) : [];
     const local = touche.flat();
     if (local.length && Math.abs(aire(inter(marge, local))) > 0.05) {
-      const G2l = ouverture(diff(local, marge), rayonOutil(P));
-      const G2 = union(diff(G, local), G2l);
-      if (formes(G2l).length > touche.length) { coupees++; doutes.push({ motif: "entretoise qui couperait la rainure en deux (à déplacer en bout de jambage)", boite: b }); continue; }
+      const centre = { X: Math.round(e.x * E), Y: Math.round(e.y * E) };
+      const G2 = union(diff(G, local), couperRainure(local, centre, P));
+      // qui couperait la rainure en deux (milieu du trait d'une lettre fine) : la rainure n'est PAS coupée — pas de LED à cet
+      // endroit, le câble passe (Jordan, 17/11/2026)
+      // ne doit JAMAIS isoler un morceau de rainure (Jordan, 17/11/2026) : au bout, ou sur le côté pour que le câble passe
+      if (coupeLaRainure(local, centre, P)) { coupees++; doutes.push({ motif: "entretoise qui coupe la rainure : à mettre au bout, ou sur le côté pour que le câble passe", boite: b }); continue; }
       G = G2; ecourtees++;
     }
   }
@@ -431,6 +440,256 @@ function simplifier(pts, tol) {
   return pts.filter((_, i) => garde[i]);
 }
 
+/** centre de gravité d'une pièce (contour + trous) */
+function centreDe(piece) {
+  let A = 0, cx = 0, cy = 0;
+  for (const r of piece) for (let i = 0; i < r.length; i++) {
+    const a = r[i], b = r[(i + 1) % r.length], k = a.X * b.Y - b.X * a.Y;
+    A += k; cx += (a.X + b.X) * k; cy += (a.Y + b.Y) * k;
+  }
+  return A ? { X: cx / (3 * A), Y: cy / (3 * A) } : { X: 0, Y: 0 };
+}
+const distSegment = (p, a, b) => {
+  const dx = b.X - a.X, dy = b.Y - a.Y, L2 = dx * dx + dy * dy;
+  const t = L2 ? Math.max(0, Math.min(1, ((p.X - a.X) * dx + (p.Y - a.Y) * dy) / L2)) : 0;
+  return Math.hypot(p.X - (a.X + t * dx), p.Y - (a.Y + t * dy));
+};
+/** parties de polylignes (ouvertes) contenues dans une zone */
+function couperLignes(lignes, zone) {
+  if (!lignes.length || !zone.length) return [];
+  const c = new CL.Clipper(), arbre = new CL.PolyTree();
+  for (const l of lignes) c.AddPath(l, CL.PolyType.ptSubject, false);
+  c.AddPaths(zone, CL.PolyType.ptClip, true);
+  c.Execute(CL.ClipType.ctIntersection, arbre, NZ, NZ);
+  return CL.Clipper.OpenPathsFromPolyTree(arbre);
+}
+const longueur = (l) => { let L = 0; for (let i = 1; i < l.length; i++) L += Math.hypot(l[i].X - l[i - 1].X, l[i].Y - l[i - 1].Y); return L; };
+/** point à l'abscisse curviligne `t` d'une polyligne */
+function pointA(l, t) {
+  for (let i = 1; i < l.length; i++) {
+    const L = Math.hypot(l[i].X - l[i - 1].X, l[i].Y - l[i - 1].Y);
+    if (t <= L || i === l.length - 1) { const u = L ? Math.min(1, t / L) : 0; return { X: Math.round(l[i - 1].X + (l[i].X - l[i - 1].X) * u), Y: Math.round(l[i - 1].Y + (l[i].Y - l[i - 1].Y) * u) }; }
+    t -= L;
+  }
+  return l[l.length - 1];
+}
+
+/** distance (unités Clipper) au bord d'une zone, par points du bord tous les `pas` mm rangés dans une grille */
+function distanceAuBord(paths, pas) {
+  const C = 5 * E, casier = new Map();
+  for (const q of jalons(paths, pas)) { const k = Math.floor(q.X / C) + "," + Math.floor(q.Y / C); if (!casier.has(k)) casier.set(k, []); casier.get(k).push(q); }
+  return (x, y) => {
+    const cx = Math.floor(x / C), cy = Math.floor(y / C); let best = Infinity;
+    for (let rr = 0; rr < 60 && (best === Infinity || (rr - 1) * C < best); rr++)
+      for (let i = cx - rr; i <= cx + rr; i++) for (let j = cy - rr; j <= cy + rr; j++) {
+        if (Math.max(Math.abs(i - cx), Math.abs(j - cy)) !== rr) continue;
+        for (const q of casier.get(i + "," + j) || []) { const d = Math.hypot(q.X - x, q.Y - y); if (d < best) best = d; }
+      }
+    return best;
+  };
+}
+/**
+ * « Crête » d'une zone : points d'une grille de `pas` mm plus loin du bord que leurs deux voisins dans au moins une
+ * direction — c'est l'axe des traits, continu aux jonctions (bas d'un v).
+ */
+function crete(paths, pas) {
+  const dB = distanceAuBord(paths, Math.min(0.5, pas / 2)), s0 = pas * E, [x0, y0, x1, y1] = boite(paths);
+  const nx = Math.ceil((x1 - x0) / s0) + 3, ny = Math.ceil((y1 - y0) / s0) + 3, ox = x0 - s0, oy = y0 - s0;
+  const dist = new Float64Array(nx * ny).fill(-1);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const x = ox + i * s0, y = oy + j * s0;
+    if (dedans({ X: x, Y: y }, paths)) dist[j * nx + i] = dB(x, y);
+  }
+  const out = [], garde = new Uint8Array(nx * ny);
+  for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+    const k = j * nx + i, d = dist[k];
+    if (d <= 0) continue;
+    // une vraie crête descend des deux côtés (marge de 0,2 pas : les petites ondulations du contour ne font pas de crête)
+    for (const [di, dj] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
+      const a1 = dist[k - dj * nx - di], a2 = dist[k + dj * nx + di], m = 0.2 * s0 * Math.hypot(di, dj);
+      if (a1 >= 0 && a2 >= 0 && d >= a1 + m * 0.25 && d >= a2 + m * 0.25 && d - a1 + d - a2 > m) { garde[k] = 1; break; }
+    }
+  }
+  // ébarbage : les petites branches (vers les angles du contour, bruit de calcul) sont retirées par le bout, 6 fois
+  for (let passe = 0; passe < 6; passe++) {
+    const retirer = [];
+    for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+      const k = j * nx + i; if (!garde[k]) continue;
+      let n = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) if ((di || dj) && garde[k + dj * nx + di]) n++;
+      if (n <= 1) retirer.push(k);
+    }
+    if (!retirer.length) break;
+    for (const k of retirer) garde[k] = 0;
+  }
+  for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) if (garde[j * nx + i]) out.push({ X: Math.round(ox + i * s0), Y: Math.round(oy + j * s0) });
+  return out;
+}
+/** rainure coupée par une entretoise en c (marge de 1 mm), sans les miettes : un bout raccourci ne laisse pas de morceau */
+function couperRainure(G, c, P, rayon = rayonOutil(P)) {
+  const marge = [cercleC(c.X / E, c.Y / E, P.diametre / 2 + 1)];
+  if (Math.abs(aire(inter(marge, G))) < 0.05) return G;
+  // chaque rainure touchée : on garde son plus grand morceau ; un petit bout détaché AU-DELÀ de l'entretoise (pointe d'une
+  // queue de e) est supprimé — la rainure est raccourcie, sans morceau isolé. Deux grands morceaux = rainure coupée en deux.
+  const sortie = [];
+  for (const f of formes(G)) {
+    const morceaux = formes(ouverture(diff(f, marge), rayon)).sort((a, b) => aire(b) - aire(a));
+    if (!morceaux.length) continue;
+    // (la coupe n'est faite qu'après le test « coupeLaRainure » : un seul vrai morceau reste ; tout autre bout, même de plus
+    //  de 30 mm², est une pointe détachée au-delà de l'entretoise → supprimée, jamais laissée flottante)
+    sortie.push(morceaux[0]);
+  }
+  return sortie.flat();
+}
+/** vrai si une entretoise en c couperait la rainure en morceaux (le câble — `cable` mm — ne passerait plus) */
+function coupeLaRainure(G, c, P, surplus = 0) {
+  // Test MONOTONE (une entretoise plus grosse ne peut jamais « couper moins ») : on retire de la rainure le cercle de
+  // l'entretoise ÉLARGI de la largeur du câble ; si la rainure reste d'un seul tenant, il reste à côté de l'entretoise un
+  // passage d'au moins `cable` mm. Au bout d'une rainure, ça ne fait que la raccourcir.
+  // (surplus : marge de sécurité de Placer, Finaliser vérifie sans)
+  const r = P.diametre / 2 + 1, grand = [cercleC(c.X / E, c.Y / E, r + P.cable + surplus)], petit = [cercleC(c.X / E, c.Y / E, r)];
+  const bm = boite(grand);
+  const touche = formes(G).filter((f) => { const b = boite(f); return !(b[2] < bm[0] || bm[2] < b[0] || b[3] < bm[1] || bm[3] < b[1]); });
+  if (!touche.length || Math.abs(aire(inter(petit, touche.flat()))) < 0.05) return false;   // l'entretoise ne touche pas la rainure
+  const morceaux = (g) => formes(g).filter((m) => aire(m) > P.mietteRainure);
+  const trous = (l) => l.reduce((t, m) => t + m.length - 1, 0);
+  for (const f of touche) {
+    if (Math.abs(aire(inter(petit, f))) < 0.05) continue;
+    const avant = morceaux(f), apres = morceaux(diff(f, grand));
+    if (apres.length > avant.length) return true;                          // coupée en deux (le câble ne passe pas)
+    if (trous(apres) < trous(avant)) return true;                          // boucle ouverte (e, o, a) : interdit aussi
+    // (presque) effacée : une petite rainure (point d'un i) ne doit pas perdre plus de la moitié de sa lumière
+    const A = Math.abs(aire(f)), reste = Math.abs(aire(diff(f, petit)));
+    if (reste < 0.5 * A && A < 4 * P.mietteRainure) return true;
+    if (reste < 0.05 * A) return true;
+  }
+  return false;
+}
+
+/**
+ * Entretoises d'une pièce (règles de Jordan, 17/11/2026) :
+ *  - « bord » : là où il y a la place, LE LONG DE LA RAINURE, côté intérieur, à `profondeurMax` mm d'elle, tous les
+ *    `espacement` mm (environ) — rien au milieu de la surface ;
+ *  - « milieu » : seulement si la surface est plus large que `largeurMilieu`, des entretoises en plus au milieu, à
+ *    `espacement` mm les unes des autres ;
+ *  - « trait » : lettre fine (pas la place le long de la rainure) : DEUX entretoises au milieu du trait (une pour un point
+ *    ou une très petite pièce), aussi loin l'une de l'autre que possible, la ligne qui les relie passant près du centre de la
+ *    lettre (sinon elle porte mal : sur un c, pas les deux bouts du même côté). Au besoin sur la rainure : pas de LED à cet
+ *    endroit, le câble passe (« on fait comme on peut »).
+ */
+function placerEntretoises(piece, G, P) {
+  const r = P.diametre / 2;
+  const [bx0, by0, bx1, by1] = boite(piece), taille = Math.hypot(bx1 - bx0, by1 - by0) / E;
+  const minimum = taille < 60 ? 1 : 2;
+  const pos = [], modes = [];
+  const ecart = Math.max(P.diametre * 2, Math.min(P.ecartMin, taille / 4)) * E;
+  const libre = (c) => !pos.some((p) => Math.hypot(p.X - c.X, p.Y - c.Y) < ecart);
+  const ajouter = (c, mode) => { if (libre(c)) { pos.push(c); modes.push(mode); return true; } return false; };
+  // centres possibles sur la matière pleine : cercle entier dans la lettre, à `garde` mm au moins de la rainure
+  const plein = diff(decale(piece, -(r + 0.5)), G.length ? decale(G, P.garde + r) : []);
+
+  // (1) le long de la rainure, côté intérieur
+  if (G.length && plein.length) {
+    const d = Math.max(P.garde + r, P.profondeurMax);
+    const lignes = couperLignes(decale(G, d).map((a) => a.concat([a[0]])), plein).filter((l) => longueur(l) > 10 * E);
+    lignes.sort((u, v) => longueur(v) - longueur(u));                      // la plus grande boucle d'abord (contour de la lettre)
+    for (const l of lignes) {
+      const L = longueur(l), boucle = Math.hypot(l[0].X - l[l.length - 1].X, l[0].Y - l[l.length - 1].Y) < 1 * E;
+      if (boucle) {
+        // boucle : nombre pair (symétrie), départ au point le plus à gauche (une entretoise à chaque bout d'une forme allongée)
+        // petite boucle (intérieur d'un o, d'un p) : rien si la lettre a déjà ses entretoises (trop serré sinon)
+        const n = 2 * Math.round(L / (2 * P.espacement * E)) || (pos.length ? 0 : 2);
+        let i0 = 0; for (let i = 1; i < l.length; i++) if (l[i].X < l[i0].X) i0 = i;
+        const tour = l.slice(i0, l.length - 1).concat(l.slice(0, i0 + 1));
+        for (let k = 0; k < n; k++) ajouter(pointA(tour, (k * L) / n), "bord");
+      } else {
+        const n = Math.max(1, Math.round(L / (P.espacement * E)));
+        for (let k = 0; k < n; k++) ajouter(pointA(l, ((k + 0.5) * L) / n), "bord");
+      }
+    }
+  }
+  // (2) au milieu, seulement pour une surface vraiment large
+  if (pos.length && plein.length && decale(piece, -P.largeurMilieu / 2).length) {
+    const coeur = decale(plein, -P.espacement / 2);
+    for (const c of grille(coeur, P.espacement / 3)) {
+      if (!pos.some((p) => Math.hypot(p.X - c.X, p.Y - c.Y) < P.espacement * E)) { pos.push(c); modes.push("milieu"); }
+    }
+  }
+  if (pos.length >= minimum) return { pos, modes, minimum };
+
+  // (3) lettre fine — règle tirée du placement à la main de Jordan sur « Services » (17/11/2026) :
+  //   • UNE ENTRETOISE PAR PIED : chaque bout de rainure dans le bas de la lettre (bas du r, du i, queue du e, bas du c, les
+  //     deux pieds du n…), centrée sur le bout de la rainure (il ne reste rien de la rainure au-delà) ;
+  //   • PLUS UNE D'ÉQUILIBRE si la lettre n'a pas trois pieds : celle qui fait le mieux porter la lettre (haut du S, du i,
+  //     bout du bras du r, haut du n ; pour le c et le e : le côté gauche à mi-hauteur, posée sur le côté pour que le câble passe) ;
+  //   • jamais une entretoise qui coupe la rainure ou ouvre une boucle (sinon elle est décalée sur le côté, ou écartée).
+  pos.length = 0; modes.length = 0;
+  const centre = centreDe(piece);
+  const dPiece = distanceAuBord(piece, 0.5);
+  const tient = (q) => dPiece(q.X, q.Y) >= (r + 0.5) * E;
+  const axe0 = (G.length ? crete(G, 0.5) : []).filter(tient);
+  const axe = axe0.length ? axe0 : crete(piece, 0.5).filter(tient);
+  if (!axe.length) return { pos, modes, minimum };
+  let garde = []; for (const q of axe) if (!garde.some((g) => Math.abs(g.X - q.X) + Math.abs(g.Y - q.Y) < 1.5 * E)) garde.push(q);
+  { const g2 = garde.filter((q) => garde.filter((v) => v !== q && Math.hypot(v.X - q.X, v.Y - q.Y) < 3.5 * E).length >= 2); if (g2.length) garde = g2; }
+  // bouts de l'axe : voisins tous du même côté ; un seul représentant par bout (le plus avancé)
+  const R = 6 * E, bouts = [];
+  for (const q of garde) {
+    let sx = 0, sy = 0, n = 0;
+    for (const v of garde) { const d = Math.hypot(v.X - q.X, v.Y - q.Y); if (d > 0 && d < R) { sx += v.X - q.X; sy += v.Y - q.Y; n++; } }
+    if (n < 3) continue;
+    const m = Math.hypot(sx / n, sy / n);
+    if (m > 0.35 * R) bouts.push({ q, avance: m });
+  }
+  const tetes = [];
+  for (const b of bouts.sort((u, v) => v.avance - u.avance)) if (!tetes.some((t) => Math.hypot(t.X - b.q.X, t.Y - b.q.Y) < 8 * E)) tetes.push(b.q);
+  if (P.debug) P.debug.push({ garde, tetes, centre });
+  const [, py0, , py1] = boite(piece);
+  const bas = (q) => q.Y > centre.Y + 0.1 * (py1 - py0);
+  let Gc = G;
+  const valider = (c) => {
+    const sur = 0.5;
+    if (!Gc.length || !coupeLaRainure(Gc, c, P, sur)) return c;
+    for (let d = 1; d <= 10; d++) for (let a = 0; a < 16; a++) {
+      const q = { X: Math.round(c.X + Math.cos((a * Math.PI) / 8) * d * E), Y: Math.round(c.Y + Math.sin((a * Math.PI) / 8) * d * E) };
+      if (tient(q) && !coupeLaRainure(Gc, q, P, sur)) return q;
+    }
+    return null;
+  };
+  const poser = (q) => { pos.push(q); modes.push("trait"); if (Gc.length) Gc = couperRainure(Gc, q, P); };
+  const proche = (q, l, d) => l.some((p) => Math.hypot(p.X - q.X, p.Y - q.Y) < d * E);
+
+  if (minimum === 1) {
+    // une seule (point du i, petite pièce) : un bout de rainure s'il y en a, sinon le côté droit (schéma de Jordan)
+    const ordre = tetes.length ? tetes : garde.slice().sort((a, b) => b.X - a.X);
+    for (const q of ordre) { const v = valider(q); if (v) { poser(v); break; } }
+    return { pos, modes, minimum };
+  }
+  // pieds : les bouts dans le bas de la lettre ; aucun (v) → le point le plus bas de l'axe
+  let pieds = tetes.filter(bas);
+  if (!pieds.length) pieds = [garde.reduce((m, q) => (q.Y > m.Y ? q : m), garde[0])];
+  for (const q of pieds) { const v = valider(q); if (v && !proche(v, pos, 15)) poser(v); }
+  // équilibre : parmi les autres bouts et les points extrêmes de l'axe (gauche, droite, haut), celui qui porte le mieux
+  if (pos.length && pos.length < 3) {
+    const ext = [
+      garde.reduce((m, q) => (q.X < m.X ? q : m), garde[0]), garde.reduce((m, q) => (q.X > m.X ? q : m), garde[0]),
+      garde.reduce((m, q) => (q.Y < m.Y ? q : m), garde[0]),
+    ];
+    const cands = tetes.concat(ext).filter((q) => !proche(q, pos, 15));
+    const qualite = (q) => {
+      if (pos.length === 1) return -P.equilibre * distSegment(centre, pos[0], q) + 0.3 * Math.hypot(q.X - pos[0].X, q.Y - pos[0].Y);
+      // deux pieds : le triangle formé doit contenir le centre de la lettre, le plus grand possible
+      const [a, b] = pos, aireT = Math.abs((b.X - a.X) * (q.Y - a.Y) - (q.X - a.X) * (b.Y - a.Y)) / 2;
+      const s1 = Math.sign((b.X - a.X) * (centre.Y - a.Y) - (centre.X - a.X) * (b.Y - a.Y));
+      const s2 = Math.sign((q.X - b.X) * (centre.Y - b.Y) - (centre.X - b.X) * (q.Y - b.Y));
+      const s3 = Math.sign((a.X - q.X) * (centre.Y - q.Y) - (centre.X - q.X) * (a.Y - q.Y));
+      const dedansT = s1 === s2 && s2 === s3;
+      return Math.sqrt(aireT) + (dedansT ? 1e9 : 0);
+    };
+    for (const q of cands.sort((u, v) => qualite(v) - qualite(u))) { const v = valider(q); if (v && !proche(v, pos, 15)) { poser(v); break; } }
+  }
+  return { pos, modes, minimum };
+}
+
 /** Calcule rainure, liaisons et entretoises. `surProgression` (facultatif) reçoit l'avancement, de 0 à 1. */
 export function calculerRetro(D, parametres = {}, surProgression?) {
   const P = { ...PARAMETRES_RETRO, ...parametres };
@@ -506,96 +765,10 @@ export function calculerRetro(D, parametres = {}, surProgression?) {
     const sombres = formes(diff(bordLettre, eclaire)).map((z) => ouverture(z, 0.3)).filter((z) => aire(z) > 6);
     for (const z of sombres) res.doutes.push({ motif: `bord non éclairé : la rainure (≥ ${P.rainureMin} mm) ne rentre pas ici`, boite: boiteMm(z, 4), info: true });
 
-    // 5. entretoises sur la matière pleine, CENTRÉES dans l'espace restant entre les rainures (règle atelier du 13/11/2026 :
-    //    ainsi elles sont invisibles dans le halo, et le placement est le même à chaque fois)
-    const r = P.diametre / 2;
-    const matiere = diff(I, G);                                             // matière pleine restante
-    const bordMat = jalons(matiere, 0.5);
-    // distance au bord de la matière (grille de recherche de 20 mm pour aller vite)
-    const casier = new Map(), C = 20 * E;
-    for (const q of bordMat) { const k = Math.floor(q.X / C) + ',' + Math.floor(q.Y / C); if (!casier.has(k)) casier.set(k, []); casier.get(k).push(q); }
-    const auBord = (pt) => {
-      const cx = Math.floor(pt.X / C), cy = Math.floor(pt.Y / C); let best = Infinity, bq = null;
-      for (let rr = 0; rr < 30 && (bq === null || (rr - 1) * C < best); rr++)
-        for (let i = cx - rr; i <= cx + rr; i++) for (let j = cy - rr; j <= cy + rr; j++) {
-          if (Math.max(Math.abs(i - cx), Math.abs(j - cy)) !== rr) continue;
-          for (const q of casier.get(i + ',' + j) || []) { const d = Math.hypot(q.X - pt.X, q.Y - pt.Y); if (d < best) { best = d; bq = q; } }
-        }
-      return { d: best, q: bq };
-    };
-    // centre : depuis un point, on s'éloigne pas à pas du bord le PLUS PROCHE (qui change en chemin, dans un angle par exemple),
-    // tant que la distance au bord augmente : on s'arrête au milieu de l'épaisseur de matière
-    const centrer = (pt) => {
-      let cur = pt, { d, q } = auBord(pt);
-      for (let k = 0; k < 2000 && q; k++) {
-        const L = Math.hypot(cur.X - q.X, cur.Y - q.Y) || 1, pas = 0.25 * E;
-        const c = { X: Math.round(cur.X + (cur.X - q.X) / L * pas), Y: Math.round(cur.Y + (cur.Y - q.Y) / L * pas) };
-        if (!dedans(c, matiere)) break;
-        const n = auBord(c);
-        if (n.d <= d + 0.02 * E || n.d > P.profondeurMax * E) break;
-        cur = c; d = n.d; q = n.q;
-      }
-      return cur;
-    };
-    const pas = Math.max(1.5, Math.min(5, Math.sqrt(Math.abs(aire(piece))) / 40));
-    const echantillons = grille(piece, Math.max(3, pas * 1.5)).concat(jalons(piece, 5));
-    const [bx0, by0, bx1, by1] = boite(piece), taille = Math.hypot(bx1 - bx0, by1 - by0) / E;
-    const minimum = taille < 60 ? 1 : 2;
-    const ecart = (taille < 3 * P.ecartMin ? P.diametre * 2 : P.ecartMin) * E;
-    const pos = [], modes = [];
-    const dMin = new Float64Array(echantillons.length).fill(Infinity);
-    const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
-    // départ : le point de la pièce le plus loin de son centre (une extrémité, un bout de jambage)
-    let cible = echantillons.reduce((m, q) => ((q.X - cx) ** 2 + (q.Y - cy) ** 2 > (m.X - cx) ** 2 + (m.Y - cy) ** 2 ? q : m), echantillons[0]);
-    const couvrir = (p) => { let pire = 0, ip2 = 0; for (let i = 0; i < echantillons.length; i++) { const q = echantillons[i], d = Math.hypot(q.X - p.X, q.Y - p.Y); if (d < dMin[i]) dMin[i] = d; if (dMin[i] > pire) { pire = dMin[i]; ip2 = i; } } cible = echantillons[ip2]; return pire; };
-    for (const p of pos) couvrir(p);
-    /** pose des entretoises parmi les candidats de `zone` jusqu'à couvrir la pièce (et au moins `minimum`) */
-    const exclus = [];
-    const placer = (zone, mode, maxi = 60) => {
-      if (aire(zone) < 0.05) return;
-      let candidats = grille(zone, pas);
-      if (candidats.length < 20) candidats = candidats.concat(jalons(zone, 1));
-      let pire = Infinity;
-      for (let garde = 0; garde < maxi; garde++) {
-        if (pos.length >= minimum && pire <= P.couverture * E) break;
-        let choix = null, dc = Infinity;
-        for (const c of candidats) {
-          if (pos.some((p) => Math.hypot(p.X - c.X, p.Y - c.Y) < ecart)) continue;
-          if (exclus.some((p) => Math.hypot(p.X - c.X, p.Y - c.Y) < P.diametre * 2 * E)) continue;
-          const d = (c.X - cible.X) ** 2 + (c.Y - cible.Y) ** 2;
-          if (d < dc) { dc = d; choix = c; }
-        }
-        if (!choix) break;
-        if (mode === "centre") { const c = centrer(choix); if (auBord(c).d >= (r + P.garde) * E && !pos.some((p) => Math.hypot(p.X - c.X, p.Y - c.Y) < ecart)) choix = c; }
-        pos.push(choix); modes.push(mode);
-        pire = couvrir(choix);
-      }
-    };
-    // (1) centrées dans la matière restante entre les rainures
-    placer(decale(diff(I, decale(G, P.garde)), -r), "centre");
-    // (2) lettre trop fine : EN BOUT de jambage, là où la rainure s'arrête (règle Jordan, 13/11/2026), sur la matière pleine
-    if (pos.length < minimum) placer(decale(diff(piece, decale(G, 1)), -(r + 1)), "bout");
-    // (3) toujours pas de place : en bout de jambage quand même, et la rainure s'arrête 1 mm avant l'entretoise
-    //     — seulement là où ça ÉCOURTE la rainure : une entretoise qui la couperait en deux (haut d'un n) est écartée
-    const zoneCoupe = decale(piece, -(r + 1)), cibleDepart = cible;
-    // rainure telle que la finalisation l'écourtera (toutes les entretoises « en bout » à la fois : deux coupes qui, chacune
-    // seule, n'écourtent qu'un bout pourraient ensemble couper la rainure en deux)
-    let Gc = G;
-    for (let essai = 0; pos.length < minimum && essai < 25; essai++) {
-      const avant = pos.length, sauve = Float64Array.from(dMin);
-      placer(zoneCoupe, "coupe", 1);
-      if (pos.length === avant) break;
-      const p = pos[pos.length - 1], cercle = [];
-      for (let a = 0; a < 48; a++) cercle.push({ X: Math.round(p.X + Math.cos(a * Math.PI / 24) * (r + 1) * E), Y: Math.round(p.Y + Math.sin(a * Math.PI / 24) * (r + 1) * E) });
-      const G2 = ouverture(diff(Gc, [cercle]), rayonOutil(P));
-      if (formes(G2).length > formes(Gc).length) { pos.pop(); modes.pop(); exclus.push(p); dMin.set(sauve); cible = cibleDepart; continue; }
-      Gc = G2;
-      // (à l'étape « Placer » de l'outil, la rainure reste ENTIÈRE : elle n'est écourtée qu'à la finalisation, une fois les
-      //  entretoises déplacées à la main là où l'atelier les veut)
-      if (!P.rainureEntiere) G = G2;
-    }
-    pos.forEach((p, k) => res.entretoises.push({ x: +(p.X / E).toFixed(3), y: +(p.Y / E).toFixed(3), repli: modes[k] !== "centre", mode: modes[k] }));
-    if (modes.includes("bout") || modes.includes("coupe")) res.doutes.push({ motif: "lettre fine : entretoise(s) en bout de jambage" + (modes.includes("coupe") ? ", rainure écourtée" : ""), boite: boiteMm(piece, 5), info: true });
+    // 5. entretoises (règles de Jordan du 17/11/2026, tirées de son replacement à la main sur Centre Services)
+    const { pos, modes, minimum } = placerEntretoises(piece, G, P);
+    pos.forEach((p, k) => res.entretoises.push({ x: +(p.X / E).toFixed(3), y: +(p.Y / E).toFixed(3), repli: modes[k] !== "bord", mode: modes[k] }));
+    if (modes.includes("trait")) res.doutes.push({ motif: "lettre fine : entretoises au milieu du trait (sur la rainure si besoin)", boite: boiteMm(piece, 5), info: true });
     if (pos.length < minimum) res.doutes.push({ motif: pos.length ? `${pos.length} entretoise(s) seulement (${minimum} au moins)` : "aucune place pour une entretoise", boite: boiteMm(piece, 5) });
     const nr = enregistrer();
     res.pieces.push({ boite: boiteMm(piece), entretoises: pos.length, rainures: nr, liaisons: liaisonsPiece.length });
@@ -606,4 +779,4 @@ export function calculerRetro(D, parametres = {}, surProgression?) {
 }
 
 /** pour le banc d'essai uniquement */
-export const _interne = { rainureAdaptative, piecesDe, decale, formes, aire, boite, diff, union, ouverture, E };
+export const _interne = { couperRainure, coupeLaRainure, distSegment, placerEntretoises, centreDe, rainureAdaptative, piecesDe, decale, formes, aire, boite, diff, union, ouverture, E };
