@@ -636,12 +636,12 @@ function placerEntretoises(piece, G, P) {
   for (const q of garde) {
     let sx = 0, sy = 0, n = 0;
     for (const v of garde) { const d = Math.hypot(v.X - q.X, v.Y - q.Y); if (d > 0 && d < R) { sx += v.X - q.X; sy += v.Y - q.Y; n++; } }
-    if (n < 3) continue;
+    if (n < 4) continue;
     const m = Math.hypot(sx / n, sy / n);
-    if (m > 0.35 * R) bouts.push({ q, avance: m });
+    if (m > 0.42 * R) bouts.push({ q, avance: m });
   }
   const tetes = [];
-  for (const b of bouts.sort((u, v) => v.avance - u.avance)) if (!tetes.some((t) => Math.hypot(t.X - b.q.X, t.Y - b.q.Y) < 8 * E)) tetes.push(b.q);
+  for (const b of bouts.sort((u, v) => v.avance - u.avance)) if (!tetes.some((t) => Math.hypot(t.X - b.q.X, t.Y - b.q.Y) < 20 * E)) tetes.push(b.q);
   if (P.debug) P.debug.push({ garde, tetes, centre });
   const [, py0, , py1] = boite(piece);
   const bas = (q) => q.Y > centre.Y + 0.1 * (py1 - py0);
@@ -676,7 +676,7 @@ function placerEntretoises(piece, G, P) {
     ];
     const cands = tetes.concat(ext).filter((q) => !proche(q, pos, 15));
     const qualite = (q) => {
-      if (pos.length === 1) return -P.equilibre * distSegment(centre, pos[0], q) + 0.3 * Math.hypot(q.X - pos[0].X, q.Y - pos[0].Y);
+      if (pos.length === 1) return Math.hypot(q.X - pos[0].X, q.Y - pos[0].Y) - distSegment(centre, pos[0], q);
       // deux pieds : le triangle formé doit contenir le centre de la lettre, le plus grand possible
       const [a, b] = pos, aireT = Math.abs((b.X - a.X) * (q.Y - a.Y) - (q.X - a.X) * (b.Y - a.Y)) / 2;
       const s1 = Math.sign((b.X - a.X) * (centre.Y - a.Y) - (centre.X - a.X) * (b.Y - a.Y));
