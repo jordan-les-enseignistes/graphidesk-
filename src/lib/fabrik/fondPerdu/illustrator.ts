@@ -12,7 +12,7 @@ const TOLERANCE = 0.02;        // mm : écart maximal entre la courbe et ses seg
 const E = 1000;                // unités Clipper par mm
 
 /** Aplatit un sous-chemin Illustrator [[ax,ay, lx,ly, rx,ry], …] en polyligne (mm, y vers le bas). */
-function aplatir(sc) {
+export function aplatir(sc) {
   const p = sc.p, n = p.length, pts = [];
   if (!n) return pts;
   const X = v => v * PT, Y = v => -v * PT;

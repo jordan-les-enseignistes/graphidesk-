@@ -67,6 +67,17 @@ export function IconLettresRelief({ className }: IconProps) {
   );
 }
 
+/** Lettre rétroéclairée sur entretoises : lettre et halo de lumière derrière */
+export function IconLettresRetro({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M7 19L12 6l5 13" />
+      <path d="M9 14.4h6" />
+      <path d="M3 9l1.8 1M21 9l-1.8 1M4 4.5l1.6 1.5M20 4.5l-1.6 1.5" opacity="0.6" />
+    </Svg>
+  );
+}
+
 /** Néon flex : tube en "n" avec rayons de lueur */
 export function IconNeonFlex({ className }: IconProps) {
   return (

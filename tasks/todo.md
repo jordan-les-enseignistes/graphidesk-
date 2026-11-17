@@ -807,3 +807,39 @@ deux pièces proches se partagent l'espace par moitié ; on n'ajoute QUE des cor
 - [ ] Règle à trancher par Jordan : pièce blanche à 5–10 mm d'une couleur (Destia, femme/maison) → moitié/moitié (actuel) ou laisser les 5 mm ?
 - [ ] Dégradé : hors V1 (accord Jordan) — un dégradé garde sa zone, n'a pas de correctif, et un doute est signalé s'il en faudrait un
 - [ ] Si validé : bump de version (3 fichiers), message de commit à faire valider, Kit du graphiste si un script/gabarit change
+
+
+## Lettres rétroéclairées sur entretoises — process V2 « rainure LED » (demande de Léa, 12/11/2026)
+Nouvel outil FabRik « Lettre rétroéclairée sur entretoises », À CÔTÉ de « Lettres Relief » (inchangé).
+Règles (Jordan, 13/11) : rainure en BORD de lettre (bordure 6 mm, 10 mm de large, jamais < 6 mm, sinon calque « A verifier ») ;
+liaison automatique contour ↔ intérieurs (O, A…) ; pas de passage entre lettres ; couleurs pour nous seulement : rose = découpe,
+vert = rainure, bleu = entretoises (la profondeur est réglée par l'opérateur) ; entretoises CENTRÉES dans la matière restante
+entre les rainures (invisibles), jamais dans le vide ; PDP = fichier à part, vue de face, noir et blanc, `PDP_PAPIER_<CLIENT>_N<n>`, généré par l'outil.
+- [x] Copies de test : `Y:\JORDAN\TEST\LETTRES_RETRO\source\` (Maison Peppino N1/N2, YesAgain cœur/coche, Centre Services Quimper N2/N3)
+- [x] Moteur `src/lib/fabrik/retro/moteur.ts` (clipper-lib, hors Illustrator) + banc `Y:\JORDAN\TEST\LETTRES_RETRO\banc\` (extraire.py, banc.mjs, rendu.py)
+      Peppino N1 : 14 pièces, 7 liaisons, 58 entretoises, 0 doute, 0,8 s. Cœur YesAgain : 0 doute.
+- [x] Contrainte (Jordan, 13/11) : UN fichier = UN process. Jamais d'entretoises encastrées (ancien process) mélangées à des
+      entretoises posées sur la matière pleine : elles ne seraient pas à la même hauteur. → pas de repli « évidement complet » par
+      lettre ; le moteur pose TOUTES les entretoises sur la matière pleine (jamais sur la rainure : en bout de jambage, la rainure
+      s'arrête 1 mm avant l'entretoise).
+- [ ] Petites lettres (Quimper, jambage ~25 mm) : 6 + 10 + 10 + 6 > 25 → la rainure prend tout le milieu, plus de place pour l'entretoise,
+      bouts fins non éclairés → RÈGLE À DEMANDER À LÉA
+- [ ] Ornements (rameau Peppino N2) : tiges trop fines, rainures non reliées → signalé « A verifier » (normal ?)
+- [x] v1.18.0 (17/11, BÊTA, pour tester en direct avec Léa) : carte « Lettres rétroéclairées » (badge Bêta), réglages modifiables
+      (bordure, rainure, rainure mini, Ø, couverture, garde + avancés), alerte « hors standard » si bordure ≠ 6 ou rainure hors 6–10,
+      réglages mémorisés par poste. Script `retro_entretoises.jsx`, même dialogue par fichiers que les fonds perdus.
+      1. Placer : découpe (sélection > calque DECOUPE > tout) en rose, rainure ENTIÈRE en vert, entretoises en cercles bleus LIBRES
+         (Jordan : « s'il me pathfinde mes entretoises je ne pourrai plus les déplacer »).
+      2. Finaliser : relit les entretoises déplacées ; rainure écourtée 1 mm avant une entretoise qui la touche ; bloquants seulement
+         (hors lettre, coupe la rainure en deux, pièce sans entretoise) ; PDP à partir des entretoises DU FICHIER retouché
+         (noir, croix de perçage, option miroir, enregistré en PDF à côté). Rainure entière gardée sur un calque caché → re-finalisable.
+      Preuves hors ligne : banc deux_etapes.mjs (6 fichiers, mêmes résultats qu'avant) + protocole_retro.mjs (dialogue complet).
+      PAS testé dans Illustrator (règle : c'est Jordan qui teste).
+- [x] Rainure ADAPTATIVE (idée de Jordan, 17/11) : deux bandes de 10 mm en bord là où il y a la place pour deux rainures + une
+      entretoise ; sinon UNE rainure centrée, largeur = place entre bordures (≤ 10), qui s'affine jusqu'à 1 mm (câble) ; trait plus
+      fin que 2 × bordure + 1 : la rainure continue au milieu en réduisant la bordure jusqu'à 2 mm (barre du e, épaule du n),
+      raccordée par ses deux bouts ; zones < 6 mm surlignées en jaune (calque non imprimable). Lissage (fermeture + ouverture 1,5 mm).
+      Mesures Quimper N2 : barre du t 14,0 mm, barre du e 11,4, bas du e 15,6, haut du e 14,2, bras du r 17,8 → avec bordure 6,
+      rainure de 2 à 6 mm : les lettres sont réellement fines. Exemples vectoriels : Y:\JORDAN\TEST\LETTRES_RETRO\exemples\adaptatif\
+      Guide des fraises (atelier) : gravure PVC 19 = fraise 6 ou 10 → rainure < 6 mm = fraise plus fine, À VALIDER avec Léa.
+- [ ] Test réel par Jordan (réunion Léa 17/11 15h) → retours

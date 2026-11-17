@@ -18,6 +18,7 @@ import {
   IconCaisson,
   IconLettresBoitiers,
   IconLettresRelief,
+  IconLettresRetro,
   IconBache,
   IconNeonFlex,
 } from "@/components/fabrik/FabIcons";
@@ -30,6 +31,8 @@ import { AdhesifForm, type AdhesifParams } from "@/components/fabrik/AdhesifForm
 import { lancerAdhesifAvecFondsPerdus } from "@/lib/fabrik/fondPerdu/orchestration";
 import { LettresBoitiersForm } from "@/components/fabrik/LettresBoitiersForm";
 import { LettresReliefForm } from "@/components/fabrik/LettresReliefForm";
+import { RetroEntretoisesForm, horsStandard, type ReglagesRetro, type PdpRetro } from "@/components/fabrik/RetroEntretoisesForm";
+import { lancerRetro } from "@/lib/fabrik/retro/orchestration";
 import {
   OeilletsBacheForm,
   type OeilletsParams,
@@ -60,6 +63,8 @@ interface FabTool {
   label: string;
   desc: string;
   activeCls: string;
+  /** outil en test : badge « Bêta » */
+  beta?: boolean;
 }
 const FAB_CATEGORIES: Array<{ nom: string; tools: FabTool[] }> = [
   {
@@ -101,6 +106,15 @@ const FAB_CATEGORIES: Array<{ nom: string; tools: FabTool[] }> = [
         label: "Lettres Relief",
         desc: "PVC rétroéclairé sur entretoises",
         activeCls: "border-orange-500 bg-orange-50 dark:bg-orange-900/30",
+      },
+      {
+        id: "lettres-retro",
+        icon: IconLettresRetro,
+        color: "text-violet-500",
+        label: "Lettres rétroéclairées",
+        desc: "Lettre rétroéclairée sur entretoises — rainure LED (V2, Bêta)",
+        activeCls: "border-violet-500 bg-violet-50 dark:bg-violet-900/30",
+        beta: true,
       },
       {
         id: "neon",
@@ -251,6 +265,26 @@ export default function FabRik() {
     runScript("entretoises_automation.jsx", params);
   };
 
+  // Lettre rétroéclairée sur entretoises (Bêta) : un seul lancement Illustrator par étape, calcul ici
+  const handleRetro = async (etape: "placer" | "finaliser", reglages: ReglagesRetro, pdp: PdpRetro) => {
+    setIsProcessing(true);
+    const suivi = toast.loading("Lettres rétroéclairées : lancement dans Illustrator…");
+    try {
+      const bilan = await lancerRetro(illustratorPath, etape, reglages, { ...pdp, horsStandard: horsStandard(reglages) }, (libelle) =>
+        toast.loading(libelle, { id: suivi })
+      );
+      if (bilan.annule) toast.info("Annulé dans Illustrator — rien n'a été modifié.", { id: suivi, duration: 6000 });
+      else if (!bilan.ok) toast.error(bilan.erreur || "Échec dans Illustrator", { id: suivi, duration: 10000 });
+      else if (bilan.doutes) toast.warning(`${bilan.entretoises} entretoise(s) — ${bilan.doutes} point(s) bloquant(s) cerclé(s) en rouge${etape === "finaliser" ? ", PDP non généré" : ""}`, { id: suivi, duration: 10000 });
+      else if (etape === "placer") toast.success(`${bilan.entretoises} entretoise(s) placée(s) sur ${bilan.pieces} pièce(s) — retouche si besoin, puis « Finaliser »`, { id: suivi, duration: 8000 });
+      else toast.success(`Fichier finalisé — PDP : ${bilan.pdp || "créé"}`, { id: suivi, duration: 10000 });
+    } catch (error) {
+      toast.error(String(error instanceof Error ? error.message : error), { id: suivi, duration: 10000 });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleBacheCreation = (params: BacheCreationParams) => {
     runScript("bache_creation.jsx", params);
   };
@@ -385,6 +419,11 @@ export default function FabRik() {
                       {!navCollapsed && (
                         <span className="truncate dark:text-slate-200">{tool.label}</span>
                       )}
+                      {!navCollapsed && tool.beta && (
+                        <span className="ml-auto shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                          Bêta
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -489,6 +528,10 @@ export default function FabRik() {
               onGenerate={handleLettresReliefGenerate}
               isProcessing={isProcessing}
             />
+          )}
+
+          {fabType === "lettres-retro" && (
+            <RetroEntretoisesForm onLancer={handleRetro} isProcessing={isProcessing} />
           )}
 
           {fabType === "neon" && (

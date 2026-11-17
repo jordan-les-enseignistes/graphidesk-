@@ -187,3 +187,9 @@ Règle : pour du code contenant des échappements, utiliser l'outil Edit, ou un 
 - Un script qui attend l'application, fenêtre figée : signe de vie immédiat, battement chaque seconde, abandon en 30 s, calcul borné — jamais 2 minutes.
 - Lire les horodatages des fichiers d'échange AVANT toute hypothèse : ils ont donné la cause en une commande.
 - Serveur de dev ouvert pour un test de Jordan = sources gelées : chaque modification recharge sa page (4 rechargements pendant que je retouchais le moteur).
+- Shell de cet environnement : dans un heredoc, `\` devient `\` AVANT d'arriver à Python → un `'\u2022'` écrit pour garder l'échappement a été
+  décodé en « • » et un `'\n'` en vrai retour à la ligne, cassant le .jsx (chaîne coupée) et le sortant de l'ASCII (ExtendScript lit le script sans
+  BOM). Règle : toute retouche contenant une barre oblique inverse passe par un script écrit avec l'outil Write ; après retouche d'un .jsx, contrôle ES3
+  ET `grep -c` de caractères non ASCII.
+- Rendu d'essai ≠ géométrie : une image PIL sans anticrénelage montre des marches que le tracé n'a pas. Pour juger « est-ce lisse ? », montrer un PDF
+  vectoriel (vers_pdf.py) ou un rendu de ce PDF, jamais seulement le PNG du banc.
