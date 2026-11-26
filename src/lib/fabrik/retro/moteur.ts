@@ -47,7 +47,7 @@ export const PARAMETRES_RETRO = {
   bordureCable: 3,     // mm de matière gardés entre un passage de câble et le trait de découpe
   arc: 0.05,           // mm, précision des arrondis
   adaptative: true,    // rainure ADAPTATIVE (Jordan, 17/11/2026) : sa largeur suit la place disponible entre les bordures
-  rainureCable: 1,     // mm : en adaptatif, la rainure se rétrécit jusqu'à cette largeur (passage de câble) ; en dessous, rien
+  rainureCable: 3,     // mm : en adaptatif, la rainure se rétrécit jusqu'à cette largeur (passage de câble) — fraise de 3 mm minimum (Jordan, 26/11/2026) ; en dessous, rien
   pasAdaptatif: 0.1,   // mm, finesse du calcul de la largeur adaptative
   lissage: 1.5,        // mm, rayon du lissage de la rainure adaptative
   deltaMediane: 0.25,  // mm : demi-largeur de la bande qui sert à relever la ligne médiane des traits
@@ -56,6 +56,8 @@ export const PARAMETRES_RETRO = {
   bordureMin: 2,       // mm : sur un trait trop fin, la rainure continue au milieu en réduisant la bordure jusqu'à cette valeur
   raccordMax: 25,      // mm : distance maximale pour raccorder un prolongement à la rainure
   longueurFil: 12,     // mm : longueur minimale d'un tel prolongement (en dessous : simple pointe d'angle, ignorée)
+  lissageAxe: 6,       // mm : la largeur de la rainure des traits est la plus petite des alentours le long de l'axe (pas de bulbe aux croisements)
+  squelette: true,     // rainure des traits = un seul tracé le long de l'axe, largeur suivant l'épaisseur (ORA, 26/11/2026)
 };
 
 // ---------- briques Clipper ----------
@@ -287,15 +289,162 @@ export function finaliserRetro(D, parametres = {}) {
  * `pasAdaptatif` mm : S(e) = points à ≥ e du bord de I, O(r) = points couverts par un cercle de rayon r contenu dans I ;
  * rainure centrée = ∪ S(e) ∖ O(e + rainureMax/2).
  */
+/** point le plus proche de `pt` sur les bords de `paths` */
+function plusProche(pt, paths) {
+  let best = null, bd = Infinity;
+  for (const r of paths) for (let i = 0; i < r.length; i++) {
+    const a = r[i], b = r[(i + 1) % r.length], vx = b.X - a.X, vy = b.Y - a.Y, L2 = vx * vx + vy * vy;
+    const t = L2 ? Math.max(0, Math.min(1, ((pt.X - a.X) * vx + (pt.Y - a.Y) * vy) / L2)) : 0;
+    const x = a.X + t * vx, y = a.Y + t * vy, d = (x - pt.X) ** 2 + (y - pt.Y) ** 2;
+    if (d < bd) { bd = d; best = { X: x, Y: y }; }
+  }
+  return best;
+}
+
+/**
+ * Rainure des traits (hors parties larges) : UN SEUL tracé continu le long de l'axe de chaque trait (la « crête »), dont la
+ * demi-largeur suit l'épaisseur locale h du trait (demi-épaisseur, distance de l'axe au bord) :
+ *   h ≥ bordure + rainureMax/2       → rainure pleine (rainureMax), centrée ;
+ *   bordure + rainureCable/2 ≤ h < … → toute la place entre les deux bordures (plus étroite que rainureMin : surlignée en jaune) ;
+ *   bordureMin + rainureCable/2 ≤ h → passage de câble (rainureCable), bordure réduite jusqu'à bordureMin ;
+ *   en dessous (ou dans une partie large, qui a ses deux bandes) → rien.
+ * La largeur varie donc continûment le long du trait : ni cran, ni flèche, ni bout de « fil » isolé à raccorder par des lignes
+ * droites (ORA, Léa 26/11/2026 : « ça fait n'importe quoi à des endroits »). Le tracé de découpe n'est jamais modifié.
+ */
+function rainureSquelette(piece, P, contour = []) {
+  const demi = P.rainureMax / 2, dc = Math.max(P.rainureCable, P.fraise) / 2, plein = P.bordure + demi + 0.5;
+  // seules les parties FINES ont besoin de l'axe (ailleurs : décalage du contour) — plus une marge pour s'y raccorder
+  const assez = ouverture(piece, plein), fines = diff(piece, assez);
+  if (!fines.length) return [];
+  const masque = decale(fines, 4);
+  const sq = crete(piece, 0.5, P.brancheMin, masque);
+  if (!sq.length) return [];
+  const dB = distanceAuBord(piece, 0.25);
+  const rayon = (h) => (h >= plein ? 0                                       // assez de place : décalage du contour
+    : h >= P.bordure + demi ? demi
+    : h >= P.bordure + dc ? h - P.bordure
+    : h >= P.bordureMin + dc ? dc : 0);                                        // passage fin : fraise de 3 mm au moins
+  const pas = 0.5 * E, cle = (i, j) => i + "," + j;
+  const N8 = [[1, 0], [0, 1], [1, 1], [1, -1], [-1, 0], [0, -1], [-1, -1], [-1, 1]];
+  const brut = new Map();
+  for (const q of sq) { const h = dB(q.X, q.Y) / E; brut.set(cle(Math.round(q.X / pas), Math.round(q.Y / pas)), { q, h, r: rayon(h) }); }
+  // Culs-de-sac (Jordan, 26/11/2026 : « s'il n'y a rien derrière à aller récupérer, ça ne sert à rien de creuser ») : un bout de
+  // trait fin qui ne mène à aucune autre rainure (pointe d'empattement, queue du R, pointes du A) n'est pas creusé. On ronge
+  // l'axe fin depuis ses bouts tant qu'il ne touche pas une partie pleine (décalage du contour) : seuls restent les passages
+  // qui RELIENT deux parties de la rainure (et les boucles). Une lettre entièrement fine garde tout son axe (sinon rien
+  // ne l'éclairerait).
+  const fin = new Set([...brut].filter(([, a]) => a.r > 0).map(([k]) => k));
+  // ancre = point de l'axe dans (ou au ras de) une partie pleine : là commence la rainure du contour
+  const prochePlein = decale(assez, 0.5);
+  const ancre = new Set([...fin].filter((k) => dedans(brut.get(k).q, prochePlein)));
+  const voisins = (k) => { const [i, j] = k.split(",").map(Number); return N8.map(([di, dj]) => cle(i + di, j + dj)).filter((kk) => fin.has(kk)); };
+  // un point est un BOUT si l'enlever ne coupe pas l'axe : ses voisins restent reliés entre eux (marches d'escalier comprises)
+  const bout = (k) => {
+    const v = voisins(k);
+    if (v.length <= 1) return true;
+    const pos = v.map((kk) => kk.split(",").map(Number)), vus = [0];
+    for (let n = 0; n < vus.length; n++) for (let m = 0; m < pos.length; m++)
+      if (!vus.includes(m) && Math.abs(pos[m][0] - pos[vus[n]][0]) <= 1 && Math.abs(pos[m][1] - pos[vus[n]][1]) <= 1) vus.push(m);
+    return vus.length === v.length;
+  };
+  if (ancre.size) {
+    for (let change = true; change;) {
+      change = false;
+      for (const k of [...fin]) if (!ancre.has(k) && bout(k)) { fin.delete(k); change = true; }
+    }
+    // un morceau d'axe resté entièrement dans la partie pleine (base d'un cul-de-sac rongé) : rien à relier, on l'enlève
+    const vus = new Set();
+    for (const k0 of fin) {
+      if (vus.has(k0)) continue;
+      const comp = [k0]; vus.add(k0);
+      for (let n = 0; n < comp.length; n++) for (const kk of voisins(comp[n])) if (!vus.has(kk)) { vus.add(kk); comp.push(kk); }
+      if (comp.every((k) => ancre.has(k))) for (const k of comp) fin.delete(k);
+    }
+  }
+  // aux croisements, le cercle inscrit est plus grand que l'épaisseur des traits : la largeur retenue est la MÉDIANE des
+  // alentours le long de l'axe (`lissageAxe` mm) — pas de « bulbe », la largeur ne varie qu'en douceur
+  const R = Math.round(P.lissageAxe / 0.5), points = new Map();
+  for (const k of fin) {
+    const a = brut.get(k), [i0, j0] = k.split(",").map(Number);
+    const vus = new Set([k]), file = [[i0, j0, 0]], valeurs = [a.r];
+    for (let n = 0; n < file.length; n++) {
+      const [i, j, d] = file[n];
+      if (d >= R) continue;
+      for (const [di, dj] of N8) {
+        const kk = cle(i + di, j + dj);
+        if (vus.has(kk) || !fin.has(kk)) continue;
+        vus.add(kk); file.push([i + di, j + dj, d + 1]); valeurs.push(brut.get(kk).r);
+      }
+    }
+    valeurs.sort((x, y) => x - y);
+    points.set(k, { q: a.q, r: Math.max(dc, Math.min(a.r, valeurs[Math.floor(valeurs.length / 2)])) });
+  }
+  // segments entre points voisins de l'axe, regroupés par rayon (au 1/20 de mm) : un seul décalage par groupe
+  const groupes = new Map(), ajouter = (r, seg) => { const k = Math.max(1, Math.round(r / 0.05)); if (!groupes.has(k)) groupes.set(k, []); groupes.get(k).push(seg); };
+  for (const [k, a] of points) {
+    const [i, j] = k.split(",").map(Number);
+    for (const [di, dj] of N8) {
+      const b = points.get(cle(i + di, j + dj));
+      if (b && (di > 0 || (di === 0 && dj > 0))) ajouter(Math.min(a.r, b.r), [a.q, b.q]);
+    }
+  }
+  // raccord (ORA, Jordan 26/11/2026 : « le raccord ne se fait pas jusqu'au bout ») : l'axe s'arrête à l'entrée de la partie
+  // pleine, parfois 1 à 2 mm avant sa rainure. Chaque bout ancré est prolongé DANS LE SENS DU TRAIT jusqu'à entrer franchement
+  // (2 mm) dans cette rainure, avec la même largeur ; à défaut, vers son point le plus proche.
+  if (contour.length) for (const k of fin) {
+    if (!ancre.has(k) || !bout(k) || !points.has(k)) continue;
+    const a = points.get(k);
+    if (dedans(a.q, contour)) continue;
+    // direction du trait : depuis le point de l'axe situé ~4 mm en arrière
+    const vus = new Set([k]), file = [k];
+    for (let n = 0; n < file.length && file.length < 9; n++) for (const kk of voisins(file[n])) if (!vus.has(kk)) { vus.add(kk); file.push(kk); }
+    const arr = points.get(file[file.length - 1]) || a;
+    let dx = a.q.X - arr.q.X, dy = a.q.Y - arr.q.Y, L = Math.hypot(dx, dy), fin2 = null;
+    if (L > 0) {
+      dx /= L; dy /= L;
+      for (let t = 0.5; t <= 12; t += 0.5) {
+        const q = { X: Math.round(a.q.X + dx * t * E), Y: Math.round(a.q.Y + dy * t * E) };
+        if (dedans(q, contour)) { fin2 = { X: Math.round(q.X + dx * 2 * E), Y: Math.round(q.Y + dy * 2 * E) }; break; }
+      }
+    }
+    if (!fin2) {
+      const c = plusProche(a.q, contour), d = c ? Math.hypot(c.X - a.q.X, c.Y - a.q.Y) : 0;
+      if (!c || d > 10 * E || d < 1) continue;
+      fin2 = { X: Math.round(c.X + (c.X - a.q.X) / d * 2 * E), Y: Math.round(c.Y + (c.Y - a.q.Y) / d * 2 * E) };
+    }
+    ajouter(a.r, [a.q, fin2]);
+  }
+  let G = [];
+  for (const [k, segs] of groupes) G = G.concat(decale(segs, k * 0.05, CL.EndType.etOpenRound));
+  return inter(union(G), decale(piece, -P.bordureMin));
+}
+
 function rainureAdaptative(I, P, piece) {
-  if (!I.length) return [];
+  if (!I.length && !(P.squelette && piece)) return [];
   const demi = P.rainureMax / 2, H = P.rainureMax + P.diametre / 2 + P.garde, pas = P.pasAdaptatif;
   const S = new Map(), cle = (e) => Math.round(e / pas);
   const niveau = (e) => { const k = cle(e); if (!S.has(k)) S.set(k, k === 0 ? I : decale(I, -k * pas)); return S.get(k); };
   const O = (r) => { const s = niveau(r); return s.length ? decale(s, r) : []; };
-  // parties larges : deux bandes le long des bords
-  const large = O(H);
+  // parties larges : deux bandes le long des bords. Un simple croisement de deux traits (le cercle inscrit y est plus grand,
+  // mais sur une petite zone) n'est PAS une partie large : seule une vraie surface (≥ 3 cercles de rayon H) en est une
+  // (sinon la rainure des traits s'y coupait — O et A de ORA, 26/11/2026).
+  const aireI = I.length ? aire(I) : 0;
+  const large = I.length ? (P.squelette ? formes(O(H)).filter((f) => aire(f) >= 3 * Math.PI * H * H || aire(f) >= 0.5 * aireI).flat() : O(H)) : [];
   const bandes = large.length ? inter(large, diff(I, niveau(P.rainureMax))) : [];
+  if (P.squelette && piece) {
+    // Là où le trait a la place (≥ 2 × (bordure + rainureMax/2)) : la rainure est le DÉCALAGE DU CONTOUR (de `bordure` à
+    // bordure + rainureMax du bord) — deux bandes le long des bords d'un trait épais, qui se rejoignent en « Y » quand il
+    // s'affine. Plus fin : une seule rainure le long de l'axe, de la largeur disponible (voir rainureSquelette). Les deux se
+    // raccordent sans cran : à la limite, la bande fait exactement rainureMax, centrée.
+    const assez = ouverture(piece, P.bordure + demi);
+    const contour = assez.length && I.length ? inter(diff(I, niveau(P.rainureMax)), assez) : [];
+    let G = union(contour.concat(rainureSquelette(piece, P, contour)));
+    // petite pièce ramassée (point d'un i, pastille) : ni partie large, ni axe (il se réduit à un point) → la rainure du
+    // contour, comme avant (Quimper, 26/11/2026)
+    if (!G.length && I.length) G = diff(I, niveau(P.rainureMax));
+    G = lisser(G, decale(piece, -P.bordureMin), P);
+    return G;
+  }
   // parties étroites : une rainure CENTRÉE. On relève la ligne médiane du trait (points au milieu de l'épaisseur : à au
   // moins h − δ du bord, h = demi-épaisseur locale), puis la rainure = cette ligne élargie de rainureMax/2 de chaque côté,
   // rognée par la bordure. Ses bords sont donc des parallèles à la ligne médiane, ou le décalage du contour de la lettre là
@@ -495,13 +644,15 @@ function distanceAuBord(paths, pas) {
  * « Crête » d'une zone : points d'une grille de `pas` mm plus loin du bord que leurs deux voisins dans au moins une
  * direction — c'est l'axe des traits, continu aux jonctions (bas d'un v).
  */
-function crete(paths, pas, brancheMin = 8) {
+function crete(paths, pas, brancheMin = 8, masque = null) {
   const dB = distanceAuBord(paths, Math.min(0.5, pas / 2)), s0 = pas * E, [x0, y0, x1, y1] = boite(paths);
   const nx = Math.ceil((x1 - x0) / s0) + 3, ny = Math.ceil((y1 - y0) / s0) + 3, ox = x0 - s0, oy = y0 - s0;
   const dist = new Float64Array(nx * ny).fill(-1);
+  // masque (facultatif) : seules ces cases sont évaluées (tramées en une passe, au lieu d'un test point par point)
+  const dansMasque = masque ? tramer(inter(paths, masque), ox - s0 / 2, oy - s0 / 2, s0, nx, ny) : null;
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const x = ox + i * s0, y = oy + j * s0;
-    if (dedans({ X: x, Y: y }, paths)) dist[j * nx + i] = dB(x, y);
+    if (dansMasque ? dansMasque[j * nx + i] : dedans({ X: x, Y: y }, paths)) dist[j * nx + i] = dB(x, y);
   }
   const out = [], garde = new Uint8Array(nx * ny);
   for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
@@ -883,4 +1034,4 @@ export function calculerRetro(D, parametres = {}, surProgression?) {
 }
 
 /** pour le banc d'essai uniquement */
-export const _interne = { anglesDe, crete, couperRainure, coupeLaRainure, distSegment, placerEntretoises, centreDe, rainureAdaptative, piecesDe, decale, formes, aire, boite, diff, union, ouverture, E };
+export const _interne = { rainureSquelette, distanceAuBord, anglesDe, crete, couperRainure, coupeLaRainure, distSegment, placerEntretoises, centreDe, rainureAdaptative, piecesDe, decale, formes, aire, boite, diff, union, ouverture, E };
